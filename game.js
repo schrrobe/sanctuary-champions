@@ -803,8 +803,8 @@ const setText = (node, s) => { if (node.innerHTML !== s) node.innerHTML = s; };
 
 function hud() {
   const p = G.player;
-  el.lifeLiq.style.height = clamp(p.hp / S.maxhp, 0, 1) * 100 + '%';
-  el.manaLiq.style.height = clamp(p.mp / S.maxmp, 0, 1) * 100 + '%';
+  el.lifeLiq.style.transform = `scaleY(${clamp(p.hp / S.maxhp, 0, 1)})`;
+  el.manaLiq.style.transform = `scaleY(${clamp(p.mp / S.maxmp, 0, 1)})`;
   setText(el.lifeTxt, `${Math.max(0, Math.round(p.hp))}/${Math.round(S.maxhp)}`);
   setText(el.manaTxt, `${Math.round(p.mp)}/${Math.round(S.maxmp)}`);
   el.xp.style.width = P.xp / xpNext(P.lvl) * 100 + '%';

@@ -55,7 +55,7 @@
   @keyframes fade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
   #bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: center; gap: 14px; padding: 0 12px 10px; }
   .orb { position: relative; width: 112px; height: 112px; border-radius: 50%; overflow: hidden; border: 3px solid #3a2e1e; background: #0a0505; box-shadow: 0 0 0 2px #000, inset 0 0 20px #000; flex: none; }
-  .orb .liq { position: absolute; left: 0; right: 0; bottom: 0; transition: height .15s; }
+  .orb .liq { position: absolute; inset: 0; transform-origin: bottom; transition: transform .15s; }
   .life .liq { background: radial-gradient(circle at 40% 30%, #ff5a4a, #8a0a0a 60%, #3a0000); }
   .mana .liq { background: radial-gradient(circle at 40% 30%, #6a8aff, #10208a 60%, #000a3a); }
   .orb span { position: absolute; inset: 0; display: grid; place-items: center; font: 700 14px "Crimson Text", serif; text-shadow: 0 1px 2px #000; }
