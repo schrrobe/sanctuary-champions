@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctuary & Norrath</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Crimson+Text:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --gold: #c8a060; --bg: #0c0a08; --panel: rgba(14, 11, 8, .97); --line: #4a3b26; --text: #ddd3bd; --dim: #8a806e; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color: var(--text); font: 16px/1.4 "Crimson Text", Georgia, serif; user-select: none; }
+  canvas { display: block; cursor: crosshair; }
+  [hidden] { display: none !important; }
+  h1, h2, h3, button { font-family: Cinzel, serif; }
+  button { background: linear-gradient(#2a2117, #17120c); color: var(--text); border: 1px solid var(--line); padding: 6px 12px; cursor: pointer; font-size: 13px; }
+  button:hover:not(:disabled) { border-color: var(--gold); color: #fff; }
+  button:disabled { opacity: .4; cursor: default; }
+  input { background: #000; color: var(--text); border: 1px solid var(--line); padding: 8px 10px; font: inherit; }
+  .gold { color: #e8c860; }
+  .hint { color: var(--dim); font-size: 14px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+
+  /* Hauptmenü */
+  #select { position: fixed; inset: 0; overflow: auto; padding: 32px 16px 60px; text-align: center;
+    background: radial-gradient(ellipse at 50% 0%, #3a1408 0%, #120806 45%, #000 100%); }
+  #select h1 { font-size: clamp(32px, 6vw, 64px); margin: 0; color: var(--gold); letter-spacing: 3px; text-shadow: 0 0 24px #a02010; }
+  #select h1 span { color: #b03020; }
+  #select .sub { color: var(--dim); margin-top: 4px; }
+  #select h2 { color: var(--gold); margin-top: 28px; }
+  #select h3 { color: #b8a888; font-weight: 500; margin: 18px 0 8px; }
+  #select .row { justify-content: center; }
+  .classes { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; max-width: 1100px; margin: 0 auto; }
+  .cls { text-align: left; padding: 12px; border-left: 4px solid var(--c); display: flex; flex-direction: column; gap: 4px; font-family: "Crimson Text", serif; }
+  .cls b { font-family: Cinzel, serif; color: var(--c); font-size: 15px; }
+  .cls small { color: var(--dim); font-size: 13px; }
+  .cls.on { border-color: var(--c); outline: 1px solid var(--c); background: #2a2014; }
+  .big { font-size: 16px; padding: 10px 22px; border-color: var(--gold); }
+  #select .hint { max-width: 760px; margin: 18px auto; }
+
+  /* HUD */
+  #hud { position: fixed; inset: 0; pointer-events: none; }
+  #info { position: absolute; left: 14px; top: 12px; font-size: 15px; text-shadow: 0 1px 2px #000; }
+  #info b { color: var(--gold); font-family: Cinzel, serif; }
+  .buffs { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+  .buffs b { font: 13px "Crimson Text", serif; color: #b8d8ff; }
+  #target { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); text-align: center; min-width: 260px; }
+  #target b { font-family: Cinzel, serif; text-shadow: 0 1px 3px #000; }
+  #target div { height: 8px; background: #200; border: 1px solid #500; margin-top: 3px; }
+  #target i { display: block; height: 100%; background: linear-gradient(#e03030, #801010); }
+  #msg, #note { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; opacity: 0; text-shadow: 0 2px 4px #000; white-space: nowrap; }
+  #msg { top: 22%; font: 700 24px Cinzel, serif; }
+  #note { bottom: 160px; font-size: 17px; color: #e8d8b0; }
+  .show { animation: fade 3s forwards; }
+  @keyframes fade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+  #bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: center; gap: 14px; padding: 0 12px 10px; }
+  .orb { position: relative; width: 112px; height: 112px; border-radius: 50%; overflow: hidden; border: 3px solid #3a2e1e; background: #0a0505; box-shadow: 0 0 0 2px #000, inset 0 0 20px #000; flex: none; }
+  .orb .liq { position: absolute; left: 0; right: 0; bottom: 0; transition: height .15s; }
+  .life .liq { background: radial-gradient(circle at 40% 30%, #ff5a4a, #8a0a0a 60%, #3a0000); }
+  .mana .liq { background: radial-gradient(circle at 40% 30%, #6a8aff, #10208a 60%, #000a3a); }
+  .orb span { position: absolute; inset: 0; display: grid; place-items: center; font: 700 14px "Crimson Text", serif; text-shadow: 0 1px 2px #000; }
+  #center { flex: 0 1 620px; min-width: 0; }
+  #xp { height: 6px; background: #111; border: 1px solid #3a2e1e; margin-bottom: 6px; }
+  #xp i { display: block; height: 100%; background: linear-gradient(#e8c860, #8a6a20); }
+  #slots { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; pointer-events: auto; }
+  .slot { position: relative; height: 64px; background: linear-gradient(#1f1912, #0c0906); border: 1px solid #3a2e1e; border-top: 3px solid var(--c); overflow: hidden; cursor: pointer; padding: 4px; }
+  .slot:hover { border-color: var(--gold); }
+  .slot i { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, .7); }
+  .slot span { position: relative; display: block; font-size: 12px; line-height: 1.1; color: #e8e0c8; word-break: break-word; }
+  .slot em { position: absolute; right: 4px; bottom: 2px; font: 11px Cinzel, serif; color: var(--gold); font-style: normal; }
+  .slot.oom span { color: #6a70ff; }
+  #sub { text-align: center; font-size: 14px; color: var(--dim); margin-top: 5px; text-shadow: 0 1px 2px #000; }
+  #sub .hot { color: #ffd040; animation: blink 1s infinite alternate; }
+  @keyframes blink { to { opacity: .5; } }
+
+  /* Panels */
+  #panel { position: fixed; inset: 4vh 4vw; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 0 60px #000; overflow: auto; padding: 0 20px 20px; }
+  #panel header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 16px; background: var(--panel); border-bottom: 1px solid var(--line); padding: 12px 0; margin-bottom: 10px; }
+  #panel h2 { margin: 0; color: var(--gold); flex: 1; font-size: 22px; }
+  #panel h3 { color: var(--gold); }
+  .slotbar { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin: 10px 0; }
+  .sb { text-align: left; font: 13px "Crimson Text", serif; min-height: 48px; }
+  .sb em { display: block; font: 11px Cinzel, serif; color: var(--gold); font-style: normal; }
+  .sb.sel { border-color: var(--gold); background: #3a2c18; outline: 1px solid var(--gold); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 14px; }
+  .chip { font-size: 12px; padding: 4px 9px; }
+  .chip.on { border-color: var(--gold); color: var(--gold); }
+  .chips input { margin-left: auto; min-width: 180px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+  .card { background: #120e09; border: 1px solid #2c2318; border-left: 3px solid var(--c); padding: 8px 10px; cursor: pointer; opacity: .75; }
+  .card:hover { border-color: var(--gold); opacity: 1; }
+  .card.learned { opacity: 1; background: #1c160e; }
+  .card.locked { opacity: .4; }
+  .card.own { box-shadow: inset 0 0 0 1px #6a5530; }
+  .card .ct { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .card .ct b { color: #f0e6cc; }
+  .card .tag { color: var(--dim); }
+  .card .tag em { color: var(--gold); font-style: normal; }
+  .card p { margin: 4px 0; font-size: 14px; color: #c8bea8; }
+  .card small { font-size: 12.5px; color: var(--dim); }
+  .card small b { color: #fff; }
+  .up { padding: 0 9px; font-size: 18px; line-height: 1.3; color: #ffd040; border-color: #8a6a20; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+  .stat { display: grid; grid-template-columns: 110px 40px auto 1fr; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #2c2318; }
+  .stat b { font-size: 18px; color: #fff; } .stat i { color: #7c7cff; font-style: normal; } .stat small { grid-column: 1 / -1; color: var(--dim); }
+  table { width: 100%; border-collapse: collapse; } td { padding: 5px 4px; border-bottom: 1px solid #2c2318; } td:last-child { text-align: right; color: #fff; }
+  .eq { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .item { background: #120e09; border: 1px solid #2c2318; padding: 8px 10px; font-size: 14px; }
+  .item > small { display: block; color: var(--dim); font-family: Cinzel, serif; }
+  .item .mod { color: #7c7cff; }
+  .item .row { margin: 6px 0 0; } .item button { font-size: 11px; padding: 4px 8px; }
+  @media (max-width: 700px) { .orb { width: 70px; height: 70px; } .slot { height: 48px; } .slot span { font-size: 10px; } #slots, .slotbar { grid-template-columns: repeat(4, 1fr); } }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud" hidden>
+  <div id="info"></div>
+  <div id="target" hidden><b></b><div><i></i></div></div>
+  <div id="msg"></div>
+  <div id="note"></div>
+  <div id="bar">
+    <div class="orb life"><div class="liq"></div><span></span></div>
+    <div id="center"><div id="xp"><i></i></div><div id="slots"></div><div id="sub"></div></div>
+    <div class="orb mana"><div class="liq"></div><span></span></div>
+  </div>
+</div>
+<div id="select"></div>
+<div id="panel" hidden></div>
+<script src="data.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
