@@ -5,24 +5,26 @@ Kein Build, keine Abhängigkeiten: `index.html` öffnen oder per GitHub Pages sp
 
 ## Features
 
+- **Diablo-II-Optik**: isometrische Ansicht mit texturierten Böden und Mauern, Fackeln und dynamischem Licht, Partikeleffekte für Zauber, Blut und Leichen, animierte Figuren, D2-Bedienleiste mit Lebens- und Manakugel, Gürtel, Fähigkeitsbaum, Inventarraster und Automap. Alle Grafiken werden im Code erzeugt, es werden keine Originalgrafiken verwendet.
 - **14 Klassen**: die 7 Klassen aus Diablo II: LoD (Amazone, Assassine, Barbar, Druide, Totenbeschwörer, Paladin, Zauberin) und die 7 aus Champions: Return to Arms (Barbaren-Krieger, Erudit-Zauberer, Waldelfen-Waldläufer, Hochelfen-Kleriker, Dunkelelfen-Schattenritter, Vah-Shir-Berserker, Iksar-Schamane)
-- **Freier Skill-Baukasten**: Jede Klasse kann jede der 177 Fähigkeiten aus beiden Spielen lernen und auf 8 Tasten legen. Fähigkeiten der eigenen Klasse wirken 25 % stärker.
-- Zufallsgenerierte Dungeons, Champions und einzigartige Monster, alle 5 Ebenen ein Boss (Andariel, Duriel, Mephisto, Innoruuk, Diablo, Baal)
-- Beute in vier Seltenheitsstufen (normal, magisch, selten, einzigartig), Ausrüstung, Tränke, Gold
-- Attributpunkte, Stufenaufstiege, Automap, Spielstand im Browser (localStorage)
+- **Freier Skill-Baukasten**: Jede Klasse kann jede der 177 Fähigkeiten aus beiden Spielen lernen. Fähigkeiten der eigenen Klasse wirken 25 % stärker.
+- 12 Gebiete (Blutmoor bis Weltsteinturm), Champions und einzigartige Monster, alle 5 Ebenen ein Boss (Andariel, Duriel, Mephisto, Innoruuk, Diablo, Baal)
+- Beute in vier Seltenheitsstufen, Ausrüstung, Tränke, Gold, Attributpunkte, Spielstand im Browser
 
-## Steuerung
+## Steuerung (wie in Diablo II)
 
-| Taste | Aktion |
+| Eingabe | Aktion |
 |---|---|
-| WASD / Pfeiltasten | Bewegen |
-| Maus | Zielen |
-| Linke / rechte Maustaste, 1–6 | Fähigkeiten |
-| Q / E | Heil- / Manatrank |
-| K | Fähigkeiten-Baukasten |
-| C | Charakter und Attribute |
-| I | Inventar |
-| Esc | Fenster schließen |
+| Linksklick | Laufen bzw. Gegner mit der linken Fähigkeit angreifen, Gegenstände aufheben |
+| Umschalt + Linksklick | Angreifen ohne zu laufen |
+| Rechtsklick | Rechte Fähigkeit |
+| Klick auf die Felder neben den Kugeln | Linke/rechte Fähigkeit wählen |
+| F1–F8 / Mausrad | Rechte Fähigkeit wechseln (Maus über Fähigkeit + F-Taste: belegen) |
+| 1–4 (oder Q/E) | Tränke aus dem Gürtel |
+| C · I · T | Charakter · Inventar · Fähigkeiten |
+| Tab | Automap |
+| WASD | Alternativ laufen |
+| Esc | Menü / Fenster schließen |
 
 ## Lokal starten
 
@@ -33,6 +35,7 @@ python3 -m http.server 8000   # dann http://localhost:8000
 ## Dateien
 
 - `data.js`: Klassen, Fähigkeiten, Monster, Beschwörungen, Gegenstände (zum Erweitern hier Einträge ergänzen)
+- `sprites.js`: prozedurale Texturen, Figuren, Symbole
 - `game.js`: Engine (Karte, Kampf, KI, Darstellung, UI)
 - `index.html`: Layout und Stil
 

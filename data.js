@@ -286,11 +286,12 @@ const BOSSES = [
   { nm: 'Baal', hp: 1000, d: 26, v: 110, r: 28, col: '#c0a0f0', xp: 1400, el: 'cold', rng: { el: 'cold', v: 420 }, nova: { el: 'cold', r: 260, cd: 4 } },
 ];
 
+// [Name, Boden, Wand, Dunkelheit 0..1]
 const AREAS = [
-  ['Blutmoor', 95], ['Kalte Ebenen', 200], ['Faydark-Wald', 110], ['Höhle des Bösen', 30],
-  ['Katakomben', 0], ['Kanalisation von Lut Gholein', 45], ['Gruft von Tal Rasha', 40],
-  ['Kurast-Dschungel', 120], ['Kerker des Hasses', 350], ['Ebene des Hasses', 280],
-  ['Chaos-Sanktuarium', 10], ['Weltsteinturm', 220],
+  ['Blutmoor', 'grass', 'rock', 0.62], ['Kalte Ebenen', 'grass', 'rock', 0.66], ['Faydark-Wald', 'grass', 'tree', 0.66],
+  ['Höhle des Bösen', 'dirt', 'rock', 0.9], ['Katakomben', 'stone', 'brick', 0.92], ['Kanalisation von Lut Gholein', 'stone', 'brick', 0.9],
+  ['Gruft von Tal Rasha', 'sand', 'sandstone', 0.86], ['Kurast-Dschungel', 'grass', 'tree', 0.74], ['Kerker des Hasses', 'marble', 'brick', 0.92],
+  ['Ebene des Hasses', 'hell', 'hell', 0.86], ['Chaos-Sanktuarium', 'hell', 'hell', 0.86], ['Weltsteinturm', 'marble', 'brick', 0.9],
 ];
 
 const BASES = {
