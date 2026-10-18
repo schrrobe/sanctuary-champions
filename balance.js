@@ -230,7 +230,7 @@ if (typeof require === 'function' && typeof module === 'object' && require.main 
     };
     ctx.window = ctx;
     vm.createContext(ctx);
-    for (const f of ['data.js', 'sprites.js', 'audio.js', 'game.js', 'balance.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, f), 'utf8'), ctx, { filename: f });
+    for (const f of ['data.js', 'sprites.js', 'models.js', 'audio.js', 'game.js', 'balance.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, f), 'utf8'), ctx, { filename: f });
     return ctx;
   };
   const ctx = load();

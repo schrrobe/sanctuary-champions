@@ -1,7 +1,7 @@
 # Sanctuary & Norrath
 
 Ein Browser-Action-RPG im Geiste von **Diablo II: Lord of Destruction** und **Champions: Return to Arms**.
-Kein Build, keine Abhängigkeiten: `index.html` öffnen oder per GitHub Pages spielen.
+Kein Build: `index.html` öffnen oder per GitHub Pages spielen. Einzige Fremdbibliothek ist three.js (MIT), beigelegt unter `vendor/`.
 
 ## Features
 
@@ -13,7 +13,9 @@ Kein Build, keine Abhängigkeiten: `index.html` öffnen oder per GitHub Pages sp
 - **Siegel und Wächter**: Fünf Siegel auf dem Pentagramm. In Runde 5, 10 und 15 jedes 20er-Zyklus erscheinen der Großwesir des Chaos, Lord De Seis und der Seelenverseucher und brechen die Siegel, in Runde 20 kommt Diablo. Ab dem zweiten Zyklus bringt jeder Wächter einen weiteren Boss mit. Rundenzähler mit verbleibenden Gegnern und Rekord (höchste geschaffte Runde)
 - **Händler**: Ausrüstung mit Vergleich zur angelegten, Glücksspiel, neues Angebot gegen Gold
 - **Ton**: Geräusche und Musik werden per Web Audio erzeugt, abschaltbar im Menü
-- **Pixel-Look**: Die Spielfläche wird in etwa 900 Bildpunkten Breite gezeichnet und grob hochskaliert wie das Original, abschaltbar im Menü
+- **Pixel-Look**: Die Spielfläche wird in etwa 600 Bildpunkten Höhe gezeichnet (wie 800×600 im Original) und grob hochskaliert, abschaltbar im Menü. Der Bildausschnitt richtet sich nach der Fensterhöhe, sodass Figuren wie in D2 etwa ein Achtel der Bildhöhe einnehmen
+- **Vorgerenderte 3D-Figuren wie in D2**: Helden und Monster sind aus 3D-Körpern gebaut (three.js) und werden unter festem Licht in 8 Richtungen gerendert, die Helden in 16. Animationen: Stehen, Gehen, Schlagen, Zaubern, Sterben. Jedes Bild entsteht beim ersten Gebrauch und wird zwischengespeichert. Die Völker aus Champions haben eigene Körper (Vah Shir mit Katzenbeinen und Schwanz, Iksar als Echsen, große Erudit, schlanke Elfen). Abschaltbar im Menü; ohne WebGL erscheinen die gezeichneten Figuren
+- **Grafik im Stil von D2**: Charakterauswahl am Lagerfeuer, Bedienleiste mit Steinfassungen sowie Engel- und Dämonenstatue
 - Beute in vier Seltenheitsstufen, Ausrüstung, Tränke, Gold, Attributpunkte, Spielstand im Browser
 
 ## Steuerung (wie in Diablo II)
@@ -41,7 +43,9 @@ python3 -m http.server 8000   # dann http://localhost:8000
 ## Dateien
 
 - `data.js`: Klassen, Fähigkeiten, Monster, Beschwörungen, Gegenstände (zum Erweitern hier Einträge ergänzen)
-- `sprites.js`: prozedurale Texturen, Figuren, Objekte, Symbole
+- `sprites.js`: prozedurale Texturen, gezeichnete Figuren (Ersatz ohne WebGL), Objekte, Symbole
+- `models.js`: 3D-Figuren: Körperbau, Köpfe, Waffen, Animationen und der Bildspeicher für die vorgerenderten Ansichten
+- `vendor/three.min.js`: three.js r159 (MIT-Lizenz, siehe `vendor/three-LICENSE.txt`)
 - `audio.js`: Geräusche und Musik
 - `game.js`: Engine (Arena, Runden, Kampf, KI, Darstellung, UI)
 - `index.html`: Layout und Stil

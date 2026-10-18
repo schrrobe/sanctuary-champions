@@ -3,13 +3,14 @@ const $ = s => document.querySelector(s);
 const cv = $('#c'), ctx = cv.getContext('2d');
 const light = mkCanvas(1), lctx = light.getContext('2d');
 let W = 0, H = 0;
-// VS: Bildmaßstab der Spielwelt (kleiner als 1 zeigt mehr Karte mit kleineren Figuren)
-// PX: Auflösung der Spielfläche; im Pixel-Look etwa 900 Bildpunkte breit und grob hochskaliert wie das Original
-const VS = 0.7, PIXEL = 'sanctuary-pixel';
-let PX = 1, LH = 8; // LH: halbe Höhe der Bodenbeschriftungen
+// VS: Bildmaßstab der Spielwelt, an der Fensterhöhe ausgerichtet: Figuren füllen wie in D2 etwa ein Achtel der Bildhöhe
+// PX: Auflösung der Spielfläche; im Pixel-Look etwa 600 Bildpunkte hoch (wie 800×600 im Original) und grob hochskaliert
+const PIXEL = 'sanctuary-pixel';
+let VS = 1, PX = 1, LH = 8; // LH: halbe Höhe der Bodenbeschriftungen
 const pixelOn = () => { try { return localStorage.getItem(PIXEL) !== '0'; } catch { return true; } };
 function resize() {
-  PX = pixelOn() ? Math.max(0.5, Math.min(1, 900 / innerWidth)) : 1;
+  VS = Math.max(0.7, Math.min(1.5, innerHeight / 760));
+  PX = pixelOn() ? Math.max(0.5, Math.min(1, 620 / innerHeight)) : 1;
   cv.width = Math.round(innerWidth * PX); cv.height = Math.round(innerHeight * PX);
   cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px'; cv.style.imageRendering = PX < 1 ? 'pixelated' : 'auto';
   W = light.width = Math.ceil(innerWidth / VS); H = light.height = Math.ceil(innerHeight / VS);
@@ -52,7 +53,7 @@ const unproj = (sx, sy) => { const a = (sx - cam.x) / Z, b = (sy - cam.y) * 2 / 
 const tf = (a, b, c, d, e, f) => { const k = VS * PX; ctx.setTransform(a * k, b * k, c * k, d * k, e * k, f * k); };
 const isoT = () => tf(Z, Z / 2, -Z, Z / 2, cam.x, cam.y);
 const scrT = () => tf(1, 0, 0, 1, 0, 0);
-const figH = e => e.r * 4 * Z * (e.look.hm || 1);
+const figH = e => e.r * 4.8 * Z * (e.look.hm || 1);
 const world = () => unproj(mouse.x, mouse.y);
 function updateCam() { const p = G.player; cam.x = W / 2 - (p.x - p.y) * Z; cam.y = H * 0.45 - (p.x + p.y) * Z / 2; }
 
@@ -173,6 +174,7 @@ function startRound() {
   if (boss) G.queue.push({ t: boss, kind: 'boss', n: 1 });
   if (boss && c && d > 20) G.queue.push({ t: pick(BOSSES.filter(b => b.nm !== 'Diablo')), kind: 'boss', n: 1 });
   G.phase = 'fight'; G.waveT = 1;
+  for (const q of G.queue) if (MON_LOOKS[q.t.nm]) SPR.warm(MON_LOOKS[q.t.nm], q.t.r * (q.kind === 'champ' ? 1.15 : q.kind === 'unique' ? 1.3 : 1) * 4.8 * Z * (MON_LOOKS[q.t.nm]?.hm || 1) * VS * PX);
   msg(`Runde ${d}${boss ? ` · ${boss.nm} erscheint` : ''}`, '#c7b377');
 }
 // eine Gruppe tritt am Ende eines zufälligen Arms aus einem Höllenriss
@@ -233,7 +235,7 @@ function bakeFloor() {
     else if (r < 11) for (let k = 0; k < 4; k++) disc(g, cx + rnd(-8, 8), cy + rnd(-6, 6), rnd(1.5, 3.5), pick(['#5a544c', '#3a3530', '#6a6258']));
   }
   const pc = (AC + 0.5) * T, pr = 7 * T, star = [0, 2, 4, 1, 3, 0].map(k => [pc + Math.cos(k * 1.2566 - 1.5708) * pr, pc + Math.sin(k * 1.2566 - 1.5708) * pr]);
-  for (const [w, col] of [[16, 'rgba(90,8,4,.5)'], [5, '#a01808'], [1.6, '#ff8030']]) {
+  for (const [w, col] of [[14, 'rgba(80,6,2,.4)'], [4, '#8a1406'], [1.2, '#e8642a']]) {
     g.strokeStyle = col; g.lineWidth = w;
     for (const rr of [pr, pr + 24]) { g.beginPath(); g.arc(pc, pc, rr, 0, 7); g.stroke(); }
     g.beginPath(); star.forEach(([x, y], k) => k ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke();
@@ -609,7 +611,7 @@ function cast(slot, tx, ty) {
   p.face = Math.atan2(ty - p.y, tx - p.x);
   const res = useSkill(s, r, tx, ty);
   if (res === false) return false;
-  p.atkT = S.atkIv; p.atkA = 1;
+  p.atkT = S.atkIv; p.atkA = 1; p.atkCast = !s.wm && !['melee', 'dash'].includes(s.t);
   SFX.play(s.el || 'phys', 90);
   if (res === 'miss') return true;
   p.mp -= cost;
@@ -782,7 +784,7 @@ function think(e, dt) {
   const d = dist(e, tg);
   e.atkT -= dt;
   if (e.nova && (e.novaT -= dt) <= 0 && d < e.nova.r) {
-    e.novaT = e.nova.cd; e.atkA = 1;
+    e.novaT = e.nova.cd; e.atkA = 1; e.atkCast = true;
     fx({ k: 'ring', x: e.x, y: e.y, r0: 20, r1: e.nova.r, col: EL[e.nova.el][1], life: 0.5 });
     for (let i = 0; i < 40; i++) { const an = i / 40 * 6.283; G.parts.push({ x: e.x, y: e.y, z: 14, vx: Math.cos(an) * e.nova.r * 2, vy: Math.sin(an) * e.nova.r * 2, vz: 0, life: 0.5, t: 0, col: e.nova.el === 'fire' ? pick(FIRE) : EL[e.nova.el][1], s: 3, add: true }); }
     for (const o of foes(e)) if (dist(e, o) < e.nova.r) hit(e, o, e.d * 0.8, e.nova.el);
@@ -790,14 +792,14 @@ function think(e, dt) {
   if (e.rng) {
     if (d > 280 && spd) seek(e, tg, spd, dt);
     if (d < 420 && e.atkT <= 0) {
-      e.atkT = e.team === 'e' ? rnd(1.4, 2) : 0.9; e.atkA = 1;
+      e.atkT = e.team === 'e' ? rnd(1.4, 2) : 0.9; e.atkA = 1; e.atkCast = undefined;
       e.face = Math.atan2(tg.y - e.y, tg.x - e.x);
       shoot(e, e.face, { dmg: e.d, el: e.rng.el, v: e.rng.v, life: 1.6, arrow: e.rng.el === 'phys' ? 1 : 0 });
     }
   } else if (d > e.r + tg.r + 6) { if (spd) seek(e, tg, spd, dt); }
   else {
     e.face = Math.atan2(tg.y - e.y, tg.x - e.x);
-    if (e.atkT <= 0) { e.atkT = e.team === 'e' ? 1.1 : 0.8; e.atkA = 1; hit(e, tg, e.d, e.el, { melee: 1 }); }
+    if (e.atkT <= 0) { e.atkT = e.team === 'e' ? 1.1 : 0.8; e.atkA = 1; e.atkCast = undefined; hit(e, tg, e.d, e.el, { melee: 1 }); }
   }
 }
 
@@ -984,8 +986,8 @@ function drawEnt(e) {
   if (e.kind === 'unique' || e.kind === 'boss') { ctx.globalCompositeOperation = 'lighter'; glowDot(ctx, sx, sy - h * 0.5, h * 0.7, e.kind === 'boss' ? '#5a1408' : '#3a3010'); ctx.globalCompositeOperation = 'source-over'; }
   const B = e.player ? G.buffs : {}, fxs = fx2 >= 0 ? 1 : -1;
   if (e.root > 0) { ctx.strokeStyle = '#3a6a20'; ctx.lineWidth = 2.5; for (let i = 0; i < 5; i++) { const a = i * 1.26; ctx.beginPath(); ctx.moveTo(sx + Math.cos(a) * 16, sy + Math.sin(a) * 6); ctx.quadraticCurveTo(sx + Math.cos(a) * 4, sy - h * 0.2, sx + Math.cos(a + 1) * 9, sy - h * (0.25 + (i % 2) * 0.15)); ctx.stroke(); } }
-  if (B.burst_of_speed && e.movT > 0) for (let i = 1; i <= 2; i++) drawFigure(ctx, sx - fxs * i * 10, sy, e.look, { h, fx: fxs, walk: e.walk - i * 8, moving: true, atk: 0, t: G.t, alpha: 0.25 / i });
-  drawFigure(ctx, sx, sy, e.look, { h, fx: fxs, back: fy < 0 && Math.abs(fy) > Math.abs(fx2) * 0.3, turn: Math.abs(fy) / (Math.hypot(fx2, fy) || 1), flash: e.flash > 0, walk: e.walk, moving: e.movT > 0, atk: e.atkA || 0, t: G.t + e.seed, alpha: e.conv ? 0.85 : B.fade ? 0.5 : 1 });
+  if (B.burst_of_speed && e.movT > 0) for (let i = 1; i <= 2; i++) drawFigure(ctx, sx - fxs * i * 10, sy, e.look, { h, fx: fxs, face: e.face, walk: e.walk - i * 8, moving: true, atk: 0, t: G.t, alpha: 0.25 / i });
+  drawFigure(ctx, sx, sy, e.look, { h, fx: fxs, face: e.face, cast: e.atkCast, back: fy < 0 && Math.abs(fy) > Math.abs(fx2) * 0.3, turn: Math.abs(fy) / (Math.hypot(fx2, fy) || 1), flash: e.flash > 0, walk: e.walk, moving: e.movT > 0, atk: e.atkA || 0, t: G.t + e.seed, alpha: e.conv ? 0.85 : B.fade ? 0.5 : 1 });
   if (e.player) bodyFx(e, sx, sy, h, fxs);
   ctx.globalCompositeOperation = 'lighter';
   if (e.slow > 0) glowDot(ctx, sx, sy - h * 0.5, h * 0.45, '#2a5a90');
@@ -1064,7 +1066,7 @@ function draw() {
   glowDot(ctx, pcx, pcy, 260, G.phase === 'fight' ? `rgba(160,20,0,${0.25 + Math.sin(G.t * 3) * 0.08})` : 'rgba(90,10,0,.18)');
   ctx.globalCompositeOperation = 'source-over';
   // Leichen und Beute
-  for (const c of G.corpses) { const [sx, sy] = proj(c.x, c.y), f = clamp((40 - c.t) / 0.4, 0, 1); if (onScr(sx, sy)) drawFigure(ctx, sx, sy, c.look, { h: c.h, fx: Math.cos(c.face) - Math.sin(c.face) >= 0 ? 1 : -1, walk: 0, atk: 0, t: 0, lying: Math.max(0.01, f * f), alpha: Math.min(1, c.t / 5) }); }
+  for (const c of G.corpses) { const [sx, sy] = proj(c.x, c.y), f = clamp((40 - c.t) / 0.4, 0, 1); if (onScr(sx, sy)) drawFigure(ctx, sx, sy, c.look, { h: c.h, fx: Math.cos(c.face) - Math.sin(c.face) >= 0 ? 1 : -1, face: c.face, walk: 0, atk: 0, t: 0, lying: Math.max(0.01, f * f), alpha: Math.min(1, c.t / 5) }); }
   for (const l of G.loot) {
     const [sx, sy] = proj(l.x, l.y);
     if (l.k === 'gold') for (let i = 0; i < 5; i++) disc(ctx, sx + (i % 3) * 4 - 4, sy - (i > 2 ? 3 : 0), 3, i % 2 ? '#e8c040' : '#b08820');
@@ -1126,7 +1128,7 @@ function draw() {
       ctx.beginPath(); ctx.ellipse(sx, sy, f.r * Z * k * 1.4, f.r * Z * k * 0.7, 0, 0, 7); ctx.fill(); ctx.globalCompositeOperation = 'lighter';
     } else if (f.k === 'ghost') {
       ctx.globalCompositeOperation = 'source-over';
-      drawFigure(ctx, sx, sy, G.player.look, { h: figH(G.player), fx: Math.cos(f.face) - Math.sin(f.face) >= 0 ? 1 : -1, walk: 0, atk: 0.5, t: G.t, alpha: 0.35 * (1 - k) });
+      drawFigure(ctx, sx, sy, G.player.look, { h: figH(G.player), fx: Math.cos(f.face) - Math.sin(f.face) >= 0 ? 1 : -1, face: f.face, walk: 0, atk: 0.5, t: G.t, alpha: 0.35 * (1 - k) });
       ctx.globalCompositeOperation = 'lighter';
     } else if (f.k === 'whirl') {
       ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#e8e8f0'; ctx.lineWidth = 2.5;
@@ -1387,7 +1389,7 @@ function renderInv() {
 
 function renderMenu() {
   return `<header><h2>Menü</h2><button class="x" data-act="close">✕</button></header>
-    <div class="menu"><button data-act="close">Spiel fortsetzen</button><button data-act="sound">Ton: ${SFX.on ? 'an' : 'aus'}</button><button data-act="pixel">Pixel-Look: ${PX < 1 ? 'an' : 'aus'}</button><button data-act="menu">Speichern und zum Hauptmenü</button></div>
+    <div class="menu"><button data-act="close">Spiel fortsetzen</button><button data-act="sound">Ton: ${SFX.on ? 'an' : 'aus'}</button><button data-act="pixel">Pixel-Look: ${PX < 1 ? 'an' : 'aus'}</button><button data-act="fig3d">3D-Figuren: ${SPR.on ? 'an' : 'aus'}</button><button data-act="menu">Speichern und zum Hauptmenü</button></div>
     <table class="keys">${[['Linksklick', 'Laufen / mit linker Fähigkeit angreifen'], ['Umschalt + Linksklick', 'Angreifen ohne zu laufen'], ['Rechtsklick', 'Rechte Fähigkeit'], ['F1–F8 / Mausrad', 'Rechte Fähigkeit wechseln'], ['1–4 (Q/E)', 'Tränke aus dem Gürtel'], ['WASD', 'Alternativ laufen'], ['C · I · T', 'Charakter · Inventar · Fähigkeiten'], ['Tab', 'Automap']].map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>`;
 }
 
@@ -1458,6 +1460,7 @@ $('#panel').addEventListener('click', e => {
   if (d.act === 'close') return closePanel();
   if (d.act === 'menu') { save(); return showSelect(); }
   if (d.act === 'sound') { SFX.toggle(); return renderPanel(); }
+  if (d.act === 'fig3d') { SPR.toggle(); return renderPanel(); }
   if (d.act === 'pixel') { try { localStorage.setItem(PIXEL, pixelOn() ? '0' : '1'); } catch { /* privater Modus */ } resize(); return renderPanel(); }
   if (d.act === 'next') return startRound();
   if (d.act === 'respec') respec();
@@ -1515,7 +1518,45 @@ function preview(cnv, id, t, moving) {
   const g = cnv.getContext('2d');
   g.clearRect(0, 0, cnv.width, cnv.height);
   g.fillStyle = 'rgba(0,0,0,.5)'; g.beginPath(); g.ellipse(cnv.width / 2, cnv.height - 12, 22, 8, 0, 0, 7); g.fill();
-  drawFigure(g, cnv.width / 2, cnv.height - 12, LOOKS[id], { h: 96 * (LOOKS[id].hm || 1), fx: 1, walk: t * 120, moving, atk: 0, t });
+  drawFigure(g, cnv.width / 2, cnv.height - 12, LOOKS[id], { h: 96 * (LOOKS[id].hm || 1), fx: +cnv.dataset.fx || 1, face: +cnv.dataset.face || 0.8, walk: t * 120, moving, atk: 0, t, turn: 0.35 });
+}
+
+// Lagerfeuer der Charakterauswahl: Glut, Holzscheite, Flammenzungen und Funken
+const sparks = [];
+function campfire(cnv, t) {
+  const r = cnv.getBoundingClientRect();
+  if (cnv.width !== Math.round(r.width) || cnv.height !== Math.round(r.height)) { cnv.width = Math.round(r.width); cnv.height = Math.round(r.height); }
+  const g = cnv.getContext('2d'), w = cnv.width, h = cnv.height, cx = w / 2, cy = h * 0.8, fl = 1 + Math.sin(t * 11) * 0.04 + Math.sin(t * 17.3) * 0.03;
+  g.clearRect(0, 0, w, h);
+  // vom Feuer beleuchteter Boden
+  g.save(); g.translate(cx, cy); g.scale(1, 0.32);
+  const gr = g.createRadialGradient(0, 0, 0, 0, 0, w * 0.55 * fl);
+  gr.addColorStop(0, 'rgba(150,70,20,.75)'); gr.addColorStop(0.25, 'rgba(80,32,10,.6)'); gr.addColorStop(0.6, 'rgba(30,12,4,.4)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr; g.beginPath(); g.arc(0, 0, w * 0.55, 0, 7); g.fill();
+  g.restore();
+  // Steinkreis und Scheite
+  for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283; g.fillStyle = Math.sin(a) > 0 ? '#3a2e24' : '#5a4836'; g.beginPath(); g.ellipse(cx + Math.cos(a) * 38, cy + Math.sin(a) * 13, 9, 6, 0, 0, 7); g.fill(); }
+  g.lineCap = 'round';
+  for (const [a, c] of [[0.5, '#3a2414'], [-0.45, '#4a2e18'], [2.8, '#2e1c10']]) { g.strokeStyle = c; g.lineWidth = 9; g.beginPath(); g.moveTo(cx - Math.cos(a) * 30, cy - Math.sin(a) * 9); g.lineTo(cx + Math.cos(a) * 30, cy + Math.sin(a) * 9); g.stroke(); }
+  g.globalCompositeOperation = 'lighter';
+  glowDot(g, cx, cy, 34, 'rgba(255,90,10,.9)');
+  // Flammen: übereinanderliegende, flackernde Zungen von rot nach gelbweiß
+  for (const [s, c] of [[1, 'rgba(200,40,0,.55)'], [0.75, 'rgba(255,110,10,.6)'], [0.5, 'rgba(255,200,80,.7)'], [0.28, 'rgba(255,250,220,.8)']]) {
+    for (let i = -2; i <= 2; i++) {
+      const fh = (96 + Math.sin(t * 9 + i * 1.7) * 18 + Math.sin(t * 23 + i) * 8) * s * fl, fw = (21 - Math.abs(i) * 4) * s + 5, x = cx + i * 12 * s, sway = Math.sin(t * 6 + i * 2) * 6 * s;
+      g.fillStyle = c; g.beginPath(); g.moveTo(x - fw, cy);
+      g.quadraticCurveTo(x - fw * 0.8 + sway, cy - fh * 0.55, x + sway * 1.6, cy - fh);
+      g.quadraticCurveTo(x + fw * 0.8 + sway, cy - fh * 0.55, x + fw, cy); g.closePath(); g.fill();
+    }
+  }
+  glowDot(g, cx, cy - 40, 260 * fl, 'rgba(255,100,20,.2)');
+  if (Math.random() < 0.5) sparks.push({ x: cx + rnd(-14, 14), y: cy - 20, vx: rnd(-12, 12), vy: rnd(-90, -40), life: rnd(0.8, 1.8), t: 0 });
+  for (let i = sparks.length; i--;) {
+    const p = sparks[i]; p.t += 1 / 60; p.x += (p.vx + Math.sin(t * 3 + i) * 10) / 60; p.y += p.vy / 60;
+    if (p.t > p.life) { sparks.splice(i, 1); continue; }
+    g.fillStyle = `rgba(255,${160 + Math.random() * 80 | 0},60,${1 - p.t / p.life})`; g.fillRect(p.x, p.y, 2, 2);
+  }
+  g.globalCompositeOperation = 'source-over';
 }
 
 function showSelect() {
@@ -1524,15 +1565,22 @@ function showSelect() {
   $('#hud').hidden = true; $('#panel').hidden = true; el.tip.hidden = true;
   const saved = loadSave(), sel = $('#select');
   sel.hidden = false;
+  // Helden im Halbkreis hinter dem Feuer: vorn die aus D2, dahinter versetzt die aus Champions
+  const ring = (list, rx, ry, a0, a1, sc) => list.map((c, i) => {
+    const a = a0 + (a1 - a0) * i / (list.length - 1), x = 50 + Math.cos(a) * rx, y = 76 - Math.sin(a) * ry;
+    return `<button class="cls" data-cls="${c.id}" style="left:${x}%;top:${y}%;--s:${sc};z-index:${Math.round(y)}"><canvas width="110" height="130" data-fx="${x < 50 ? 1 : -1}" data-face="${(Math.PI / 4 - (x - 50) / 50 * 1.2).toFixed(2)}"></canvas><b>${c.nm}</b></button>`;
+  }).join('');
   sel.innerHTML = `<h1>Sanctuary <span>&amp;</span> Norrath</h1>
     <p class="sub">Im Geiste von Diablo II: Lord of Destruction und Champions: Return to Arms</p>
     ${record() ? `<p class="sub">Rekord: Runde ${record().round} · ${esc(record().name)} (${CL[record().cls]?.nm || ''})</p>` : ''}
-    ${saved ? `<button class="big" data-act="continue">Fortsetzen · ${esc(saved.name)}, Stufe ${saved.lvl} ${CL[saved.cls].nm} · Runde ${saved.depth}</button>` : ''}
-    ${['D2', 'CRtA'].map(g => `<h3>${g === 'D2' ? 'Diablo II: Lord of Destruction' : 'Champions: Return to Arms'}</h3>
-      <div class="classes">${CLASSES.filter(c => c.g === g).map(c => `<button class="cls" data-cls="${c.id}"><canvas width="110" height="130"></canvas><b>${c.nm}</b></button>`).join('')}</div>`).join('')}
+    <div id="camp"><canvas id="fire"></canvas>
+      ${ring(CLASSES.filter(c => c.g === 'CRtA'), 46, 40, 2.73, 0.41, 0.9)}
+      ${ring(CLASSES.filter(c => c.g === 'D2'), 40, 22, 2.97, 0.17, 1.22)}
+    </div>
     <div class="info" id="clsinfo">Wähle eine Klasse</div>
+    ${saved ? `<button class="big" data-act="continue">Fortsetzen · ${esc(saved.name)}, Stufe ${saved.lvl} ${CL[saved.cls].nm} · Runde ${saved.depth}</button>` : ''}
     <div class="row"><input id="cname" maxlength="16" placeholder="Name des Helden"><button class="big" data-act="start" disabled>Abenteuer beginnen</button></div>
-    <p class="hint">Jede Klasse kann jede der ${SKILLS.length - 2} Fähigkeiten aus beiden Spielen lernen. Fähigkeiten der eigenen Klasse wirken 25 % stärker.</p>`;
+    <p class="hint">Vorn die Helden aus Diablo II, dahinter die aus Champions: Return to Arms. Jede Klasse kann jede der ${SKILLS.length - 2} Fähigkeiten aus beiden Spielen lernen. Fähigkeiten der eigenen Klasse wirken 25 % stärker.</p>`;
   sel.querySelectorAll('.cls').forEach(b => preview(b.querySelector('canvas'), b.dataset.cls, 0, false));
 }
 
@@ -1540,6 +1588,7 @@ function startGame() {
   $('#select').hidden = true; $('#hud').hidden = false;
   G = null; hudKey = '';
   genLevel();
+  SPR.warm(G.player.look, figH(G.player) * VS * PX);
   if (P.skillPts) openPanel('skills');
   note(`Verteile deine Fähigkeitspunkte, dann Runde ${P.depth} starten (N)`);
 }
@@ -1550,8 +1599,8 @@ $('#select').addEventListener('click', e => {
   if (b.dataset.cls) {
     chosen = b.dataset.cls;
     const c = CL[chosen];
-    document.querySelectorAll('.cls').forEach(n => { n.classList.toggle('on', n === b); preview(n.querySelector('canvas'), n.dataset.cls, 0, false); });
-    $('#clsinfo').innerHTML = `<b>${c.nm}</b> · Stärke ${c.str} · Geschick ${c.dex} · Vitalität ${c.vit} · Energie ${c.ene}${c.ranged ? ' · Fernkampf' : ''}<br>Startfähigkeiten: ${c.start.map(id => SK[id].nm).join(', ')}`;
+    document.querySelectorAll('.cls').forEach(n => n.classList.toggle('on', n === b));
+    $('#clsinfo').innerHTML = `<b>${c.nm}</b> <small>(${c.g === 'D2' ? 'Diablo II' : 'Champions: Return to Arms'})</small><br>Stärke ${c.str} · Geschick ${c.dex} · Vitalität ${c.vit} · Energie ${c.ene}${c.ranged ? ' · Fernkampf' : ''}<br>Startfähigkeiten: ${c.start.map(id => SK[id].nm).join(', ')}`;
     $('[data-act="start"]').disabled = false;
   } else if (b.dataset.act === 'start' && chosen) { newChar(chosen, $('#cname').value.trim()); save(); startGame(); }
   else if (b.dataset.act === 'continue') { P = loadSave(); startGame(); }
@@ -1602,14 +1651,16 @@ cv.addEventListener('wheel', e => {
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
+  if (typeof SPR !== 'undefined') SPR.tick(G ? 5 : 12);
   last = now;
   if (G) {
     if (G.dead > 0) { if ((G.dead -= dt) <= 0) respawn(); }
     else if (!panel) update(dt);
     if (G) { draw(); hud(); }
-  } else if (chosen) {
-    const b = document.querySelector(`.cls[data-cls="${chosen}"] canvas`);
-    if (b) preview(b, chosen, now / 1000, true);
+  } else if (!$('#select').hidden) {
+    const f = $('#fire');
+    if (f) campfire(f, now / 1000);
+    document.querySelectorAll('.cls').forEach(b => preview(b.querySelector('canvas'), b.dataset.cls, now / 1000 + b.dataset.cls.charCodeAt(0), false));
   }
   requestAnimationFrame(frame);
 }

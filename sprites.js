@@ -5,7 +5,7 @@ const WALL_H = { brick: 104, rock: 78, sandstone: 96, hell: 104 };
 
 const mkCanvas = (w, h = w) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
 const rr = (a, b) => a + Math.random() * (b - a);
-const hexRgb = h => { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+const hexRgb = h => { if (h[0] !== '#') return h.match(/[\d.]+/g).slice(0, 3).map(Number); const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
 const shade = (h, l) => `rgb(${hexRgb(h).map(v => Math.max(0, Math.min(255, Math.round(v + l * 255)))).join()})`;
 const mix = (a, b, t) => { const x = hexRgb(a), y = hexRgb(b); return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join()})`; };
 
@@ -123,19 +123,19 @@ function genTextures() {
 // ---------- Figuren ----------
 const LOOKS = {
   // Diablo II
-  ama: { skin: '#d8a878', body: '#7a5a38', legs: '#5a4028', head: 'hair', hair: '#d8b860', weapon: 'bow', belt: '#3a2a1a' },
-  asn: { skin: '#c89878', body: '#2a2030', legs: '#1a1420', head: 'mask', hair: '#202020', weapon: 'claw', cape: '#3a2050' },
-  bar: { skin: '#c8946a', body: '#c8946a', legs: '#6a5038', head: 'horns', helm: '#8a8478', horn: '#d8d0c0', weapon: 'axe', belt: '#5a3a20', hm: 1.08 },
-  dru: { skin: '#c8a080', body: '#4a5a30', legs: '#3a3020', head: 'pelt', hood: '#6a6258', weapon: 'staff', orb: '#90e070', cape: '#5a4a30' },
-  nec: { skin: '#d8d0c8', body: '#1e1e22', robe: 1, trim: '#c8c0b0', head: 'hair', hair: '#101010', weapon: 'dagger' },
-  pal: { skin: '#d8b090', body: '#a8a8b2', tabard: '#e8e0d0', legs: '#8a8a98', head: 'helm', helm: '#b0b0b8', weapon: 'sword', shield: '#c8b060' },
-  sor: { skin: '#e0b898', body: '#5a2a6a', robe: 1, trim: '#c8a040', head: 'hair', hair: '#8a2020', weapon: 'staff', orb: '#80c0ff' },
+  ama: { skin: '#d8a878', body: '#7a5a38', legs: '#d8a878', head: 'hair', hair: '#d8b860', weapon: 'bow', belt: '#3a2a1a', pony: 1, top: '#7a5a38', boots: '#4a3020' },
+  asn: { skin: '#c89878', body: '#2a2030', legs: '#1a1420', head: 'mask', hair: '#202020', weapon: 'claw', cape: '#3a2050', sleeves: 1 },
+  bar: { skin: '#c8946a', body: '#c8946a', legs: '#6a5038', head: 'horns', helm: '#8a8478', horn: '#d8d0c0', weapon: 'axe', belt: '#5a3a20', hm: 1.08, build: 'big', boots: '#5a4632' },
+  dru: { skin: '#c8a080', body: '#4a5a30', legs: '#3a3020', head: 'pelt', hood: '#6a6258', weapon: 'staff', orb: '#90e070', cape: '#5a4a30', beard: '#6a5040' },
+  nec: { skin: '#d8d0c8', body: '#1e1e22', robe: 1, trim: '#c8c0b0', head: 'hair', hair: '#101010', weapon: 'dagger', pauldron: '#d8d0c0', spiky: 1 },
+  pal: { skin: '#d8b090', body: '#a8a8b2', tabard: '#e8e0d0', legs: '#8a8a98', head: 'helm', helm: '#b0b0b8', weapon: 'sword', shield: '#c8b060', armor: 1, emblem: '#a01810' },
+  sor: { skin: '#e0b898', body: '#5a2a6a', robe: 1, trim: '#c8a040', head: 'hair', hair: '#8a2020', weapon: 'staff', orb: '#80c0ff', long: 1 },
   // Champions: Return to Arms
-  bw: { skin: '#d8a080', body: '#7a3020', legs: '#5a3a28', head: 'hair', hair: '#c05020', weapon: 'axe', belt: '#3a2010', hm: 1.08 },
-  ew: { skin: '#5a3a28', body: '#22348a', robe: 1, trim: '#c8b060', head: 'bald', weapon: 'staff', orb: '#a0c0ff' },
+  bw: { skin: '#d8a080', body: '#7a3020', legs: '#5a3a28', head: 'hair', hair: '#c05020', weapon: 'axe', belt: '#3a2010', hm: 1.08, build: 'big', long: 1, beard: '#c05020', boots: '#5a4632' },
+  ew: { skin: '#5a3a28', body: '#22348a', robe: 1, trim: '#c8b060', head: 'bald', weapon: 'staff', orb: '#a0c0ff', build: 'tall' },
   wr: { skin: '#e0c0a0', body: '#3a5a28', legs: '#4a3a20', head: 'elf', hair: '#e0d080', weapon: 'bow', cape: '#2a4020' },
-  hc: { skin: '#f0d8c0', body: '#d8d0b8', tabard: '#c8a040', legs: '#b8b0a0', head: 'helm', helm: '#d8c070', weapon: 'mace', shield: '#e0d0a0' },
-  sk: { skin: '#4a4a7a', body: '#24242c', legs: '#1a1a22', head: 'helm', helm: '#30303a', weapon: 'sword', cape: '#4a0010', eyes: '#ff3020', shield: '#3a1018' },
+  hc: { skin: '#f0d8c0', body: '#d8d0b8', tabard: '#c8a040', legs: '#b8b0a0', head: 'helm', helm: '#d8c070', weapon: 'mace', shield: '#e0d0a0', armor: 1, build: 'slim' },
+  sk: { skin: '#4a4a7a', body: '#24242c', legs: '#1a1a22', head: 'helm', helm: '#30303a', weapon: 'sword', cape: '#4a0010', eyes: '#ff3020', shield: '#3a1018', armor: 1, spiky: 1, build: 'slim' },
   vb: { skin: '#d89040', body: '#6a4020', legs: '#d89040', head: 'cat', tail: '#d89040', weapon: 'axe', belt: '#3a2010' },
   is: { skin: '#5a8a50', body: '#6a4a20', robe: 1, trim: '#a0a060', head: 'lizard', tail: '#5a8a50', weapon: 'staff', orb: '#a0ff60' },
 };
@@ -147,35 +147,35 @@ const MON_LOOKS = {
   'Skelett': { skin: '#ddd6c0', bones: 1, head: 'skull', weapon: 'sword', shield: '#5a4a30', eyes: '#80a0ff' },
   'Skelett-Bogenschütze': { skin: '#ddd6c0', bones: 1, head: 'skull', weapon: 'bow', eyes: '#80a0ff' },
   'Gnoll': { skin: '#8a6a40', body: '#4a3a28', legs: '#3a2a1a', head: 'snout', weapon: 'axe', hunch: 0.2, eyes: '#ff8020' },
-  'Ork-Plünderer': { skin: '#4f6a30', body: '#5a5048', legs: '#3a3228', head: 'tusks', weapon: 'axe', shield: '#4a3a28', eyes: '#ff3010', hm: 1.05 },
+  'Ork-Plünderer': { skin: '#4f6a30', body: '#5a5048', legs: '#3a3228', head: 'tusks', weapon: 'axe', shield: '#4a3a28', eyes: '#ff3010', hm: 1.05, build: 'big' },
   'Ziegenmensch': { skin: '#7a5a3a', body: '#6a4a2e', legs: '#5a3a22', head: 'goat', horn: '#c8b898', weapon: 'spear', hunch: 0.15, eyes: '#ff4020' },
   'Gloam': { rig: 'wisp', col: '#a0d0ff' },
   'Dunkelelfen-Magier': { skin: '#3a3a6a', body: '#4a2a6a', robe: 1, trim: '#a080c0', head: 'hair', hair: '#e8e8f0', weapon: 'staff', orb: '#ff8040', eyes: '#ff4040' },
   'Vampir': { skin: '#c8c0c8', body: '#5a1020', robe: 1, trim: '#a08040', head: 'hair', hair: '#101010', weapon: 'staff', orb: '#ff5020', cape: '#200008', eyes: '#ff2020' },
-  'Frostriese': { skin: '#a8c8e0', body: '#506070', legs: '#405060', head: 'hair', hair: '#e8f0ff', weapon: 'club', eyes: '#60c0ff' },
+  'Frostriese': { skin: '#a8c8e0', body: '#506070', legs: '#405060', head: 'hair', hair: '#e8f0ff', weapon: 'club', eyes: '#60c0ff', build: 'big', long: 1 },
   'Dämonenfürst': { skin: '#902818', body: '#5a1408', legs: '#4a1006', head: 'horns', helm: '#902818', horn: '#2a1a14', weapon: 'sword', wings: '#3a0c06', eyes: '#ffd040' },
   'Andariel': { skin: '#d080a0', body: '#6a2040', robe: 1, trim: '#d8a0c0', head: 'horns', helm: '#d080a0', horn: '#3a1020', weapon: 'claw', eyes: '#ffe040', spiderLegs: '#e0b0c8' },
   'Duriel': { rig: 'grub', col: '#a89870', spikes: '#e8d8b0', eyes: '#ff6020' },
   'Mephisto': { skin: '#8090c0', body: '#5a6890', head: 'skull', weapon: 'none', float: 1, ribs: 1, spread: 1, tentacles: '#3a4468', glow: '#6080ff', eyes: '#c0e0ff' },
   'Innoruuk': { skin: '#503060', body: '#200a30', robe: 1, trim: '#8040a0', head: 'horns', helm: '#503060', horn: '#d0b0e0', weapon: 'staff', orb: '#c040ff', cape: '#100018', eyes: '#ff40ff' },
   'Diablo': { rig: 'demon', col: '#a02010', horn: '#e0c090', spikes: '#e0c090', eyes: '#ffe040' },
-  'Verdammnisritter': { skin: '#9a9088', body: '#3a3440', legs: '#2a2630', head: 'horns', helm: '#4a4450', horn: '#c8b898', weapon: 'sword', shield: '#2a2430', eyes: '#ff3010' },
+  'Verdammnisritter': { skin: '#9a9088', body: '#3a3440', legs: '#2a2630', head: 'horns', helm: '#4a4450', horn: '#c8b898', weapon: 'sword', shield: '#2a2430', eyes: '#ff3010', armor: 1, spiky: 1 },
   'Venomfürst': { rig: 'demon', col: '#b03018', horn: '#d0b080', spikes: '#e0a070', eyes: '#ffe040' },
   'Vergessensritter': { skin: '#c8c0b0', body: '#4a3a60', robe: 1, trim: '#a080c0', head: 'skull', weapon: 'staff', orb: '#c060ff', eyes: '#c060ff' },
   'Großwesir des Chaos': { skin: '#a04030', body: '#501010', robe: 1, trim: '#e0a040', head: 'horns', helm: '#702018', horn: '#e0c090', weapon: 'staff', orb: '#ff6020', cape: '#200404', eyes: '#ffd040', hm: 1.1 },
-  'Lord De Seis': { skin: '#8a8078', body: '#2e2a34', legs: '#222028', head: 'horns', helm: '#3a3440', horn: '#e8d8b0', weapon: 'axe', shield: '#4a2018', cape: '#300a0a', eyes: '#ff2010', hm: 1.15 },
+  'Lord De Seis': { skin: '#8a8078', body: '#2e2a34', legs: '#222028', head: 'horns', helm: '#3a3440', horn: '#e8d8b0', weapon: 'axe', shield: '#4a2018', cape: '#300a0a', eyes: '#ff2010', hm: 1.15, armor: 1, spiky: 1, build: 'big' },
   'Seelenverseucher': { rig: 'demon', col: '#802050', horn: '#e0c0d0', spikes: '#f0b0d0', eyes: '#80ff40' },
   'Baal': { skin: '#9080c0', body: '#403060', robe: 1, trim: '#c0b0f0', head: 'horns', helm: '#9080c0', horn: '#302040', weapon: 'staff', orb: '#80c0ff', backTents: '#6a5a90', eyes: '#ffffff' },
 };
 const MIN_LOOKS = {
   skel: MON_LOOKS['Skelett'],
   smage: { skin: '#ddd6c0', bones: 1, head: 'skull', weapon: 'staff', orb: '#80c0ff', eyes: '#80c0ff' },
-  golem: { skin: '#8a7050', body: '#8a7050', legs: '#7a6040', head: 'bald', hm: 1.05, eyes: '#ffc060' },
-  bgolem: { skin: '#902020', body: '#801818', legs: '#701010', head: 'bald', eyes: '#ffe080' },
+  golem: { skin: '#8a7050', body: '#8a7050', legs: '#7a6040', head: 'bald', hm: 1.05, eyes: '#ffc060', build: 'big' },
+  bgolem: { skin: '#902020', body: '#801818', legs: '#701010', head: 'bald', eyes: '#ffe080', build: 'big' },
   raven: { rig: 'bird', col: '#1a1a22' },
   wolf: { rig: 'quad', col: '#c0d0f0', ghost: 0.75, eyes: '#80c0ff' },
   bear: { rig: 'quad', col: '#5a3a20', bulk: 1, eyes: '#201008' },
-  valk: { skin: '#e8d0b0', body: '#d8c070', legs: '#b8a060', head: 'helm', helm: '#e0d080', weapon: 'spear', shield: '#d8c070', ghost: 0.85, glow: '#fff0a0' },
+  valk: { skin: '#e8d0b0', body: '#d8c070', legs: '#b8a060', head: 'helm', helm: '#e0d080', weapon: 'spear', shield: '#d8c070', ghost: 0.85, glow: '#fff0a0', armor: 1 },
   hydra: { rig: 'hydra', col: '#7a3010' },
   sentry: { rig: 'trap', col: '#fff27a' },
   ancestor: { ...LOOKS.bar, ghost: 0.55, glow: '#ffd090' },
@@ -184,18 +184,43 @@ const MIN_LOOKS = {
   shadow: { ...LOOKS.asn, ghost: 0.5 },
 };
 
+// Figuren werden einzeln auf eine Hilfsfläche gezeichnet, dort von oben beleuchtet und
+// unten abgedunkelt, und bekommen eine dunkle Pixelkontur wie vorgerenderte D2-Sprites
+const FIG = mkCanvas(64), SIL = mkCanvas(64), fg = FIG.getContext('2d'), sg = SIL.getContext('2d'), FIG_GLOW = [];
 function drawFigure(g, x, y, L, st) {
-  g.save();
-  g.translate(x, y);
-  // lying 0..1: Figur kippt um und wird dabei dunkler
-  if (st.flash) g.filter = 'brightness(2.4) saturate(.5)';
-  if (st.lying) { const f = st.lying; g.filter = `brightness(${1 - 0.55 * f}) saturate(${1 - 0.4 * f})`; g.scale(1, 1 - 0.45 * f); g.rotate(-Math.PI / 2 * st.fx * f); }
+  if (typeof SPR !== 'undefined' && SPR.draw(g, x, y, L, st)) return;
+  const m = g.getTransform(), k = Math.hypot(m.a, m.b), n = Math.ceil(st.h * k * 2.8) + 4;
+  if (FIG.width < n) { FIG.width = FIG.height = SIL.width = SIL.height = n; }
+  const ox = n / 2, oy = Math.round(n * 0.72);
+  fg.setTransform(1, 0, 0, 1, 0, 0); fg.clearRect(0, 0, n, n); FIG_GLOW.length = 0;
+  fg.setTransform(k, 0, 0, k, ox, oy);
+  if (st.lying) { const f = st.lying; fg.scale(1, 1 - 0.45 * f); fg.rotate(-Math.PI / 2 * st.fx * f); }
   const u = st.h / 56;
-  g.scale(st.fx * u, u);
-  g.globalAlpha = (L.ghost || 1) * (st.alpha ?? 1);
-  g.lineCap = 'round'; g.lineJoin = 'round';
-  if (L.glow) { g.globalCompositeOperation = 'lighter'; const gr = g.createRadialGradient(0, -28, 2, 0, -28, 30); gr.addColorStop(0, L.glow); gr.addColorStop(1, 'transparent'); g.fillStyle = gr; g.globalAlpha *= 0.35; g.fillRect(-30, -58, 60, 60); g.globalAlpha = (L.ghost || 1) * (st.alpha ?? 1); g.globalCompositeOperation = 'source-over'; }
-  ({ quad, grub, demon, bird, wisp, hammer: hammerRig, trap, hydra }[L.rig] || humanoid)(g, L, st);
+  fg.scale(st.fx * u, u);
+  fg.globalAlpha = 1; fg.globalCompositeOperation = 'source-over';
+  fg.lineCap = 'round'; fg.lineJoin = 'round';
+  if (L.glow) { fg.globalAlpha = 0.35; glowDot(fg, 0, -28, 30, L.glow); fg.globalAlpha = 1; }
+  ({ quad, grub, demon, bird, wisp, hammer: hammerRig, trap, hydra }[L.rig] || humanoid)(fg, L, st);
+  // Licht von oben, Füße im Schatten
+  fg.setTransform(1, 0, 0, 1, 0, 0); fg.globalCompositeOperation = 'source-atop';
+  const top = oy - st.h * k * 1.05, lg = fg.createLinearGradient(0, top, 0, oy);
+  lg.addColorStop(0, 'rgba(255,236,200,.16)'); lg.addColorStop(0.45, 'rgba(0,0,0,0)'); lg.addColorStop(0.85, 'rgba(0,0,0,.22)'); lg.addColorStop(1, 'rgba(0,0,0,.5)');
+  fg.fillStyle = lg; fg.fillRect(0, 0, n, n);
+  fg.globalCompositeOperation = 'source-over';
+  // Kontur: schwarze Silhouette um ein Pixel versetzt darunter
+  sg.globalCompositeOperation = 'copy'; sg.drawImage(FIG, 0, 0);
+  sg.globalCompositeOperation = 'source-in'; sg.fillStyle = '#000'; sg.fillRect(0, 0, n, n);
+  g.save();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  const dx = Math.round(m.a * x + m.c * y + m.e - ox), dy = Math.round(m.b * x + m.d * y + m.f - oy);
+  g.globalAlpha *= (L.ghost || 1) * (st.alpha ?? 1);
+  if (!L.ghost) { const a = g.globalAlpha; g.globalAlpha = a * 0.85; for (const [ax, ay] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(SIL, 0, 0, n, n, dx + ax, dy + ay, n, n); g.globalAlpha = a; }
+  if (st.flash) g.filter = 'brightness(2.4) saturate(.5)';
+  else if (st.lying) g.filter = `brightness(${1 - 0.55 * st.lying}) saturate(${1 - 0.4 * st.lying})`;
+  g.drawImage(FIG, 0, 0, n, n, dx, dy, n, n);
+  g.filter = 'none';
+  const a = g.globalAlpha;
+  for (const [gx, gy, r, c, ga] of FIG_GLOW) { g.globalAlpha = a * ga; glowDot(g, dx + gx, dy + gy, r, c); }
   g.restore();
 }
 
@@ -203,7 +228,18 @@ const limb = (g, x1, y1, x2, y2, w, c) => { g.strokeStyle = c; g.lineWidth = w; 
 // Gliedmaße mit dunkler Kontur, damit Figuren auf dem Boden lesbar bleiben
 const limbO = (g, x1, y1, x2, y2, w, c) => { limb(g, x1, y1, x2, y2, w + 1.6, 'rgba(0,0,0,.6)'); limb(g, x1, y1, x2, y2, w, c); };
 // wie limbO, dazu ein Glanzstreifen auf der Lichtseite, damit Glieder rund wirken
-const limbS = (g, x1, y1, x2, y2, w, c) => { limbO(g, x1, y1, x2, y2, w, c); const o = w * 0.22; limb(g, x1 + o, y1, x2 + o, y2, w * 0.32, 'rgba(255,236,210,.16)'); };
+// rundes, sich verjüngendes Glied mit Zylinderschattierung (Licht von links oben)
+function limbS(g, x1, y1, x2, y2, w, c, w2 = w * 0.86) {
+  const dx = x2 - x1, dy = y2 - y1, l = Math.hypot(dx, dy) || 0.01, nx = -dy / l, ny = dx / l, a = Math.atan2(dy, dx);
+  const r1 = w / 2, r2 = w2 / 2;
+  g.beginPath();
+  g.arc(x1, y1, r1, a + Math.PI / 2, a - Math.PI / 2);
+  g.arc(x2, y2, r2, a - Math.PI / 2, a + Math.PI / 2);
+  g.closePath();
+  const s = nx < 0 || (nx === 0 && ny > 0) ? -1 : 1, gr = g.createLinearGradient(x1 - nx * r1 * s, y1 - ny * r1 * s, x1 + nx * r1 * s, y1 + ny * r1 * s);
+  gr.addColorStop(0, shade(c, 0.16)); gr.addColorStop(0.35, c); gr.addColorStop(0.75, shade(c, -0.22)); gr.addColorStop(1, shade(c, -0.42));
+  g.fillStyle = gr; g.fill();
+}
 // wogender, sich verjüngender Tentakel von (x, y) um (dx, dy)
 function tentacle(g, x, y, dx, dy, w, c, t) {
   let px = x, py = y;
@@ -212,7 +248,7 @@ function tentacle(g, x, y, dx, dy, w, c, t) {
 // zweigliedriges Glied: Gelenkpunkt aus Winkel a (oberes Stück) und b (unteres Stück)
 function joint(g, x, y, a, b, l1, l2, w1, w2, c) {
   const kx = x + Math.sin(a) * l1, ky = y + Math.cos(a) * l1, ex = kx + Math.sin(b) * l2, ey = ky + Math.cos(b) * l2;
-  limbS(g, x, y, kx, ky, w1, c); limbS(g, kx, ky, ex, ey, w2, c);
+  limbS(g, x, y, kx, ky, w1, c, w1 * 0.82); disc(g, kx, ky, w1 * 0.41, shade(c, -0.08)); limbS(g, kx, ky, ex, ey, w2 * 1.05, c, w2 * 0.8);
   return [ex, ey];
 }
 function volume(g, x, y, w, h) {
@@ -223,6 +259,8 @@ function volume(g, x, y, w, h) {
 }
 const disc = (g, x, y, r, c) => { g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); };
 function glowDot(g, x, y, r, c) {
+  // auf der Figurenfläche gesammelt und erst danach additiv in die Szene gemalt
+  if (g === fg) { const m = g.getTransform(); return FIG_GLOW.push([m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f, r * Math.hypot(m.a, m.b), c, g.globalAlpha]); }
   const a = g.globalAlpha, op = g.globalCompositeOperation;
   g.globalCompositeOperation = 'lighter';
   const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, c); gr.addColorStop(1, 'transparent');
@@ -300,7 +338,7 @@ function humanoid(g, L, st) {
   const tn = st.turn || 0, ph = st.walk * 0.16, sw = st.moving ? Math.sin(ph) * 0.55 * (1 - 0.6 * tn) : 0, spread = 3.2 * tn;
   g.scale(1 - 0.28 * tn, 1);
   const bob = st.moving ? Math.abs(Math.cos(ph)) * 1.4 : Math.sin(st.t * 2.2) * 0.5;
-  const body = L.body || L.skin, legs = L.legs || shade(body, -0.1), bones = L.bones, bw = bones ? 2.4 : 5.6;
+  const body = L.body || L.skin, legs = L.legs || shade(body, -0.1), bones = L.bones, bw = bones ? 2.6 : 7;
   if (L.float) g.translate(0, -6 + Math.sin(st.t * 3) * 2);
   // Flügel und Umhang hinter dem Körper
   if (L.wings) {
@@ -331,7 +369,7 @@ function humanoid(g, L, st) {
   // hinterer Arm
   const sh = [0, -41];
   const ab = L.spread ? -2.2 + Math.sin(st.t * 2) * 0.12 : L.arms ? 1.3 : -sw * 0.8 + 0.1;
-  const hb = joint(g, sh[0] - 1.5 - spread * 1.6, sh[1], ab, ab + 0.35, 7, 7, bones ? 2.2 : 4.6, bones ? 2 : 3.8, bones ? L.skin : shade(body, -0.18));
+  const hb = joint(g, sh[0] - 1.5 - spread * 1.6, sh[1], ab, ab + 0.35, 7, 7, bones ? 2.4 : 6, bones ? 2.2 : 5, bones ? L.skin : shade(body, -0.18));
   disc(g, hb[0], hb[1], 2, shade(L.skin, -0.1));
   // Rumpf
   if (L.robe) {
@@ -345,10 +383,10 @@ function humanoid(g, L, st) {
     for (let i = 0; i < 4; i++) { g.strokeStyle = L.skin; g.lineWidth = 1.4; g.beginPath(); g.ellipse(0, -38 + i * 3.4, 5 - i * 0.4, 1.4, 0, Math.PI * 0.05, Math.PI * 0.95); g.stroke(); }
     limb(g, -4, -24, 4, -24, 2.6, L.skin);
   } else {
-    g.fillStyle = body; g.beginPath(); g.moveTo(-5, -24); g.lineTo(5.5, -24); g.quadraticCurveTo(7, -31, 9, -39); g.quadraticCurveTo(9.5, -43.5, 5, -43.5); g.lineTo(-5, -43.5); g.quadraticCurveTo(-9.5, -43.5, -9, -39); g.quadraticCurveTo(-7, -31, -5, -24); g.closePath(); g.fill();
-    volume(g, -9, 0, 18, 0);
+    g.fillStyle = body; g.beginPath(); g.moveTo(-6, -23); g.lineTo(6.5, -23); g.quadraticCurveTo(8, -31, 10.5, -39); g.quadraticCurveTo(11, -44, 6, -44); g.lineTo(-6, -44); g.quadraticCurveTo(-11, -44, -10.5, -39); g.quadraticCurveTo(-8, -31, -6, -23); g.closePath(); g.fill();
+    volume(g, -10.5, 0, 21, 0);
     g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = 0.9; g.beginPath(); g.moveTo(-5, -35); g.quadraticCurveTo(0, -33, 6, -35); g.stroke();
-    for (const dx of [-6.5, 6.5]) { disc(g, dx, -41, 3.3, shade(body, -0.06)); g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 0.8; g.stroke(); }
+    for (const dx of [-7.5, 7.5]) { disc(g, dx, -41, 4.2, shade(body, -0.06)); g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 0.8; g.stroke(); }
     if (L.ribs) { g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 1; for (let i = 0; i < 4; i++) { g.beginPath(); g.ellipse(1, -38 + i * 3.6, 6 - i * 0.5, 1.6, 0, Math.PI * 0.05, Math.PI * 0.95); g.stroke(); } }
     if (L.tabard && !st.back) { g.fillStyle = L.tabard; g.fillRect(-1, -40, 6, 20); }
     if (L.belt) limb(g, -6, -26, 6.5, -26, 2.2, L.belt);
@@ -367,7 +405,7 @@ function humanoid(g, L, st) {
   const k = 1 - st.atk, ranged = L.weapon === 'bow';
   let af = L.spread ? 2.2 + Math.sin(st.t * 2 + 1) * 0.12 : L.arms ? 1.4 : sw * 0.8 + 0.35;
   if (st.atk > 0) af = ranged ? 1.45 : L.weapon === 'staff' || L.weapon === 'none' ? (L.spread ? 2.2 + st.atk * 0.6 : 0.4 - st.atk * 1.2) : -2.0 + 3.3 * (1 - (1 - k) * (1 - k));
-  const hf = joint(g, sh[0] + 1.5 + spread * 1.6, sh[1], af, af + (st.atk > 0 ? 0.1 : 0.4), 7, 7, bones ? 2.2 : 4.6, bones ? 2 : 3.8, bones ? L.skin : shade(body, 0.04));
+  const hf = joint(g, sh[0] + 1.5 + spread * 1.6, sh[1], af, af + (st.atk > 0 ? 0.1 : 0.4), 7, 7, bones ? 2.4 : 6, bones ? 2.2 : 5, bones ? L.skin : shade(body, 0.04));
   disc(g, hf[0], hf[1], 2.1, L.skin);
   g.save(); g.translate(hf[0], hf[1]);
   if (ranged) {
