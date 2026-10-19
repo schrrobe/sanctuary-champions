@@ -1032,19 +1032,21 @@ function drawProjVis(g, vis, sx, gy, a, t, col, tail, k = 0) {
     case 'shard': g.translate(sx, y); g.rotate(a); glowDot(g, 0, 0, 20, '#60b0ff'); g.fillStyle = '#e8f8ff'; g.beginPath(); g.moveTo(13, 0); g.lineTo(0, -4); g.lineTo(-12, 0); g.lineTo(0, 4); g.fill(); break;
     case 'spark': g.translate(sx, y); g.globalCompositeOperation = 'lighter'; glowDot(g, 0, 0, 24, '#5070ff'); glowDot(g, 0, 0, 12, col); g.strokeStyle = '#fffbe0'; g.lineWidth = 1.6; for (let i = 0; i < 4; i++) { const b = t * 30 + i * 1.6; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(b) * 6, Math.sin(b) * 6); g.lineTo(Math.cos(b + 0.6) * 11, Math.sin(b + 0.6) * 11); g.stroke(); } break;
     case 'beam': g.globalCompositeOperation = 'lighter'; for (const [w, c] of [[12, col + '55'], [5, col], [2, '#ffffff']]) { g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.moveTo(tail[0], tail[1] - 26); g.lineTo(sx, y); g.stroke(); } break;
-    case 'gust': { // Ebenenwind wie im Original: eine wogende weiß-lila Windwolke, die beim Flug anschwillt
-      const s = 0.9 + 1.4 * k;
-      g.translate(sx, y - 10 * s); g.rotate(a);
-      for (let i = 0; i < 12; i++) {
-        const b = t * 5 + i * 0.53, r = (18 + (i % 3) * 9) * s, px = Math.cos(b) * 12 * s - (i % 4) * 8 * s, py = Math.sin(b * 1.3 + i) * 21 * s;
-        const gr = g.createRadialGradient(px, py, 0, px, py, r);
-        gr.addColorStop(0, 'rgba(252,250,255,.56)'); gr.addColorStop(0.55, 'rgba(214,204,248,.3)'); gr.addColorStop(1, 'rgba(140,150,255,0)');
-        g.fillStyle = gr; g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
+    case 'gust': { // Ebenenwind wie in Champions: eine breite, wogende lila Windwand, die beim Flug anschwillt
+      const s = 0.9 + 1.2 * k, fx = Math.cos(a), fy = Math.sin(a), { w, px, py } = tail, n = Math.ceil(w / 9);
+      g.translate(sx, y - 18 * s);
+      for (const row of [1, 0]) for (let i = -n; i <= n; i++) { // zwei Reihen Wolkenballen quer über die ganze Breite, außen dünner
+        const o = i / n * w, edge = 1 - Math.abs(i / n) * 0.4, b = t * 5 + i * 0.9 + row * 2, d = Math.cos(b) * 10 * s - (i & 3) * 5 * s - row * 16 * s;
+        const x = px * o + fx * d, yy = py * o + fy * d + Math.sin(b * 1.3) * 8 * s - row * 10 * s, r = (28 + (i % 3 + 3) % 3 * 10) * s * edge * (row ? 0.85 : 1);
+        const al = edge * (row ? 0.7 : 1), gr = g.createRadialGradient(x, yy, 0, x, yy, r);
+        gr.addColorStop(0, `rgba(246,234,255,${0.6 * al})`); gr.addColorStop(0.5, `rgba(178,128,255,${0.4 * al})`); gr.addColorStop(1, 'rgba(110,60,220,0)');
+        g.fillStyle = gr; g.beginPath(); g.arc(x, yy, r, 0, 7); g.fill();
       }
       g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
-      for (let i = 0; i < 3; i++) { // Sichelböen wie auf dem Originalsymbol
-        const r = (22 + i * 12) * s, o = -0.9 + Math.sin(t * 7 + i) * 0.15;
-        g.strokeStyle = `rgba(200,225,255,${0.55 - i * 0.12})`; g.lineWidth = (4 - i) * s; g.beginPath(); g.arc(-r * 0.55, 0, r, o, o + 1.8); g.stroke();
+      for (let j = 0; j < 3; j++) { // Sichelböen wie auf dem Originalsymbol, als gewölbte Front über die Breite
+        g.strokeStyle = `rgba(214,180,255,${0.6 - j * 0.15})`; g.lineWidth = (4 - j) * s; g.beginPath();
+        for (let i = -n; i <= n; i++) { const o = i / n, bulge = (1 - o * o) * (18 - j * 9) * s + Math.sin(t * 8 + i + j) * 2; const x = px * o * w + fx * bulge, yy = py * o * w + fy * bulge; i === -n ? g.moveTo(x, yy) : g.lineTo(x, yy); }
+        g.stroke();
       }
       break;
     }

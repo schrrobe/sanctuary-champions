@@ -8,6 +8,10 @@ let W = 0, H = 0;
 const PIXEL = 'sanctuary-pixel';
 let VS = 1, PX = 1, LH = 8; // LH: halbe Höhe der Bodenbeschriftungen
 const pixelOn = () => { try { return localStorage.getItem(PIXEL) !== '0'; } catch { return true; } };
+// Unendlich Mana, im Menü abschaltbar; die Balance-Prüfung rechnet immer mit echtem Mana
+const INFMANA = 'sanctuary-infmana';
+let infOn = (() => { try { return localStorage.getItem(INFMANA) !== '0'; } catch { return true; } })();
+const infMana = () => infOn && panel !== 'balance';
 function resize() {
   VS = Math.max(0.7, Math.min(1.5, innerHeight / 760));
   PX = pixelOn() ? Math.max(0.5, Math.min(1, 620 / innerHeight)) : 1;
@@ -342,9 +346,11 @@ function spawnMon(t, x, y, kind) {
   e.maxhp = e.hp; G.ents.push(e); return e;
 }
 
+// je zwei Fertigkeitspunkte eine Beschwörung mehr: Feuergolem auf Stufe 1–2 einer, auf 3–4 zwei, auf 5–6 drei
+const summonMax = (s, r) => s.k + Math.floor((r - 1) / 2);
 function spawnMinion(s, r, x, y) {
-  // pw: Stärke der Beschwörung je Fähigkeit (Balance), wirkt auf Leben und Schaden
-  const m = MINIONS[s.m], pw = s.pw || 1, hm = (1 + 0.15 * (r - 1)) * (1 + 0.1 * (P.lvl - 1)) * pw;
+  // pw: Stärke der Beschwörung je Fähigkeit (Balance), wirkt auf Leben und Schaden; mehr gleichzeitig heißt jede einzeln etwas schwächer
+  const m = MINIONS[s.m], pw = (s.pw || 1) * Math.sqrt(s.k / summonMax(s, r)), hm = (1 + 0.15 * (r - 1)) * (1 + 0.1 * (P.lvl - 1)) * pw;
   const dm = (1 + 0.2 * (r - 1)) * S.lvlMult * (1 + S.minionPct) * (s.c === P.cls ? 1.25 : 1) * pw;
   const e = {
     ...baseEnt(), x, y, r: m.r, team: 'p', nm: m.nm, col: m.col, look: MIN_LOOKS[s.m], hp: m.hp * hm, maxhp: m.hp * hm, d: m.d * dm, v: m.v,
@@ -362,7 +368,7 @@ const RISERS = ['skel', 'smage', 'golem', 'bgolem', 'igolem', 'fgolem'], RISE = 
 function revive(s, r, c) {
   const e = spawnMon(c.tpl, c.x, c.y, null);
   Object.assign(e, { team: 'p', minion: true, sid: s.id, life: s.dur, rise: RISE, awake: true, nm: e.nm + ' (wiederbelebt)', xp: 0 });
-  const pw = s.pw || 1;
+  const pw = s.pw || 1; // je Leiche nur einer: ohne Abschwächung nach Anzahl
   e.hp = e.maxhp *= (2 + 0.2 * (r - 1)) * pw; e.d *= (1 + 0.15 * (r - 1)) * (1 + S.minionPct) * pw;
   emit(c.x, c.y, 2, 'phys', 14, 40, { vz: rnd(40, 100), g: 300, add: false, col: '#7a0808', life: 0.6 });
 }
@@ -649,7 +655,7 @@ function useSkill(s, r, tx, ty) {
       const fire = ang => shoot(p, ang, {
         dmg: dmg(), el, v: s.v || 500, pr: (s.pr || 0) + (s.wm ? S.pierce : 0), ex: s.ex, hm: s.hm, kb: s.kb, st: s.st,
         life: s.life, sz: s.sz, spiral: s.spiral, shards: s.shards, leech: s.leech, ae: s.wm ? S.ae : null, vis: PROJ_VIS[s.id], arrow: s.wm && !PROJ_VIS[s.id] ? 1 : 0,
-        er: s.er, fury: s.fury, cloud: s.cloud, pool: s.pool, rebound: s.rebound, endX: p.x + Math.cos(ang) * far, endY: p.y + Math.sin(ang) * far,
+        er: s.er, fury: s.fury, cloud: s.cloud, pool: s.pool, rebound: s.rebound, wide: s.wide, endX: p.x + Math.cos(ang) * far, endY: p.y + Math.sin(ang) * far,
       });
       // Streufeuer: je ein Pfeil auf die nächsten Gegner
       const near = s.strafe ? foes(p).filter(e => dist(p, e) < 460).sort((x, y) => dist(p, x) - dist(p, y)).slice(0, s.strafe) : [];
@@ -702,16 +708,16 @@ function useSkill(s, r, tx, ty) {
       return;
     }
     case 'summon': {
-      const m = MINIONS[s.m];
+      const m = MINIONS[s.m], n = summonMax(s, r);
       if (s.corpse) { // Grauenswacht und Wiederbeleben brauchen eine Leiche
         const c = nearest({ x: tx, y: ty }, G.corpses.filter(c => Math.hypot(c.x - tx, c.y - ty) < 200 && (!s.revive || c.tpl)));
         if (!c) { note('Keine Leiche in der Nähe'); return false; }
         G.corpses.splice(G.corpses.indexOf(c), 1);
         if (s.revive) revive(s, r, c); else spawnMinion(s, r, c.x, c.y);
-      } else for (let i = 0; i < s.k; i++) {
+      } else for (let i = 0; i < n; i++) { // ein Wirken ruft gleich alle, die erlaubt sind
         let x = p.x + rnd(-40, 40), y = p.y + rnd(-40, 40);
         if (s.wall) { // Knochenwand: Teilstücke quer zur Blickrichtung
-          const o = (i - (s.k - 1) / 2) * 30; x = tx - Math.sin(a) * o; y = ty + Math.cos(a) * o;
+          const o = (i - (n - 1) / 2) * 30; x = tx - Math.sin(a) * o; y = ty + Math.cos(a) * o;
           if (!free(x, y, m.r)) continue;
         } else {
           if (!m.v && Math.hypot(tx - p.x, ty - p.y) < 400 && free(tx, ty, m.r)) { x = tx + rnd(-25, 25); y = ty + rnd(-25, 25); }
@@ -722,7 +728,7 @@ function useSkill(s, r, tx, ty) {
         }
         spawnMinion(s, r, x, y);
       }
-      const mine = G.ents.filter(e => e.sid === s.id && !e.dead), max = s.k + Math.floor(r / 2);
+      const mine = G.ents.filter(e => e.sid === s.id && !e.dead), max = n;
       mine.slice(0, Math.max(0, mine.length - max)).forEach(e => e.dead = true);
       return;
     }
@@ -777,7 +783,7 @@ function cast(slot, tx, ty) {
   const s = SK[id], r = rank(id);
   if (!r || s.t === 'passive' || G.cds[id] > 0) return false;
   const cost = (s.mp || 0) * (1 + 0.08 * (r - 1));
-  if (p.mp < cost) { note('Nicht genug Mana'); return false; }
+  if (p.mp < cost && !infMana()) { note('Nicht genug Mana'); return false; }
   p.face = Math.atan2(ty - p.y, tx - p.x);
   const res = useSkill(s, r, tx, ty);
   if (res === false) return false;
@@ -867,6 +873,14 @@ function segDist(e, x1, y1, x2, y2) {
   const dx = x2 - x1, dy = y2 - y1, l = dx * dx + dy * dy, t = l ? clamp(((e.x - x1) * dx + (e.y - y1) * dy) / l, 0, 1) : 0;
   return Math.hypot(e.x - x1 - dx * t, e.y - y1 - dy * t);
 }
+// Geschoss berührt Gegner: entlang der Flugstrecke dieses Schritts, breite Fronten (Ebenenwind) quer dazu
+// Bildschirmrichtung je Welteinheit quer zur Flugbahn
+const side = q => { const sp = Math.hypot(q.vx, q.vy) || 1, wx = -q.vy / sp, wy = q.vx / sp; return { px: (wx - wy) * Z, py: (wx + wy) * Z / 2 }; };
+function touches(q, e, ox, oy) {
+  if (!q.wide) return segDist(e, ox, oy, q.x, q.y) < e.r + q.sz;
+  const sp = Math.hypot(q.vx, q.vy) || 1, ux = q.vx / sp, uy = q.vy / sp, dx = e.x - q.x, dy = e.y - q.y, along = dx * ux + dy * uy;
+  return along < e.r + q.sz && along > -Math.hypot(q.x - ox, q.y - oy) - e.r - q.sz && Math.abs(dy * ux - dx * uy) < q.wide + e.r;
+}
 function projectiles(dt) {
   for (const q of G.projs) {
     if (q.dead) continue;
@@ -898,7 +912,7 @@ function projectiles(dt) {
     const crash = () => { if (q.ex) explode(q); if (q.shards) burst(q); q.dead = true; };
     if ((!q.arrow || q.el !== 'phys') && !['tornado', 'twister', 'axe', 'insects', 'wind', 'gust', 'bone', 'fang', 'blade'].includes(q.vis)) emit(q.x, q.y, 26, q.vis === 'farrow' ? 'fire' : q.el === 'phys' ? 'mag' : q.el, q.el === 'fire' ? 2 : 1, 8, { life: 0.35 });
     if ((q.vis === 'flame' || q.vis === 'boulder') && Math.random() < 0.5) emit(q.x, q.y, 0, 'fire', 1, 6, { vx: 0, vy: 0, vz: 0, life: rnd(0.8, 1.3), s: rnd(4, 7), flame: 1 });
-    if (q.vis === 'gust' && Math.random() < 0.7) G.parts.push({ x: q.x + rnd(-q.sz, q.sz), y: q.y + rnd(-q.sz, q.sz), z: rnd(6, 40), vx: q.vx * 0.6, vy: q.vy * 0.6, vz: rnd(-10, 30), life: 0.5, t: 0, col: pick(['#e8e4ff', '#c8d0ff', '#ffffff']), s: 2, add: true });
+    if (q.vis === 'gust') for (let i = 0; i < (q.wide ? 4 : 1); i++) if (Math.random() < 0.7) { const w = q.wide || q.sz, o = rnd(-w, w), sp = Math.hypot(q.vx, q.vy) || 1; G.parts.push({ x: q.x - q.vy / sp * o, y: q.y + q.vx / sp * o, z: rnd(6, 50), vx: q.vx * 0.6, vy: q.vy * 0.6, vz: rnd(-10, 30), life: 0.5, t: 0, col: pick(['#e0c8ff', '#b08cff', '#ffffff']), s: 2, add: true }); }
     // Giftwurfspeer hinterlässt eine Spur aus Giftwolken
     if (q.cloud && (q.cT = (q.cT || 0) - dt) <= 0) { q.cT = 0.08; G.areas.push({ x: q.x, y: q.y, r: 30, el: 'pois', dmg: q.dmg * q.cloud, t: 0, delay: 0, ticks: 4, iv: 0.4, src: q.src, vis: 'cloud', seed: rnd(0, 6) }); }
     if (q.shards) {
@@ -908,7 +922,7 @@ function projectiles(dt) {
       continue;
     }
     for (const e of G.ents) {
-      if (e.team === q.team || e === q.src || e.dead || e.noTarget || q.hitSet.has(e) || segDist(e, ox, oy, q.x, q.y) >= e.r + q.sz) continue;
+      if (e.team === q.team || e === q.src || e.dead || e.noTarget || q.hitSet.has(e) || !touches(q, e, ox, oy)) continue;
       q.hitSet.add(e);
       if (q.ex) { explode(q); q.dead = true; break; }
       hit(q.src, e, q.dmg, q.el, { kb: q.kb, st: q.st, leech: q.leech, ranged: 1 });
@@ -1126,7 +1140,7 @@ function update(dt) {
   G.t += dt;
   p.r = 14 * (1 + 0.3 * S.size);
   p.hp = Math.min(S.maxhp, p.hp + S.regen * dt);
-  p.mp = Math.min(S.maxmp, p.mp + S.mregenTot * dt);
+  p.mp = infMana() ? S.maxmp : Math.min(S.maxmp, p.mp + S.mregenTot * dt);
   for (const id in G.buffs) {
     const b = G.buffs[id];
     if (b.s.pulse && (b.pt -= dt) <= 0) { b.pt = b.s.pulse.iv; pulse(b); }
@@ -1393,7 +1407,7 @@ function draw() {
     const [sx, sy0] = proj(q.x, q.y), sy = sy0 - 26, c = EL[q.el][1];
     // Blitz und Strahl reichen weit zurück, aber nie hinter den Abschusspunkt
     const tb = q.vis === 'bolt' || q.vis === 'beam' ? Math.min(0.25, Math.hypot(q.x - q.x0, q.y - q.y0) / (Math.hypot(q.vx, q.vy) || 1)) : 0.08;
-    if (q.vis) { const [tx, ty] = proj(q.x - (q.vx || 0) * tb, q.y - (q.vy || 0) * tb), an = Math.atan2(sy0 - ty, sx - tx); ctx.globalCompositeOperation = 'source-over'; drawProjVis(ctx, q.vis, sx, sy0, an, G.t + (q.ang || 0), c, [tx, ty], q.life0 ? 1 - q.life / q.life0 : 0); ctx.globalCompositeOperation = 'lighter'; }
+    if (q.vis) { const [tx, ty] = proj(q.x - (q.vx || 0) * tb, q.y - (q.vy || 0) * tb), an = Math.atan2(sy0 - ty, sx - tx); ctx.globalCompositeOperation = 'source-over'; drawProjVis(ctx, q.vis, sx, sy0, an, G.t + (q.ang || 0), c, q.wide ? { w: q.wide, ...side(q) } : [tx, ty], q.life0 ? 1 - q.life / q.life0 : 0); ctx.globalCompositeOperation = 'lighter'; }
     else if (q.arrow) {
       const [ex, ey] = proj(q.x - q.vx * 0.035, q.y - q.vy * 0.035);
       ctx.globalCompositeOperation = 'source-over';
@@ -1565,8 +1579,8 @@ function hud() {
     el.hot.innerHTML = P.hot.map((id, i) => `<div class="hk ${id && id === P.slots[1] ? 'on' : ''}" data-hk="${i}" ${id ? `data-skill="${id}" style="background-image:url(${skillIcon(SK[id])})"` : ''}><em>F${i + 1}</em></div>`).join('');
     el.belt.innerHTML = [['hp', 1], ['hp', 2], ['mp', 1], ['mp', 2]].map(([t, n], i) => `<div class="bs" data-tip="${t === 'hp' ? 'Heiltrank' : 'Manatrank'} (${P.pots[t]})">${P.pots[t] >= n ? `<img src="${potionIcon(t)}" alt="">` : ''}${n === 1 && P.pots[t] ? `<b>${P.pots[t]}</b>` : ''}<em>${i + 1}</em></div>`).join('');
   }
-  el.skL.classList.toggle('oom', !!P.slots[0] && p.mp < costOf(P.slots[0]));
-  el.skR.classList.toggle('oom', !!P.slots[1] && p.mp < costOf(P.slots[1]));
+  el.skL.classList.toggle('oom', !!P.slots[0] && p.mp < costOf(P.slots[0]) && !infMana());
+  el.skR.classList.toggle('oom', !!P.slots[1] && p.mp < costOf(P.slots[1]) && !infMana());
   const st = Object.values(G.buffs).map(b => `<div class="state" style="background-image:url(${skillIcon(b.s)})"><em>${Math.ceil(b.t)}</em></div>`).join('') + (G.shield > 0 ? `<div class="state sh"><em>${Math.round(G.shield)}</em></div>` : '');
   setHTML(el.states, st);
   setHTML(el.area, `${G.area[0]}<small>Runde ${P.depth} · ${G.phase === 'fight' ? `noch ${enemiesLeft()} Gegner` : 'Pause'}</small><small>Rekord: Runde ${P.best || 0}</small>`);
@@ -1625,7 +1639,7 @@ function desc(s, r) {
       ['tap', 'Treffer heilen dich'], ['lres', '+40% Elementarschaden gegen die Ziele'], ['conf', 'Gegner greifen einander an'], ['attract', 'zieht die anderen Gegner auf sich'],
       ['taunt', 'das Ziel greift nur noch dich an']].forEach(([k, t]) => d[k] && o.push(t));
   }
-  if (s.t === 'summon') o.push(`${s.revive ? 'wiederbelebter Gegner' : MINIONS[s.m].nm}, max. ${s.k + Math.floor(R / 2)}${s.dur ? `, ${s.dur} s` : ''}`);
+  if (s.t === 'summon') o.push(`${s.revive ? 'wiederbelebter Gegner' : MINIONS[s.m].nm} ×${summonMax(s, R)} gleichzeitig (+1 je 2 Punkte)${s.dur ? `, ${s.dur} s` : ''}`);
   if (s.mods) o.push(...Object.entries(s.mods).map(([k, v]) => modTxt(k, k === 'ae' ? [v[0], v[1] * (1 + 0.15 * (R - 1))] : s.t === 'passive' ? v * R : k === 'size' ? v : v * (1 + 0.15 * (R - 1)))));
   if (s.pulse) {
     const p = s.pulse;
@@ -1717,7 +1731,7 @@ function renderInv() {
 
 function renderMenu() {
   return `<header><h2>Menü</h2><button class="x" data-act="close">✕</button></header>
-    <div class="menu"><button data-act="close">Spiel fortsetzen</button><button data-act="sound">Ton: ${SFX.on ? 'an' : 'aus'}</button><button data-act="pixel">Pixel-Look: ${PX < 1 ? 'an' : 'aus'}</button><button data-act="fig3d">3D-Figuren: ${SPR.on ? 'an' : 'aus'}</button><button data-act="menu">Speichern und zum Hauptmenü</button></div>
+    <div class="menu"><button data-act="close">Spiel fortsetzen</button><button data-act="sound">Ton: ${SFX.on ? 'an' : 'aus'}</button><button data-act="pixel">Pixel-Look: ${PX < 1 ? 'an' : 'aus'}</button><button data-act="fig3d">3D-Figuren: ${SPR.on ? 'an' : 'aus'}</button><button data-act="infmana">Unendlich Mana: ${infOn ? 'an' : 'aus'}</button><button data-act="menu">Speichern und zum Hauptmenü</button></div>
     <table class="keys">${[['Linksklick', 'Laufen / mit linker Fähigkeit angreifen'], ['Umschalt + Linksklick', 'Angreifen ohne zu laufen'], ['Rechtsklick', 'Rechte Fähigkeit'], ['F1–F8 / Mausrad', 'Rechte Fähigkeit wechseln'], ['1–4 (Q/E)', 'Tränke aus dem Gürtel'], ['WASD', 'Alternativ laufen'], ['C · I · T', 'Charakter · Inventar · Fähigkeiten'], ['Tab', 'Automap']].map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>`;
 }
 
@@ -1789,6 +1803,7 @@ $('#panel').addEventListener('click', e => {
   if (d.act === 'menu') { save(); return showSelect(); }
   if (d.act === 'sound') { SFX.toggle(); return renderPanel(); }
   if (d.act === 'fig3d') { SPR.toggle(); return renderPanel(); }
+  if (d.act === 'infmana') { infOn = !infOn; try { localStorage.setItem(INFMANA, infOn ? '1' : '0'); } catch { /* privater Modus */ } return renderPanel(); }
   if (d.act === 'pixel') { try { localStorage.setItem(PIXEL, pixelOn() ? '0' : '1'); } catch { /* privater Modus */ } resize(); return renderPanel(); }
   if (d.act === 'next') return startRound();
   if (d.act === 'respec') respec();

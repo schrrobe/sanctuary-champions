@@ -63,7 +63,7 @@ const BAL = (() => {
     if (s.t === 'buff' && !G.buffs[id] && tryMain(p.x, p.y)) return;
     if (s.t === 'shield' && G.shield <= 0 && tryMain(p.x, p.y)) return;
     if (s.t === 'heal' && p.hp < S.maxhp * 0.6 && tryMain(p.x, p.y)) return;
-    if (s.t === 'summon' && G.ents.filter(e => e.sid === id && !e.dead).length < s.k + Math.floor(rank(id) / 2) && tryMain(tg ? tg.x : p.x, tg ? tg.y : p.y)) return;
+    if (s.t === 'summon' && G.ents.filter(e => e.sid === id && !e.dead).length < summonMax(s, rank(id)) && tryMain(tg ? tg.x : p.x, tg ? tg.y : p.y)) return;
     if (!tg) return;
     const off = ['melee', 'proj', 'nova', 'area', 'chain', 'dash', 'convert'].includes(s.t);
     const useMain = off && p.mp >= costOf(id) && !(G.cds[id] > 0) && now - mem.last >= recast(s);
@@ -222,7 +222,7 @@ if (typeof require === 'function' && typeof module === 'object' && require.main 
       get: (t, k) => k === Symbol.toPrimitive ? () => 0 : k === Symbol.iterator ? function* () {} : stub,
       apply: () => stub, construct: () => stub, set: () => true,
     });
-    const store = {};
+    const store = { 'sanctuary-infmana': '0' }; // Balance und Kampagne immer mit echtem Mana
     const ctx = {
       document: stub, Image: stub, addEventListener: () => {}, requestAnimationFrame: () => {}, getComputedStyle: () => stub,
       localStorage: { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } },
