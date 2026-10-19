@@ -3,7 +3,7 @@ const $ = s => document.querySelector(s);
 const cv = $('#c'), ctx = cv.getContext('2d');
 const light = mkCanvas(1), lctx = light.getContext('2d');
 let W = 0, H = 0;
-// VS: Bildmaßstab der Spielwelt, an der Fensterhöhe ausgerichtet: Figuren füllen wie in D2 etwa ein Achtel der Bildhöhe
+// VS: Bildmaßstab der Spielwelt, an der Fensterhöhe ausgerichtet: weit herausgezoomt, Figuren füllen etwa ein Elftel der Bildhöhe
 // PX: Auflösung der Spielfläche; im Pixel-Look etwa 600 Bildpunkte hoch (wie 800×600 im Original) und grob hochskaliert
 const PIXEL = 'sanctuary-pixel';
 let VS = 1, PX = 1, LH = 8; // LH: halbe Höhe der Bodenbeschriftungen
@@ -13,7 +13,7 @@ const INFMANA = 'sanctuary-infmana';
 let infOn = (() => { try { return localStorage.getItem(INFMANA) !== '0'; } catch { return true; } })();
 const infMana = () => infOn && panel !== 'balance';
 function resize() {
-  VS = Math.max(0.7, Math.min(1.5, innerHeight / 760));
+  VS = Math.max(0.5, Math.min(1.1, innerHeight / 1050));
   PX = pixelOn() ? Math.max(0.5, Math.min(1, 620 / innerHeight)) : 1;
   cv.width = Math.round(innerWidth * PX); cv.height = Math.round(innerHeight * PX);
   cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px'; cv.style.imageRendering = PX < 1 ? 'pixelated' : 'auto';
@@ -353,7 +353,7 @@ function spawnMinion(s, r, x, y) {
   const m = MINIONS[s.m], pw = (s.pw || 1) * Math.sqrt(s.k / summonMax(s, r)), hm = (1 + 0.15 * (r - 1)) * (1 + 0.1 * (P.lvl - 1)) * pw;
   const dm = (1 + 0.2 * (r - 1)) * S.lvlMult * (1 + S.minionPct) * (s.c === P.cls ? 1.25 : 1) * pw;
   const e = {
-    ...baseEnt(), x, y, r: m.r, team: 'p', nm: m.nm, col: m.col, look: MIN_LOOKS[s.m], hp: m.hp * hm, maxhp: m.hp * hm, d: m.d * dm, v: m.v,
+    ...baseEnt(), x, y, r: m.r, team: 'p', nm: m.nm, col: m.col, look: MIN_LOOKS[s.m], hp: m.hp * hm * 2, maxhp: m.hp * hm * 2, d: m.d * dm, v: m.v, // doppeltes Leben
     el: m.el || 'phys', rng: m.rng ? { el: m.el, v: 420, vis: m.vis, er: m.er, k: m.k, life: m.life, ce: m.ce } : null, minion: true, sid: s.id, life: s.dur,
     noTarget: m.v === 0 && !m.bait, bait: m.bait, aura: m.aura, eat: m.eat, thornsM: m.thorns,
   };
@@ -369,7 +369,7 @@ function revive(s, r, c) {
   const e = spawnMon(c.tpl, c.x, c.y, null);
   Object.assign(e, { team: 'p', minion: true, sid: s.id, life: s.dur, rise: RISE, awake: true, nm: e.nm + ' (wiederbelebt)', xp: 0 });
   const pw = s.pw || 1; // je Leiche nur einer: ohne Abschwächung nach Anzahl
-  e.hp = e.maxhp *= (2 + 0.2 * (r - 1)) * pw; e.d *= (1 + 0.15 * (r - 1)) * (1 + S.minionPct) * pw;
+  e.hp = e.maxhp *= (2 + 0.2 * (r - 1)) * pw * 2; // wie alle Beschwörungen mit doppeltem Leben e.d *= (1 + 0.15 * (r - 1)) * (1 + S.minionPct) * pw;
   emit(c.x, c.y, 2, 'phys', 14, 40, { vz: rnd(40, 100), g: 300, add: false, col: '#7a0808', life: 0.6 });
 }
 
@@ -1474,7 +1474,7 @@ function draw() {
     g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(0.4, `rgba(0,0,0,${a * 0.92})`); g.addColorStop(0.75, `rgba(0,0,0,${a * 0.35})`); g.addColorStop(1, 'rgba(0,0,0,0)');
     lctx.fillStyle = g; lctx.fillRect(x - r, y - r, r * 2, r * 2);
   };
-  lamp(ppx, ppy - 30, 420, 1);
+  lamp(ppx, ppy - 30, 620, 1); // Sichtweite des Helden
   if (G.lavaImg) { // Lava ist selbstleuchtend: die Dunkelheit wird dort ausgestanzt, leicht pulsierend
     lctx.save(); lctx.setTransform(Z, Z / 2, -Z, Z / 2, cam.x, cam.y); lctx.globalAlpha = 0.82 + 0.1 * Math.sin(G.t * 1.3); lctx.drawImage(G.lavaImg, 0, 0); lctx.restore();
     for (const l of G.lavaEdge) if (l.h % 3 === 0) { const [sx, sy] = proj(l.x, l.y); lamp(sx, sy, 120, 0.5); }
@@ -1490,8 +1490,8 @@ function draw() {
   for (const pr of G.props) if ((pr.k === 'shrine' || pr.k === 'seal') && !pr.open) { const [sx, sy] = proj(pr.x, pr.y); lamp(sx, sy - 50, 130, 0.6); }
   // Vignette: Bildränder bleiben auch im Licht dunkel
   lctx.globalCompositeOperation = 'source-over';
-  const vg = lctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.3, W / 2, H * 0.45, Math.max(W, H) * 0.72);
-  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.6)');
+  const vg = lctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.42, W / 2, H * 0.45, Math.max(W, H) * 0.78);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)');
   lctx.fillStyle = vg; lctx.fillRect(0, 0, W, H);
   ctx.drawImage(light, 0, 0);
   // farbiges Licht: Fackeln orange, Pentagramm rot, Zauber in ihrer Elementfarbe
