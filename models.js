@@ -148,6 +148,7 @@ const SPR = (() => {
     cat: { k: 1.14, tw: 1.12, td: 1.05, sw: 0.142, digi: 1 },
     lizard: { k: 0.95, digi: 1, hunch: 0.16, hr: 0.058 },
     goat: { digi: 1 },
+    bear: { k: 1.45, tw: 1.45, td: 1.35, sw: 0.18, hunch: 0.32, ua: 0.19, fa: 0.18, hr: 0.064, th: 0.24 },
     bones: { k: 1, tw: 0.8 },
     demon: { k: 1.55, tw: 1.42, td: 1.3, sw: 0.175, digi: 1, hunch: 0.42, ua: 0.2, fa: 0.19, hr: 0.068, th: 0.25 },
   };
@@ -157,7 +158,7 @@ const SPR = (() => {
     const B = { ...BASE, ...BUILDS[b] }, k = B.k, bones = !!L.bones;
     const skin = L.skin, body = L.body || skin, legs = L.legs || body;
     const armored = !!L.armor, bare = (body === skin || !!L.top) && !bones; // L.top: Oberteil über freiem Bauch
-    const sk = bones ? 'bone' : b === 'lizard' ? 'scale' : b === 'cat' ? 'fur' : b === 'demon' ? 'flesh' : 'skin';
+    const sk = bones ? 'bone' : b === 'lizard' ? 'scale' : b === 'cat' || b === 'bear' ? 'fur' : b === 'demon' ? 'flesh' : 'skin';
     const torsoK = armored ? 'metal' : bare ? sk : L.robe ? 'cloth' : 'leather';
     const legK = armored ? 'metal' : legs === skin ? sk : 'cloth';
     const boots = L.boots || (armored ? shade(legs, -0.06) : '#2e2218'), bootK = armored ? 'metal' : 'leather';
@@ -665,7 +666,7 @@ const SPR = (() => {
   function model(L) {
     if (models.has(L)) return models.get(L);
     let M = null;
-    if (!['wisp', 'hammer', 'trap', 'hydra'].includes(L.rig)) {
+    if (!['wisp', 'hammer', 'trap', 'hydra', 'bonewall', 'vine', 'totem'].includes(L.rig)) {
       M = L.rig === 'quad' ? quad(L) : L.rig === 'grub' ? grub(L) : L.rig === 'bird' ? bird(L) : human(L.rig === 'demon' ? demonLook(L) : L);
       M.turn = new THREE.Group(); M.turn.add(M.root);
       M.id = ++ids; M.dirs = HEROES.has(L) ? 16 : 8;
@@ -773,6 +774,7 @@ const SPR = (() => {
     if (L.glow) glowDot(g, px, py - want * 0.5, want * 0.55, L.glow);
     if (st.flash) g.filter = 'brightness(2.4) saturate(.5)';
     else if (st.lying) g.filter = `brightness(${1 - 0.3 * st.lying})`;
+    else if (st.tint) g.filter = st.tint;
     if (fr.w) g.drawImage(e.pages[fr.pg].c, fr.x, fr.y, fr.w, fr.h, Math.round(px - fr.ox * s), Math.round(py - fr.oy * s), Math.round(fr.w * s), Math.round(fr.h * s));
     g.filter = 'none';
     for (const [gx, gy, r, c] of fr.glow) glowDot(g, px + gx * s, py + gy * s, r * s, c);

@@ -182,6 +182,24 @@ const MIN_LOOKS = {
   badger: { rig: 'quad', col: '#7a6a5a', ghost: 0.8 },
   hammer: { rig: 'hammer', col: '#fff8e0' },
   shadow: { ...LOOKS.asn, ghost: 0.5 },
+  decoy: { ...LOOKS.ama, ghost: 0.7 },
+  bonewall: { rig: 'bonewall', col: '#e8e0c8' },
+  ward: { rig: 'totem', col: '#c8b898' },
+  pcreeper: { rig: 'vine', col: '#5a9a30' },
+  cvine: { rig: 'vine', col: '#8a7a3a' },
+  svine: { rig: 'vine', col: '#d8c040' },
+  dwolf: { rig: 'quad', col: '#6a6050', eyes: '#ffb040' },
+  igolem: { skin: '#8a9098', body: '#7a8088', legs: '#6a7078', head: 'bald', hm: 1.05, eyes: '#80c0ff', build: 'big', armor: 1 },
+  fgolem: { skin: '#b03a10', body: '#a03008', legs: '#902008', head: 'bald', hm: 1.05, eyes: '#ffe060', build: 'big', glow: '#ff6020' },
+  smaster: { ...LOOKS.asn, ghost: 0.55, glow: '#8060c0' },
+  cbsentry: { rig: 'trap', col: '#a0c0ff' },
+  isentry: { rig: 'trap', col: '#ff7a20' },
+  dsentry: { rig: 'trap', col: '#e0e0ff' },
+};
+// Gestalten des Druiden: Werwolf auf Wolfsläufen mit Schnauze und Schwanz, Werbär massig mit Fell
+const SHAPE_LOOKS = {
+  wolf: { skin: '#6a5a46', body: '#6a5a46', legs: '#5a4a38', head: 'snout', build: 'cat', tail: '#5a4a38', eyes: '#ffc040', hunch: 0.2 },
+  bear: { skin: '#4a3220', body: '#4a3220', legs: '#3a2818', head: 'snout', build: 'bear', eyes: '#ffb040', hunch: 0.3 },
 };
 
 // Figuren werden einzeln auf eine Hilfsfläche gezeichnet, dort von oben beleuchtet und
@@ -200,7 +218,7 @@ function drawFigure(g, x, y, L, st) {
   fg.globalAlpha = 1; fg.globalCompositeOperation = 'source-over';
   fg.lineCap = 'round'; fg.lineJoin = 'round';
   if (L.glow) { fg.globalAlpha = 0.35; glowDot(fg, 0, -28, 30, L.glow); fg.globalAlpha = 1; }
-  ({ quad, grub, demon, bird, wisp, hammer: hammerRig, trap, hydra }[L.rig] || humanoid)(fg, L, st);
+  ({ quad, grub, demon, bird, wisp, hammer: hammerRig, trap, hydra, bonewall, vine, totem }[L.rig] || humanoid)(fg, L, st);
   // Licht von oben, Füße im Schatten
   fg.setTransform(1, 0, 0, 1, 0, 0); fg.globalCompositeOperation = 'source-atop';
   const top = oy - st.h * k * 1.05, lg = fg.createLinearGradient(0, top, 0, oy);
@@ -217,6 +235,7 @@ function drawFigure(g, x, y, L, st) {
   if (!L.ghost) { const a = g.globalAlpha; g.globalAlpha = a * 0.85; for (const [ax, ay] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(SIL, 0, 0, n, n, dx + ax, dy + ay, n, n); g.globalAlpha = a; }
   if (st.flash) g.filter = 'brightness(2.4) saturate(.5)';
   else if (st.lying) g.filter = `brightness(${1 - 0.55 * st.lying}) saturate(${1 - 0.4 * st.lying})`;
+  else if (st.tint) g.filter = st.tint;
   g.drawImage(FIG, 0, 0, n, n, dx, dy, n, n);
   g.filter = 'none';
   const a = g.globalAlpha;
@@ -532,6 +551,25 @@ function trap(g, L, st) {
   glowDot(g, 0, -21, 10 + Math.sin(st.t * 10) * 3, L.col);
 }
 
+// Knochenwand: gestapelte Rippen und Dornen mit einem Schädel obenauf
+function bonewall(g, L, st) {
+  for (let i = 0; i < 5; i++) { const x = -12 + i * 6; limb(g, x, 0, x + (i % 2 ? 3 : -3), -24 - (i % 3) * 5, 2.6, L.col); }
+  limb(g, -15, -9, 15, -11, 2.2, '#cfc6ac'); limb(g, -14, -17, 14, -19, 2, '#cfc6ac');
+  disc(g, -3, -29, 4, L.col); disc(g, -4.4, -29.5, 1.1, '#201a10'); disc(g, -1.6, -29.5, 1.1, '#201a10');
+}
+// Ranke des Druiden: gewundene Triebe, die sich im Wind wiegen
+function vine(g, L, st) {
+  g.lineCap = 'round';
+  for (let i = 0; i < 3; i++) { const sw = Math.sin(st.t * 3 + i * 2) * 4; g.strokeStyle = shade(L.col, -0.15 * i); g.lineWidth = 3.4 - i * 0.7; g.beginPath(); g.moveTo(-6 + i * 6, 0); g.quadraticCurveTo(-11 + i * 8 + sw, -10, -2 + i * 4 + sw, -18 - i * 3); g.stroke(); }
+  disc(g, 2 + Math.sin(st.t * 3) * 4, -21, 3.4, shade(L.col, 0.35));
+}
+// Grauenswacht: Pfahl mit Schädel und gekreuzten Knochen, die Augen glimmen
+function totem(g, L, st) {
+  limb(g, 0, 0, 0, -30, 2.4, '#5a4632'); limb(g, -8, -21, 8, -25, 2, L.col); limb(g, -8, -25, 8, -21, 2, L.col);
+  disc(g, 0, -33, 4.6, L.col); disc(g, -1.7, -33.5, 1.2, '#300'); disc(g, 1.7, -33.5, 1.2, '#300');
+  glowDot(g, 0, -33, 11 + Math.sin(st.t * 4) * 3, '#ff4020');
+}
+
 function hydra(g, L, st) {
   disc(g, 0, -4, 9, shade(L.col, -0.1));
   for (const [dx, hgt, ph] of [[-8, -26, 0], [0, -34, 2], [8, -26, 4]]) {
@@ -735,6 +773,120 @@ const ICON_SPEC = {
   blood_lust: 'fang drop:8,-8,.45', axe_bandolier: 'axe axe:0,0,1,1.571',
   poison_bolt: 'drop:0,0,.9 comet:-8,8,.45', drowsy: 'moon cloud:4,8,.45', summon_badger: 'paw', spirit_shield: 'shield ghost:0,0,.45', planar_wind: 'wind',
   poison_weapons: 'dagger drop:8,8,.45', tagars_insects: 'bug*3:0,0,.6', pus_storm: 'rain drop:6,-8,.45', giant_growth: 'figure:0,4,1.15 chevron:9,-9,.35',
+  // Diablo II: ergänzte Fähigkeiten
+  exploding_arrow: 'arrow explode:9,-9,.5',
+  ice_arrow: 'arrow shard*2:-8,-8,.45',
+  immolation_arrow: 'arrow flame*2:-8,8,.5',
+  strafe: 'bow arrow*3:4,-4,.6',
+  inner_sight: 'eye star:9,-9,.4',
+  slow_missiles: 'arrow hourglass:-9,9,.45',
+  avoid: 'figure wing:8,8,.45',
+  penetrate: 'arrow burst:8,8,.45',
+  decoy: 'figure*2:0,0,.8',
+  evade: 'figure speed:8,8,.45',
+  pierce: 'arrow*2:0,0,.9 ring:0,0,.5',
+  impale: 'spear burst:-8,-8,.45',
+  lightning_bolt: 'spear bolt:-8,-8,.6',
+  charged_strike: 'spear bolt*3:0,0,.45',
+  plague_javelin: 'spear cloud:-8,-8,.5',
+  fend: 'spear*3:0,0,.8 ring:0,0,.5',
+  lightning_strike: 'spear chain:6,6,.6 bolt:-8,-8,.4',
+  inferno: 'cone flame:-8,0,.5',
+  blaze: 'foot flame*2:6,-6,.5',
+  fire_wall: 'flame*3:0,0,.7',
+  enchant: 'sword flame:8,-8,.5',
+  telekinesis: 'hand ring:6,-6,.5',
+  nova: 'ring bolt*2:0,0,.5',
+  thunder_storm: 'cloud bolt:0,8,.6',
+  ice_blast: 'shard*3:0,0,.7',
+  shiver_armor: 'shield shard:6,-6,.5',
+  glacial_spike: 'shard explode:0,0,.5',
+  chilling_armor: 'helm snowflake:6,-6,.5',
+  dim_vision: 'eye cloud:6,6,.5',
+  weaken: 'hand drop:6,6,.45',
+  iron_maiden: 'shield fang*3:0,0,.5',
+  terror: 'skull ghost:8,8,.45',
+  confuse: 'skull spiral:6,-6,.5',
+  nec_life_tap: 'drop heart:6,6,.45',
+  attract: 'skull ring:0,0,.8',
+  lower_resist: 'shield crack:0,0,.6',
+  poison_dagger: 'dagger drop:8,-8,.5',
+  bone_wall: 'bone*3:0,0,.7',
+  poison_explosion: 'explode cloud:0,0,.5',
+  bone_prison: 'bone*4:0,0,.6 figure:0,0,.4',
+  golem_mastery: 'golem star:8,-8,.4',
+  summon_resist: 'golem shield:8,8,.45',
+  iron_golem: 'golem shield:8,-8,.4',
+  fire_golem: 'golem flame:8,-8,.45',
+  revive: 'skull ankh:8,-8,.45',
+  leap: 'foot chevron:6,-6,.5',
+  stun: 'mace star:-8,-8,.45',
+  double_throw: 'axe*2:0,0,.8',
+  concentrate: 'sword ring:0,0,.6',
+  frenzy: 'sword*2:0,0,.8 speed:6,8,.4',
+  axe_mastery: 'axe star:-8,8,.4',
+  mace_mastery: 'mace star:-8,8,.4',
+  polearm_mastery: 'spear star:-8,8,.4',
+  throwing_mastery: 'axe speed:8,8,.4',
+  spear_mastery: 'spear*2 star:-8,8,.4',
+  increased_stamina: 'foot heart:8,-8,.4',
+  find_potion: 'drop skull:8,8,.4',
+  taunt: 'mouth hand:8,8,.4',
+  find_item: 'crown skull:8,8,.4',
+  bar_battle_cry: 'mouth wave:-8,0,.5',
+  grim_ward: 'skull bone:0,10,.6',
+  battle_command: 'horn crown:8,-8,.4',
+  zeal: 'sword*3:0,0,.75',
+  vengeance: 'sword flame:-8,-8,.35 snowflake:0,-10,.35 bolt:8,-8,.35',
+  holy_shield: 'shield cross:0,0,.55',
+  thorns: 'rune fang*3:0,0,.5',
+  blessed_aim: 'rune eye:0,0,.5',
+  pal_concentration: 'rune sword:0,0,.5',
+  holy_shock: 'rune bolt:0,0,.5',
+  sanctuary: 'rune cross:0,0,.5',
+  resist_fire: 'rune flame:0,0,.5',
+  defiance: 'rune shield:0,0,.5',
+  resist_cold: 'rune snowflake:0,0,.5',
+  cleansing: 'rune drop:0,0,.5',
+  resist_lightning: 'rune bolt*2:0,0,.4',
+  vigor: 'rune foot:0,0,.5',
+  meditation: 'rune moon:0,0,.5',
+  redemption: 'rune ghost:0,0,.5',
+  salvation: 'rune star:0,0,.5',
+  poison_creeper: 'vine drop:8,-8,.4',
+  carrion_vine: 'vine skull:8,8,.4',
+  solar_creeper: 'vine star:8,-8,.45',
+  heart_of_wolverine: 'heart wolf:8,8,.45',
+  spirit_of_barbs: 'ghost fang*2:6,6,.4',
+  dire_wolf: 'wolf fang:8,8,.4',
+  werewolf: 'wolf moon:8,-8,.4',
+  lycanthropy: 'moon paw:4,4,.5',
+  werebear: 'bear moon:8,-8,.4',
+  feral_rage: 'claw speed:8,8,.4',
+  maul: 'paw burst:0,0,.5',
+  rabies: 'fang drop:8,8,.45',
+  fire_claws: 'claw flame:8,-8,.45',
+  hunger: 'fang heart:8,8,.4',
+  shock_wave: 'paw wave:0,8,.5',
+  fury: 'claw*3:0,0,.7',
+  armageddon: 'comet*3:0,0,.6',
+  fists_of_fire: 'fist flame:8,-8,.45',
+  dragon_claw: 'claw*2:0,0,.8',
+  cobra_strike: 'fist heart:8,8,.4',
+  claws_of_thunder: 'claw bolt:8,-8,.45',
+  dragon_tail: 'foot flame:8,-8,.45',
+  blades_of_ice: 'claw snowflake:8,-8,.45',
+  dragon_flight: 'foot wing:8,-8,.45',
+  phoenix_strike: 'bird flame:8,8,.4',
+  weapon_block: 'claw shield:8,8,.45',
+  shadow_master: 'ghost crown:0,-10,.4',
+  shock_web: 'chain*2:0,0,.7 bolt:0,0,.4',
+  blade_sentinel: 'shard*4:0,0,.5 ring:0,0,.5',
+  charged_bolt_sentry: 'trap bolt*2:0,-6,.4',
+  blade_fury: 'shard*3:0,0,.6 speed:-8,8,.4',
+  wake_of_inferno: 'trap flame:0,-8,.5',
+  death_sentry: 'trap skull:0,-8,.45',
+  blade_shield: 'ring shard*4:0,0,.5',
 };
 
 function drawSpec(g, spec, col) {
@@ -802,21 +954,62 @@ function potionIcon(k) {
 const PROJ_VIS = {
   bone_spear: 'bone', bone_spirit: 'skull', teeth: 'fang', blessed_hammer: 'hammer', psychic_hammer: 'phammer', tornado: 'tornado', twister: 'twister',
   molten_boulder: 'boulder', throwing: 'axe', summon_axe: 'axe', poison_javelin: 'javelin', lightning_fury: 'javelin', ice_bolt: 'shard', shock_of_frost: 'shard',
-  charged_bolt: 'spark', bolt_of_shock: 'spark', lightning: 'beam', wizard_beam: 'beam', holy_bolt: 'cross', hc_holy_bolt: 'cross', wake_of_fire: 'flame',
-  firestorm: 'flame', arctic_blast: 'mist', cone_of_frost: 'mist', drowsy: 'mist', cone_of_fire: 'fwave', tagars_insects: 'insects', planar_wind: 'wind',
+  charged_bolt: 'spark', bolt_of_shock: 'spark', lightning: 'bolt', wizard_beam: 'beam', holy_bolt: 'cross', hc_holy_bolt: 'cross', wake_of_fire: 'flame',
+  firestorm: 'flame', arctic_blast: 'mist', cone_of_frost: 'mist', drowsy: 'mist', cone_of_fire: 'fwave', tagars_insects: 'insects', planar_wind: 'gust',
   life_tap: 'drain', disease_bolt: 'goo', poison_bolt: 'goo', fire_bolt: 'firebolt', shock_of_fire: 'firebolt', fire_flares: 'firebolt', fire_ball: 'fireball',
-  fire_blast: 'bomb', frozen_orb: 'forb', magic_arrow: 'magic',
+  fire_blast: 'bomb', frozen_orb: 'forb', magic_arrow: 'magic', fire_arrow: 'farrow', wr_fire_arrow: 'farrow', explode_arrow: 'farrow', exploding_arrow: 'farrow', immolation_arrow: 'farrow', ice_arrow: 'carrow',
+  lightning_bolt: 'bolt', plague_javelin: 'javelin', inferno: 'fwave', telekinesis: 'tk', ice_blast: 'iceblast', glacial_spike: 'spike', double_throw: 'axe',
+  blade_sentinel: 'blade', blade_fury: 'blade', cold_arrow: 'carrow',
+  wr_cold_arrow: 'carrow', freezing_arrow: 'carrow', poison_arrow: 'parrow',
 };
 const HIT_VIS = {
   attack: 'slash', jab: 'thrust', power_strike: 'spark', bash: 'impact', double_swing: 'slash', berserk: 'dark', sacrifice: 'blood', smite: 'holy',
   tiger_strike: 'claw', dragon_talon: 'impact', shield_bash: 'impact', slam: 'impact', stunning_strike: 'impact', harm_touch: 'dark', hc_smite: 'holy',
+  impale: 'thrust', charged_strike: 'spark', fend: 'thrust', lightning_strike: 'spark', poison_dagger: 'thrust', stun: 'impact', concentrate: 'impact', frenzy: 'slash',
+  zeal: 'slash', vengeance: 'holy', feral_rage: 'claw', maul: 'claw', rabies: 'claw', fire_claws: 'claw', hunger: 'claw', fury: 'claw',
+  fists_of_fire: 'impact', dragon_claw: 'claw', cobra_strike: 'impact', claws_of_thunder: 'claw', dragon_tail: 'impact', blades_of_ice: 'claw', phoenix_strike: 'impact',
 };
-const AREA_VIS = { fissure: 'lava', volcano: 'volcano', fist_of_heavens: 'sky', holy_light: 'pillar', amplify_damage: 'curse', decrepify: 'curse', root: 'vines', entangle: 'vines', engulfing_darkness: 'dark', mind_blast: 'psy' };
-const AURA_COL = { might: '#ff4030', prayer: '#60a0ff', holy_fire: '#ff8020', holy_freeze: '#80d0ff', conviction: '#c050e0', fanaticism: '#ffd040' };
+const AREA_VIS = { fissure: 'lava', volcano: 'volcano', fist_of_heavens: 'sky', holy_light: 'pillar', amplify_damage: 'curse', decrepify: 'curse', root: 'vines', entangle: 'vines', engulfing_darkness: 'dark', mind_blast: 'psy', fire_storm: 'firerain',
+  dim_vision: 'curse', weaken: 'curse', iron_maiden: 'curse', terror: 'curse', confuse: 'curse', nec_life_tap: 'curse', attract: 'curse', lower_resist: 'curse', taunt: 'curse',
+  bone_prison: 'prison' };
+const AURA_COL = { might: '#ff4030', prayer: '#60a0ff', holy_fire: '#ff8020', holy_freeze: '#80d0ff', conviction: '#c050e0', fanaticism: '#ffd040',
+  thorns: '#c08040', blessed_aim: '#e8e8ff', pal_concentration: '#ffb060', holy_shock: '#fff27a', sanctuary: '#a0e0ff', resist_fire: '#ff6030', defiance: '#d0c090',
+  resist_cold: '#60b0ff', cleansing: '#b0ffb0', resist_lightning: '#fff080', vigor: '#80ffa0', meditation: '#8080ff', redemption: '#ffffff', salvation: '#ffd8a0' };
+// Fluchzeichen über dem Kopf wie in D2: Symbol und Farbe
+const CURSE_VIS = {
+  amplify_damage: ['skull', '#ff3020'], decrepify: ['hourglass', '#a0a0c0'], dim_vision: ['eye', '#a060ff'], weaken: ['drop', '#c09030'], iron_maiden: ['fang', '#ff5020'],
+  terror: ['ghost', '#b070ff'], confuse: ['spiral', '#60e060'], nec_life_tap: ['heart', '#ff2040'], attract: ['ring', '#d060ff'], lower_resist: ['crack', '#c050ff'],
+  taunt: ['mouth', '#ff4030'], bar_battle_cry: ['horn', '#ff8030'], inner_sight: ['eye', '#ffffc0'], slow_missiles: ['hourglass', '#60b0ff'],
+};
+// kleines Symbol aus dem Symbolsatz, etwa als Fluchzeichen über einem Gegner
+function glyphAt(g, name, x, y, sc, col) {
+  g.save(); g.translate(x, y); g.scale(sc, sc); g.fillStyle = g.strokeStyle = g.shadowColor = col; g.shadowBlur = 8; g.lineCap = g.lineJoin = 'round';
+  GLYPHS[name](g); g.restore();
+}
 const SHIELD_VIS = { bone_armor: 'bones', energy_shield: 'bubble', cyclone_armor: 'wind', spirit_shield: 'wisps', divine_aura: 'halo' };
+// Stärkungen aus CRtA: Lichtpunkte in dieser Farbe steigen um den Helden auf
+const BUFF_COL = { strong_stance: '#d8a050', regeneration: '#60e070', summon_arrows: '#f0e0a0', blessing: '#ffe080', disease_shield: '#80c040', battle_cry: '#ff6040' };
+// Färbung wie die Palettenverschiebung in D2: unterkühlt blau, vergiftet grün, eingefroren eisblau
+const TINT = { cold: 'sepia(1) saturate(3) hue-rotate(170deg)', pois: 'sepia(1) saturate(3) hue-rotate(50deg)', frz: 'sepia(1) saturate(2) hue-rotate(170deg) brightness(1.7)' };
+
+// Flammenzunge mit Fuß bei (x, y); additiv gezeichnet wird der Kern von selbst hell
+function flame(g, x, y, h, w, t) {
+  const sway = Math.sin(t) * w * 0.7;
+  for (const [s, c] of [[1, '#ff4a00'], [0.66, '#ff9a20'], [0.36, '#ffe8a0']]) {
+    g.fillStyle = c; g.beginPath(); g.moveTo(x + sway * s, y - h * s);
+    g.quadraticCurveTo(x + w * s, y - h * s * 0.3, x, y); g.quadraticCurveTo(x - w * s, y - h * s * 0.3, x + sway * s, y - h * s); g.fill();
+  }
+}
+// gezackter Blitz in Bildschirmkoordinaten, flackert, weil er in jedem Bild neu gewürfelt wird
+function zap(g, x1, y1, x2, y2, col, j = 7, w = 1) {
+  const dx = x2 - x1, dy = y2 - y1, l = Math.hypot(dx, dy) || 1, n = Math.max(2, Math.round(l / 16)), pts = [[x1, y1]];
+  for (let i = 1; i < n; i++) { const f = i / n, o = rr(-j, j); pts.push([x1 + dx * f - dy / l * o, y1 + dy * f + dx / l * o]); }
+  pts.push([x2, y2]);
+  for (const [lw, c] of [[9 * w, col + '44'], [3.5 * w, col], [1.4 * w, '#ffffff']]) { g.strokeStyle = c; g.lineWidth = lw; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke(); }
+}
 
 // Geschosse: (sx, gy) = Bodenpunkt, a = Flugrichtung am Bildschirm, tail = Bildschirmpunkt hinter dem Geschoss
-function drawProjVis(g, vis, sx, gy, a, t, col, tail) {
+function drawProjVis(g, vis, sx, gy, a, t, col, tail, k = 0) {
   const y = gy - 26;
   g.save();
   switch (vis) {
@@ -837,13 +1030,58 @@ function drawProjVis(g, vis, sx, gy, a, t, col, tail) {
     case 'axe': g.translate(sx, y); g.rotate(t * 20); limbO(g, 0, 9, 0, -9, 2.4, '#6a4a2a'); g.fillStyle = '#c8c8d0'; g.beginPath(); g.moveTo(0, -10); g.quadraticCurveTo(9, -11, 9, -2); g.quadraticCurveTo(5, -4, 0, -3); g.fill(); break;
     case 'javelin': g.translate(sx, y); g.rotate(a); glowDot(g, 0, 0, 20, col); limbO(g, -22, 0, 10, 0, 2.2, '#7a5a38'); g.fillStyle = '#d8d8e0'; g.beginPath(); g.moveTo(17, 0); g.lineTo(9, -3.5); g.lineTo(9, 3.5); g.fill(); break;
     case 'shard': g.translate(sx, y); g.rotate(a); glowDot(g, 0, 0, 20, '#60b0ff'); g.fillStyle = '#e8f8ff'; g.beginPath(); g.moveTo(13, 0); g.lineTo(0, -4); g.lineTo(-12, 0); g.lineTo(0, 4); g.fill(); break;
-    case 'spark': g.translate(sx, y); glowDot(g, 0, 0, 22, col); g.strokeStyle = '#fffbe0'; g.lineWidth = 1.6; for (let i = 0; i < 4; i++) { const b = t * 30 + i * 1.6; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(b) * 6, Math.sin(b) * 6); g.lineTo(Math.cos(b + 0.6) * 11, Math.sin(b + 0.6) * 11); g.stroke(); } break;
+    case 'spark': g.translate(sx, y); g.globalCompositeOperation = 'lighter'; glowDot(g, 0, 0, 24, '#5070ff'); glowDot(g, 0, 0, 12, col); g.strokeStyle = '#fffbe0'; g.lineWidth = 1.6; for (let i = 0; i < 4; i++) { const b = t * 30 + i * 1.6; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(b) * 6, Math.sin(b) * 6); g.lineTo(Math.cos(b + 0.6) * 11, Math.sin(b + 0.6) * 11); g.stroke(); } break;
     case 'beam': g.globalCompositeOperation = 'lighter'; for (const [w, c] of [[12, col + '55'], [5, col], [2, '#ffffff']]) { g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.moveTo(tail[0], tail[1] - 26); g.lineTo(sx, y); g.stroke(); } break;
+    case 'gust': { // Ebenenwind wie im Original: eine wogende weiß-lila Windwolke, die beim Flug anschwillt
+      const s = 0.9 + 1.4 * k;
+      g.translate(sx, y - 10 * s); g.rotate(a);
+      for (let i = 0; i < 12; i++) {
+        const b = t * 5 + i * 0.53, r = (18 + (i % 3) * 9) * s, px = Math.cos(b) * 12 * s - (i % 4) * 8 * s, py = Math.sin(b * 1.3 + i) * 21 * s;
+        const gr = g.createRadialGradient(px, py, 0, px, py, r);
+        gr.addColorStop(0, 'rgba(252,250,255,.56)'); gr.addColorStop(0.55, 'rgba(214,204,248,.3)'); gr.addColorStop(1, 'rgba(140,150,255,0)');
+        g.fillStyle = gr; g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
+      }
+      g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
+      for (let i = 0; i < 3; i++) { // Sichelböen wie auf dem Originalsymbol
+        const r = (22 + i * 12) * s, o = -0.9 + Math.sin(t * 7 + i) * 0.15;
+        g.strokeStyle = `rgba(200,225,255,${0.55 - i * 0.12})`; g.lineWidth = (4 - i) * s; g.beginPath(); g.arc(-r * 0.55, 0, r, o, o + 1.8); g.stroke();
+      }
+      break;
+    }
+    case 'tk': g.translate(sx, y); g.globalCompositeOperation = 'lighter'; glowDot(g, 0, 0, 22, '#6080ff'); g.strokeStyle = 'rgba(190,210,255,.7)'; g.lineWidth = 1.6;
+      for (let i = 0; i < 2; i++) { g.beginPath(); g.arc(0, 0, 6 + ((t * 30 + i * 5) % 10), 0, 7); g.stroke(); } break;
+    case 'iceblast': g.translate(sx, y); g.rotate(a); g.globalCompositeOperation = 'lighter'; glowDot(g, 0, 0, 30, '#3a90ff');
+      g.fillStyle = '#d8f0ff'; g.beginPath(); g.moveTo(16, 0); g.lineTo(4, -8); g.lineTo(-14, -4); g.lineTo(-10, 5); g.lineTo(5, 8); g.fill();
+      g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(14, 0); g.lineTo(3, -4); g.lineTo(-6, 0); g.lineTo(3, 3); g.fill(); break;
+    case 'spike': g.translate(sx, y); g.rotate(a); g.globalCompositeOperation = 'lighter'; glowDot(g, 0, 0, 26, '#4aa0ff');
+      g.fillStyle = '#e8f8ff'; g.beginPath(); g.moveTo(22, 0); g.lineTo(-6, -6); g.lineTo(-16, 0); g.lineTo(-6, 6); g.fill();
+      g.strokeStyle = '#ffffff'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(20, 0); g.lineTo(-12, 0); g.stroke(); break;
+    case 'blade': g.translate(sx, y); g.rotate(t * 24); glowDot(g, 0, 0, 16, '#a0a8c0'); g.fillStyle = '#d8dce8';
+      for (let i = 0; i < 4; i++) { g.rotate(1.571); g.beginPath(); g.moveTo(0, -2); g.lineTo(11, -1); g.lineTo(13, 3); g.lineTo(0, 2); g.fill(); } disc(g, 0, 0, 2.6, '#5a5a66'); break;
+    case 'bolt': g.globalCompositeOperation = 'lighter'; zap(g, tail[0], tail[1] - 26, sx, y, col); glowDot(g, sx, y, 26, col); break;
+    case 'farrow': case 'carrow': case 'parrow': { // Pfeil mit Elementschweif
+      const [c0, c1] = { farrow: ['#ff6a10', '#ffe080'], carrow: ['#4aa8ff', '#e8f8ff'], parrow: ['#40c020', '#c8ff90'] }[vis];
+      g.translate(sx, y); g.rotate(a); g.globalCompositeOperation = 'lighter'; glowDot(g, 2, 0, 20, c0);
+      const tg = g.createLinearGradient(-38, 0, 6, 0); tg.addColorStop(0, 'transparent'); tg.addColorStop(1, c0);
+      g.fillStyle = tg; g.beginPath(); g.moveTo(6, -4 - Math.sin(t * 40)); g.lineTo(-38, 0); g.lineTo(6, 4 + Math.sin(t * 40)); g.fill();
+      g.globalCompositeOperation = 'source-over'; g.strokeStyle = '#d8c8a0'; g.lineWidth = 2; g.beginPath(); g.moveTo(-15, 0); g.lineTo(8, 0); g.stroke();
+      g.fillStyle = c1; g.beginPath(); g.moveTo(14, 0); g.lineTo(6, -3.2); g.lineTo(6, 3.2); g.fill(); break;
+    }
+    case 'meteor': // brennender Fels mit langem Feuerschweif
+      g.translate(sx, y); g.rotate(a); g.globalCompositeOperation = 'lighter'; glowDot(g, 0, 0, 64, '#ff5a10');
+      for (const [l, w, c] of [[120, 20, '#ff4a00'], [86, 13, '#ff9a20'], [50, 7, '#ffe8a0']]) {
+        g.fillStyle = c; g.beginPath(); g.moveTo(w * 0.7, 0); g.quadraticCurveTo(0, -w, -l, Math.sin(t * 25) * 5); g.quadraticCurveTo(0, w, w * 0.7, 0); g.fill();
+      }
+      g.globalCompositeOperation = 'source-over'; disc(g, 0, 0, 13, '#2a1810');
+      g.globalCompositeOperation = 'lighter'; disc(g, 4, -3, 7, '#ff8a20'); break;
     case 'cross': g.translate(sx, y); g.rotate(t * 5); glowDot(g, 0, 0, 24, '#ffd060'); g.fillStyle = '#fff6d0'; g.fillRect(-2, -8, 4, 16); g.fillRect(-6, -4, 12, 4); break;
     case 'flame': g.globalCompositeOperation = 'lighter';
       for (let i = 0; i < 3; i++) { const h = 22 + Math.sin(t * 20 + i * 2) * 6, x = sx + (i - 1) * 6; g.fillStyle = ['#ff4a00', '#ff9a20', '#ffe080'][i]; g.globalAlpha = 0.8; g.beginPath(); g.moveTo(x, gy - h); g.quadraticCurveTo(x + 7, gy - 6, x, gy); g.quadraticCurveTo(x - 7, gy - 6, x, gy - h); g.fill(); }
       break;
-    case 'mist': case 'fwave': g.globalCompositeOperation = 'lighter'; for (let i = 0; i < 4; i++) glowDot(g, sx + Math.cos(t * 5 + i * 1.6) * 8, y + Math.sin(t * 4 + i * 2) * 5, 16, vis === 'mist' ? '#a8e0ff' : '#ff8a30'); break;
+    case 'fwave': g.globalCompositeOperation = 'lighter'; glowDot(g, sx, y, 28, '#ff5a10'); for (let i = 0; i < 3; i++) flame(g, sx + (i - 1) * 7, y + 12, 26 + 8 * Math.sin(t * 20 + i * 2), 6, t * 14 + i * 2); break;
+    case 'mist':
+      g.globalCompositeOperation = 'lighter'; for (let i = 0; i < 4; i++) glowDot(g, sx + Math.cos(t * 5 + i * 1.6) * 8, y + Math.sin(t * 4 + i * 2) * 5, 18, '#7ab8ff');
+      g.fillStyle = '#ffffff'; for (let i = 0; i < 4; i++) { const x = sx + Math.cos(t * 7 + i * 2.3) * 11, yy = y + Math.sin(t * 6 + i * 1.9) * 7; g.fillRect(x - 1, yy - 3, 2, 6); g.fillRect(x - 3, yy - 1, 6, 2); } break;
     case 'insects': for (let i = 0; i < 9; i++) { const b = t * 9 + i * 0.7, r = 6 + (i % 3) * 4; disc(g, sx + Math.cos(b * (i % 2 ? 1 : -1.3)) * r, y + Math.sin(b * 1.7) * r * 0.7, 1.6, i % 3 ? '#1a2a10' : '#8adf50'); } glowDot(g, sx, y, 14, '#4a8a20'); break;
     case 'wind': g.globalAlpha = 0.7; g.strokeStyle = '#e8e8e0'; g.lineWidth = 2; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(sx, y, 8 + i * 6, t * 12 + i * 2, t * 12 + i * 2 + 2.6); g.stroke(); } break;
     case 'drain': g.translate(sx, y); glowDot(g, 0, 0, 24, '#c02050'); disc(g, 0, 0, 5, '#ff8090'); g.strokeStyle = '#a01040'; g.lineWidth = 1.6; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(0, 0, 9, t * 10 + i * 2.1, t * 10 + i * 2.1 + 1.2); g.stroke(); } break;
@@ -876,6 +1114,61 @@ function drawHit(g, kind, x, y, k, col) {
       break;
     case 'spark': g.globalCompositeOperation = 'lighter'; glowDot(g, 0, 0, 28, '#fff27a'); g.strokeStyle = '#fffbe0'; g.lineWidth = 1.8; for (let i = 0; i < 5; i++) { const a = i * 1.26 + k * 3; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * 10, Math.sin(a) * 10 + 4); g.lineTo(Math.cos(a) * 22, Math.sin(a) * 22); g.stroke(); } break;
     case 'dark': disc(g, 0, 0, 10 + k * 24, 'rgba(20,0,30,.6)'); g.globalCompositeOperation = 'lighter'; glowDot(g, 0, 0, 30, '#8020c0'); break;
+  }
+  g.restore();
+}
+
+// Einschläge je Element, Novas, Teleport und Beschwörungen; (sx, sy) = Bodenpunkt am Bildschirm, k = Fortschritt 0..1
+function drawFx(g, f, sx, sy, k) {
+  const R = (f.r || 30) * Z * Math.SQRT2, a = 1 - k, s = f.seed || 0; // R: Weltradius am Bildschirm
+  g.save(); g.globalCompositeOperation = 'lighter';
+  if (f.k === 'boom') {
+    const y = sy - (f.z || 0), r = R * (0.45 + 0.55 * Math.sqrt(k));
+    g.globalAlpha = a;
+    if (f.el === 'fire') {
+      glowDot(g, sx, y, r * 1.6, '#ff4a00'); glowDot(g, sx, y, r * 0.8 * a, '#fff0c0');
+      for (let i = 0; i < 7; i++) { const b = i * 0.9 + s; flame(g, sx + Math.cos(b) * r * 0.55, y + Math.sin(b) * r * 0.28 + r * 0.25, r * Math.sqrt(a), r * 0.22, s + i + k * 12); }
+    } else if (f.el === 'cold') { // Eis zerspringt in Splitter
+      glowDot(g, sx, y, r * 1.4, '#3080ff'); glowDot(g, sx, y, r * 0.6 * a, '#e8f8ff'); g.fillStyle = '#e8f8ff';
+      const L = Math.min(22, r * 0.35);
+      for (let i = 0; i < 10; i++) {
+        const b = i * 0.628 + s, d = r * (0.2 + k * (0.8 + (i % 3) * 0.2));
+        g.save(); g.translate(sx + Math.cos(b) * d, y + Math.sin(b) * d * 0.6); g.rotate(Math.atan2(Math.sin(b) * 0.6, Math.cos(b)));
+        g.beginPath(); g.moveTo(L, 0); g.lineTo(0, -L * 0.22); g.lineTo(-L * 0.55, 0); g.lineTo(0, L * 0.22); g.fill(); g.restore();
+      }
+    } else if (f.el === 'light') {
+      glowDot(g, sx, y, r * 1.5, '#fff27a'); glowDot(g, sx, y, r * 0.6 * a, '#ffffff');
+      for (let i = 0; i < 5; i++) { const b = s + i * 1.257 + rr(-0.3, 0.3), d = r * (0.8 + k * 0.6); zap(g, sx, y, sx + Math.cos(b) * d, y + Math.sin(b) * d * 0.6, '#fff27a', 5, 0.6); }
+    } else if (f.el === 'pois') { // Giftwolke
+      glowDot(g, sx, y, r * 1.3, '#2a8a10'); g.globalCompositeOperation = 'source-over';
+      for (let i = 0; i < 6; i++) { const b = i * 1.047 + s, d = r * 0.4 * (0.5 + k); disc(g, sx + Math.cos(b) * d, y + Math.sin(b) * d * 0.6, r * 0.32 * (0.6 + k), 'rgba(70,150,30,.35)'); }
+    } else {
+      const c = f.col || EL[f.el]?.[1] || '#d78cff';
+      glowDot(g, sx, y, r * 1.5, c); glowDot(g, sx, y, r * 0.5 * a, '#ffffff'); g.strokeStyle = c; g.lineWidth = 2;
+      for (let i = 0; i < 8; i++) { const b = i * 0.785 + s; g.beginPath(); g.moveTo(sx + Math.cos(b) * r * 0.3, y + Math.sin(b) * r * 0.3); g.lineTo(sx + Math.cos(b) * r, y + Math.sin(b) * r); g.stroke(); }
+    }
+  } else if (f.k === 'nova') { // Ring aus Eis, Gift, Flammen oder Blitzen, der sich am Boden ausbreitet
+    const rx = R * (1 - a * a), ry = rx / 2, n = 24;
+    g.globalAlpha = Math.min(1, a * 1.6);
+    if (f.el === 'light') for (let ring = 0; ring < 2; ring++) { // zwei knisternde Blitzringe
+      const pts = [], m = 72; for (let i = 0; i <= m; i++) { const b = i / m * 6.283, o = i % m ? rr(0.95, 1.05) - ring * 0.06 : 1 - ring * 0.06; pts.push([sx + Math.cos(b) * rx * o, sy + Math.sin(b) * ry * o - 14]); }
+      for (const [lw, c] of [[8, '#8ab0ff44'], [2.4, '#fff27a'], [1, '#ffffff']]) { g.strokeStyle = c; g.lineWidth = lw * (1 - ring * 0.4); g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke(); }
+    } else for (let i = 0; i < n; i++) {
+      const b = i / n * 6.283 + s, x = sx + Math.cos(b) * rx, y = sy + Math.sin(b) * ry;
+      if (f.el === 'fire') flame(g, x, y, 34 * a + 8, 7, s + i * 1.3 + k * 14);
+      else if (f.el === 'cold') { glowDot(g, x, y - 10, 18, '#3a90ff'); g.fillStyle = '#e0f4ff'; g.beginPath(); g.moveTo(x, y - 26 * a - 8); g.lineTo(x + 3.5, y - 6); g.lineTo(x, y); g.lineTo(x - 3.5, y - 6); g.fill(); }
+      else if (f.el === 'pois') { glowDot(g, x, y - 12, 30 + k * 16, '#3aa010'); glowDot(g, x, y - 12, 12, '#a0ff60'); }
+      else { glowDot(g, x, y - 12, 14, f.col || '#d78cff'); disc(g, x, y - 12, 2, '#ffffff'); }
+    }
+  } else if (f.k === 'tele') { // Lichtsäule beim Verschwinden und Auftauchen
+    const w = 24 * a + 4, gr = g.createLinearGradient(sx - w, 0, sx + w, 0);
+    gr.addColorStop(0, 'transparent'); gr.addColorStop(0.5, f.col); gr.addColorStop(1, 'transparent');
+    g.globalAlpha = a; g.fillStyle = gr; g.fillRect(sx - w, sy - 170, w * 2, 170); glowDot(g, sx, sy - 40, 70 * a + 20, f.col);
+    for (let i = 0; i < 8; i++) { const b = s + i * 0.785 + k * 6, d = 26 * (1 - k * 0.6); disc(g, sx + Math.cos(b) * d, sy - 20 - i * 14 - k * 50, 2, '#ffffff'); }
+  } else if (f.k === 'appear') { // Beschwörung: Lichtring am Boden
+    const r = 12 + k * 46;
+    g.globalAlpha = a; g.strokeStyle = f.col; g.lineWidth = 3 * a + 1;
+    g.beginPath(); g.ellipse(sx, sy, r, r / 2, 0, 0, 7); g.stroke(); glowDot(g, sx, sy - 30, 60 * a + 10, f.col);
   }
   g.restore();
 }
