@@ -137,7 +137,7 @@ function genArena() {
 function genLevel() {
   const map = genArena(), old = G, keep = old ? old.ents.filter(e => e.minion && !e.dead && !e.conv) : [];
   G = {
-    map, seen: new Uint8Array(MW * MH).fill(1), edge: new Uint8Array(MW * MH), area: ARENA, props: [],
+    map, seen: new Uint8Array(MW * MH).fill(1), edge: new Uint8Array(MW * MH), wall: new Uint8Array(MW * MH), lavaEdge: [], area: ARENA, props: [],
     ents: [], projs: [], fx: [], areas: [], parts: [], texts: [], loot: [], corpses: [], labels: [], torches: [], buffs: old?.buffs || {}, cds: {},
     shield: old?.shield || 0, shieldVis: old?.shieldVis, t: 0, flowT: 0, flow: new Int16Array(MW * MH), saveT: 15, dead: 0, hover: null,
     boss: null, phase: 'pause', queue: [], waveT: 0, wares: [],
@@ -146,6 +146,13 @@ function genLevel() {
     const x = i % MW, y = (i / MW) | 0;
     if (DIRS8.some(([dx, dy]) => x + dx >= 0 && x + dx < MW && map[(y + dy) * MW + x + dx])) G.edge[i] = 1;
   }
+  // Wie im Chaos-Sanktuarium stehen hohe Mauern nur an den hinteren Kanten, vorn fallen die Wege in Lava ab.
+  // Säulen mitten im Raum (nicht mit dem Rand verbunden) bleiben ganz aus Stein
+  const out = new Uint8Array(MW * MH), q = [];
+  for (let i = 0; i < MW * MH; i++) { const x = i % MW, y = (i / MW) | 0; if (!map[i] && (x === 0 || y === 0 || x === MW - 1 || y === MH - 1)) { out[i] = 1; q.push(i); } }
+  while (q.length) { const i = q.pop(); for (const [dx, dy] of DIRS4) { const n = i + dy * MW + dx, x = (i % MW) + dx; if (x >= 0 && x < MW && n >= 0 && n < MW * MH && !map[n] && !out[n]) { out[n] = 1; q.push(n); } } }
+  for (let i = 0; i < MW * MH; i++) if (G.edge[i] && (!out[i] || map[i + MW] || map[i + 1] || map[i + MW + 1])) G.wall[i] = 1;
+  G.lava = out;
   G.floor = bakeFloor();
   const p = old?.player || { r: 14, team: 'p', player: true, hp: 1, mp: 1, atkT: 0, face: 0.8, seed: 0, st: 0, slow: 0, fear: 0, amp: 1, ampT: 0, pois: 0, poisT: 0, look: LOOKS[P.cls] };
   Object.assign(p, { x: (AC + 0.5) * T, y: (AC + 4.5) * T, dash: null, dead: false, order: null, path: null, pathT: -1 });
@@ -211,20 +218,51 @@ function rounds(dt) {
 }
 
 // Boden einmal backen (inkl. Schatten an Wänden, Blut, Knochen, Geröll und dem Pentagramm)
+// Lava rings um die Wege: glühender Grund mit dunklen Krusteninseln, an den Wegkanten fällt der Fels ab
+function bakeLava() {
+  const m = G.map, c = mkCanvas(MW * T), g = c.getContext('2d'), cells = [];
+  let sd = 7; const lr = (a, b) => a + (sd = sd * 16807 % 2147483647) / 2147483647 * (b - a), lp = a => a[Math.floor(lr(0, a.length))]; // eigener Zufall: die Balance-Prüfung bleibt unberührt
+  for (let i = 0; i < MW * MH; i++) if (G.lava[i] && !G.wall[i]) cells.push(i);
+  const blob = (x, y, r, c0, c1) => { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, c0); gr.addColorStop(1, c1); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); };
+  g.fillStyle = '#e2580c'; for (const i of cells) g.fillRect((i % MW) * T, ((i / MW) | 0) * T, T, T);
+  // wogende Hitzeflecken über die Feldgrenzen hinweg, dann dunkle Krustenschollen mit glühendem Rand
+  for (const i of cells) { const tx = i % MW, ty = (i / MW) | 0, h = hash(tx, ty); for (let k = 0; k < 2; k++) blob(tx * T + lr(-T, 2 * T), ty * T + lr(-T, 2 * T), lr(22, 60), lp(['rgba(255,214,96,.75)', 'rgba(255,160,40,.6)', 'rgba(170,40,6,.55)']), 'rgba(255,140,30,0)'); }
+  for (const i of cells) if (hash(i, 3) % 3 === 0) {
+    const tx = i % MW, ty = (i / MW) | 0, cx = tx * T + lr(0, T), cy = ty * T + lr(0, T), r = lr(6, 17), n = 7;
+    g.fillStyle = 'rgba(52,14,6,.92)'; g.strokeStyle = 'rgba(255,200,80,.55)'; g.lineWidth = 1.4;
+    g.beginPath(); for (let k = 0; k < n; k++) { const a = k / n * 6.283, rr = r * lr(0.6, 1.1); k ? g.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * 0.8) : g.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * 0.8); } g.closePath(); g.fill(); g.stroke();
+  }
+  g.globalCompositeOperation = 'destination-in'; g.fillStyle = '#000'; g.beginPath(); for (const i of cells) g.rect((i % MW) * T, ((i / MW) | 0) * T, T, T); g.fill();
+  g.globalCompositeOperation = 'source-over';
+  for (const i of cells) {
+    const tx = i % MW, ty = (i / MW) | 0, x = tx * T, y = ty * T, h = hash(tx, ty);
+    if (ty > 0 && m[i - MW] || tx > 0 && m[i - 1]) G.lavaEdge.push({ x: x + T / 2, y: y + T / 2, h });
+    // Felsabbruch unter der Wegkante: dunkles Band auf der Lava direkt am Weg
+    for (const [dx, dy] of [[0, -1], [-1, 0]]) if (m[i + dy * MW + dx]) {
+      const b = dy ? g.createLinearGradient(0, y, 0, y + T * 0.55) : g.createLinearGradient(x, 0, x + T * 0.55, 0);
+      b.addColorStop(0, 'rgba(20,8,5,1)'); b.addColorStop(0.55, 'rgba(50,14,6,.75)'); b.addColorStop(1, 'rgba(60,14,4,0)');
+      g.fillStyle = b; dy ? g.fillRect(x, y, T, T * 0.55) : g.fillRect(x, y, T * 0.55, T);
+    }
+  }
+  return c;
+}
+
 function bakeFloor() {
   const [, fl, wl] = G.area, m = G.map, c = mkCanvas(MW * T), g = c.getContext('2d');
+  G.lavaImg = bakeLava(); g.drawImage(G.lavaImg, 0, 0);
   g.fillStyle = g.createPattern(TEX.floor[fl], 'repeat');
   for (let i = 0; i < MW * MH; i++) if (m[i]) g.fillRect((i % MW) * T, ((i / MW) | 0) * T, T, T);
   const torchy = ['brick', 'sandstone', 'hell'].includes(wl);
   for (let i = 0; i < MW * MH; i++) {
     const tx = i % MW, ty = (i / MW) | 0, x = tx * T, y = ty * T, h = hash(tx, ty);
     if (!m[i]) {
-      if (torchy && G.edge[i] && h % 7 === 0) {
+      if (torchy && G.wall[i] && h % 7 === 0) {
         if (m[i + MW]) G.torches.push({ x: x + T / 2, y: y + T, tx, ty });
         else if (m[i + 1]) G.torches.push({ x: x + T, y: y + T / 2, tx, ty });
       }
       continue;
     }
+    for (const [dx, dy] of [[1, 0], [0, 1]]) if (G.lava[i + dy * MW + dx] && !G.wall[i + dy * MW + dx]) { g.fillStyle = '#4a3226'; dx ? g.fillRect(x + T - 3, y, 3, T) : g.fillRect(x, y + T - 3, T, 3); }
     for (const [dx, dy] of DIRS4) if (!m[i + dy * MW + dx]) for (let k = 0; k < 4; k++) {
       g.fillStyle = `rgba(0,0,0,${0.26 - k * 0.06})`;
       if (dx === 1) g.fillRect(x + T - (k + 1) * 4, y, 4, T); else if (dx === -1) g.fillRect(x + k * 4, y, 4, T);
@@ -1154,14 +1192,27 @@ function initPatterns() {
 }
 
 function drawWall(tx, ty, fade) {
-  const wl = G.area[2], h = WALL_H[wl], pat = PAT.wall[wl], x0 = tx * T, y0 = ty * T, m = G.map;
+  const wl = G.area[2], h = WALL_H[wl], pat = PAT.wall[wl], x0 = tx * T, y0 = ty * T, m = G.map, hs = hash(tx, ty), gothic = wl === 'hell';
   ctx.globalAlpha = fade;
+  // zwei schmale Spitzbogenfenster mit Glut dahinter, in Wandkoordinaten (x längs, y nach oben negativ)
+  const windows = (wx, wy) => {
+    if (!gothic || hs % 3) return;
+    ctx.globalCompositeOperation = 'lighter';
+    for (const fx of [0.26, 0.6]) {
+      const x = T * fx, w = T * 0.13, y0w = -h * 0.8, y1 = -h * 0.42, gr = ctx.createLinearGradient(0, y0w, 0, y1);
+      gr.addColorStop(0, '#ffd070'); gr.addColorStop(1, '#ff5a10'); ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y0w + w); ctx.quadraticCurveTo(x, y0w, x + w / 2, y0w - w * 0.6); ctx.quadraticCurveTo(x + w, y0w, x + w, y0w + w); ctx.lineTo(x + w, y1); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    G.winLamps.push([wx, wy - h * 0.6]);
+  };
   if (m[(ty + 1) * MW + tx]) {
     const [dx, dy] = proj(x0, y0 + T);
     tf(Z, Z / 2, 0, 1, dx, dy);
     ctx.fillStyle = pat; ctx.fillRect(0, -h, T, h);
     const g = ctx.createLinearGradient(0, -h, 0, 0); g.addColorStop(0, 'rgba(0,0,0,.25)'); g.addColorStop(1, 'rgba(0,0,0,.6)');
     ctx.fillStyle = g; ctx.fillRect(0, -h, T, h);
+    windows(...proj(x0 + T / 2, y0 + T));
   }
   if (m[ty * MW + tx + 1]) {
     const [bx, by] = proj(x0 + T, y0);
@@ -1169,12 +1220,20 @@ function drawWall(tx, ty, fade) {
     ctx.fillStyle = pat; ctx.fillRect(0, -h, T, h);
     const g = ctx.createLinearGradient(0, -h, 0, 0); g.addColorStop(0, 'rgba(0,0,0,.05)'); g.addColorStop(1, 'rgba(0,0,0,.4)');
     ctx.fillStyle = g; ctx.fillRect(0, -h, T, h);
+    windows(...proj(x0 + T, y0 + T / 2));
   }
   tf(Z, Z / 2, -Z, Z / 2, cam.x, cam.y - h);
   ctx.fillStyle = pat; ctx.fillRect(x0, y0, T, T);
   ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.fillRect(x0, y0, T, T);
   ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 1 / Z; ctx.strokeRect(x0, y0, T, T);
   scrT();
+  if (gothic && hs % 5 === 0) { // Turmspitze über der Mauer
+    const [sx, sy] = proj(x0 + T / 2, y0 + T / 2), y = sy - h, w = T * Z * 0.42, sh = h * (0.7 + (hs % 7) * 0.08);
+    const gr = ctx.createLinearGradient(sx - w, 0, sx + w, 0); gr.addColorStop(0, '#2a1612'); gr.addColorStop(0.5, '#1a0c0a'); gr.addColorStop(1, '#0a0505');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(sx - w, y + 4); ctx.lineTo(sx - w * 0.55, y - sh * 0.55); ctx.lineTo(sx, y - sh); ctx.lineTo(sx + w * 0.55, y - sh * 0.55); ctx.lineTo(sx + w, y + 4); ctx.fill();
+    ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = '#ff8a30'; ctx.fillRect(sx - 1.5, y - sh * 0.5, 3, sh * 0.2); ctx.globalCompositeOperation = 'source-over';
+    G.winLamps.push([sx, y - sh * 0.4]);
+  }
   for (const t of G.torches) if (t.tx === tx && t.ty === ty) {
     const [sx, sy] = proj(t.x, t.y), fl = Math.sin(G.t * 17 + tx) * 2 + Math.sin(G.t * 23 + ty);
     ctx.fillStyle = '#2a2018'; ctx.fillRect(sx - 3, sy - 62, 6, 12);
@@ -1221,6 +1280,12 @@ function draw() {
   isoT(); ctx.drawImage(G.floor, 0, 0);
   // Bodeneffekte
   ctx.globalCompositeOperation = 'lighter';
+  for (const l of G.lavaEdge || []) if (l.h % 4 === 0) {
+    const [sx, sy] = proj(l.x, l.y);
+    if (sx < -80 || sy < -80 || sx > W + 80 || sy > H + 80) continue;
+    scrT(); glowDot(ctx, sx, sy, 34 + 10 * Math.sin(G.t * 1.7 + l.h), 'rgba(255,190,70,.22)'); isoT();
+    if (Math.random() < 0.02) G.parts.push({ x: l.x + rnd(-15, 15), y: l.y + rnd(-15, 15), z: 2, vx: rnd(-6, 6), vy: rnd(-6, 6), vz: rnd(30, 70), life: rnd(0.8, 1.6), t: 0, col: pick(FIRE), s: 1.6, add: true });
+  }
   for (const a of G.areas) {
     const c = EL[a.el][1], g = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, a.r);
     g.addColorStop(0, a.dmg ? c + '40' : '#c080ff30'); g.addColorStop(1, 'transparent');
@@ -1291,7 +1356,8 @@ function draw() {
   const tx0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c.x)) / T)), tx1 = Math.min(MW - 1, Math.ceil(Math.max(...cs.map(c => c.x)) / T));
   const ty0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c.y)) / T)), ty1 = Math.min(MH - 1, Math.ceil(Math.max(...cs.map(c => c.y)) / T));
   const list = [], [ppx, ppy] = proj(p.x, p.y), pd = p.x + p.y;
-  for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) if (G.edge[ty * MW + tx]) list.push({ d: (tx + ty + 1) * T, tx, ty });
+  G.winLamps = [];
+  for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) if (G.wall[ty * MW + tx]) list.push({ d: (tx + ty + 1) * T, tx, ty });
   for (const e of G.ents) if (!e.dead && onScr(...proj(e.x, e.y))) list.push({ d: e.x + e.y, e });
   for (const pr of G.props) if (onScr(...proj(pr.x, pr.y))) list.push({ d: pr.x + pr.y, pr });
   list.sort((a, b) => a.d - b.d);
@@ -1395,6 +1461,11 @@ function draw() {
     lctx.fillStyle = g; lctx.fillRect(x - r, y - r, r * 2, r * 2);
   };
   lamp(ppx, ppy - 30, 420, 1);
+  if (G.lavaImg) { // Lava ist selbstleuchtend: die Dunkelheit wird dort ausgestanzt, leicht pulsierend
+    lctx.save(); lctx.setTransform(Z, Z / 2, -Z, Z / 2, cam.x, cam.y); lctx.globalAlpha = 0.82 + 0.1 * Math.sin(G.t * 1.3); lctx.drawImage(G.lavaImg, 0, 0); lctx.restore();
+    for (const l of G.lavaEdge) if (l.h % 3 === 0) { const [sx, sy] = proj(l.x, l.y); lamp(sx, sy, 120, 0.5); }
+  }
+  for (const [sx, sy] of G.winLamps || []) lamp(sx, sy, 46, 0.9);
   for (const t of G.torches) { const [sx, sy] = proj(t.x, t.y); lamp(sx, sy - 60, 210 + Math.sin(G.t * 13 + t.tx) * 12, 0.85); }
   for (const q of G.projs) { const [sx, sy] = proj(q.x, q.y); if (!q.arrow) lamp(sx, sy - 26, q.el === 'fire' ? 150 : 90, 0.7); }
   for (const a of G.areas) if (a.dmg && a.el !== 'pois') { const [sx, sy] = proj(a.x, a.y); lamp(sx, sy, a.r * Z * 1.6, 0.6); }
@@ -1413,6 +1484,7 @@ function draw() {
   const tint = (x, y, r, c) => { if (x > -r && y > -r && x < W + r && y < H + r) glowDot(ctx, x, y, r, c); };
   for (const t of G.torches) { const [sx, sy] = proj(t.x, t.y); tint(sx, sy - 60, 170, 'rgba(255,120,30,.16)'); }
   tint(pcx, pcy, 380, G.phase === 'fight' ? 'rgba(255,30,0,.14)' : 'rgba(200,30,0,.07)');
+  for (const l of G.lavaEdge) if (l.h % 4 === 0) { const [sx, sy] = proj(l.x, l.y); tint(sx, sy, 110, 'rgba(255,110,20,.12)'); }
   for (const q of G.projs) if (!q.arrow) { const [sx, sy] = proj(q.x, q.y); tint(sx, sy - 26, 110, EL[q.el][1] + '30'); }
   for (const a of G.areas) if (a.dmg) { const [sx, sy] = proj(a.x, a.y); tint(sx, sy, a.r * Z * 1.4, EL[a.el][1] + '28'); }
 
@@ -1771,10 +1843,51 @@ function loadSave() {
 }
 
 function preview(cnv, id, t, moving) {
-  const g = cnv.getContext('2d');
-  g.clearRect(0, 0, cnv.width, cnv.height);
-  g.fillStyle = 'rgba(0,0,0,.5)'; g.beginPath(); g.ellipse(cnv.width / 2, cnv.height - 12, 22, 8, 0, 0, 7); g.fill();
-  drawFigure(g, cnv.width / 2, cnv.height - 12, LOOKS[id], { h: 96 * (LOOKS[id].hm || 1), fx: +cnv.dataset.fx || 1, face: +cnv.dataset.face || 0.8, walk: t * 120, moving, atk: 0, t, turn: 0.35 });
+  const g = cnv.getContext('2d'), k = cnv.width / 110; // Leinwand in höherer Auflösung, gezeichnet wird in 110 × 130
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cnv.width, cnv.height); g.setTransform(k, 0, 0, k, 0, 0);
+  g.fillStyle = 'rgba(0,0,0,.5)'; g.beginPath(); g.ellipse(55, 118, 22, 8, 0, 0, 7); g.fill();
+  drawFigure(g, 55, 118, LOOKS[id], { h: 96 * (LOOKS[id].hm || 1), fx: +cnv.dataset.fx || 1, face: +cnv.dataset.face || 0.8, walk: t * 120, moving, atk: 0, t, turn: 0.35 });
+}
+
+// Kulisse der Charakterauswahl wie im Lager der Jägerinnen: Burgmauer mit Zinnen, Turm, Torbogen, Banner, toter Baum, Nachthimmel
+let campBg = null;
+function campBackdrop(w, h) {
+  if (campBg && campBg.width === w && campBg.height === h) return campBg;
+  const c = campBg = mkCanvas(w, h), g = c.getContext('2d'), R = i => hash(i, 17) % 1000 / 1000, base = h * 0.58, top = h * 0.2;
+  const sky = g.createLinearGradient(0, 0, 0, base); sky.addColorStop(0, '#06070b'); sky.addColorStop(1, '#151210'); g.fillStyle = sky; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 18; i++) { const x = R(i) * w, y = R(i + 50) * top, r = 60 + R(i + 9) * 150, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(80,74,70,.2)'); gr.addColorStop(1, 'rgba(80,74,70,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+  // Mauerwerk mit versetzten Fugen
+  const stone = (x, y, ww, hh, col) => {
+    g.fillStyle = col; g.fillRect(x, y, ww, hh); g.fillStyle = 'rgba(0,0,0,.4)';
+    for (let yy = y + 9; yy < y + hh; yy += 10) { g.fillRect(x, yy, ww, 1); for (let xx = x + ((yy / 10 | 0) % 2) * 10; xx < x + ww; xx += 20) g.fillRect(xx, yy - 9, 1, 9); }
+    const sh = g.createLinearGradient(x, 0, x + ww, 0); sh.addColorStop(0, 'rgba(120,130,150,.08)'); sh.addColorStop(1, 'rgba(0,0,0,.25)'); g.fillStyle = sh; g.fillRect(x, y, ww, hh);
+  };
+  const arch = (x, y, ww, hh, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(x, y + hh); g.lineTo(x, y + ww / 2); g.arc(x + ww / 2, y + ww / 2, ww / 2, Math.PI, 0); g.lineTo(x + ww, y + hh); g.fill(); };
+  stone(w * 0.14, top + 34, w * 0.74, base - top - 34, '#25221d');
+  for (let x = w * 0.14; x < w * 0.88; x += 32) stone(x, top + 16, 17, 20, '#25221d');
+  for (let i = 0; i < 6; i++) arch(w * 0.2 + i * w * 0.075, top + 64, 22, 40, '#0b0907');
+  stone(w * 0.64, top - 36, w * 0.22, base - top + 36, '#2b2721'); // Turm
+  for (let x = w * 0.64; x < w * 0.86; x += 26) stone(x, top - 56, 14, 22, '#2b2721');
+  for (let i = 0; i < 3; i++) { arch(w * 0.67 + i * w * 0.06, top - 10, 14, 30, '#0a0806'); arch(w * 0.67 + i * w * 0.06, top + 50, 14, 30, '#0a0806'); }
+  stone(w * 0.02, top + 4, w * 0.2, base - top - 4, '#27231e'); arch(w * 0.06, top + 40, w * 0.12, base - top - 40, '#050403'); // Torbogen
+  for (const [fx, col] of [[0.33, '#6e1611'], [0.45, '#b4ac94'], [0.56, '#6e1611']]) { // lange Banner
+    const x = w * fx, y0 = top + 30, y1 = base - 64, bw = 18;
+    g.fillStyle = '#0e0b08'; g.fillRect(x - bw / 2 - 3, y0 - 4, bw + 6, 4);
+    g.fillStyle = col; g.beginPath(); g.moveTo(x - bw / 2, y0); g.lineTo(x + bw / 2, y0); g.lineTo(x + bw / 2, y1); g.lineTo(x, y1 - 12); g.lineTo(x - bw / 2, y1); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(x - bw / 2, y0, 4, y1 - y0 - 6);
+    g.strokeStyle = col === '#b4ac94' ? '#6e1611' : '#c8b070'; g.lineWidth = 2; g.beginPath(); g.arc(x, y0 + 34, 5, 0, 7); g.moveTo(x, y0 + 22); g.lineTo(x, y0 + 62); g.stroke();
+  }
+  const tree = (x, y, a, l, d) => { // toter Baum
+    if (d > 6 || l < 4) return;
+    const x2 = x + Math.cos(a) * l, y2 = y + Math.sin(a) * l;
+    g.strokeStyle = '#0b0907'; g.lineWidth = Math.max(1, 9 - d * 1.4); g.lineCap = 'round'; g.beginPath(); g.moveTo(x, y); g.lineTo(x2, y2); g.stroke();
+    tree(x2, y2, a - 0.35 - R(d * 31 + (x | 0)) * 0.35, l * 0.72, d + 1); tree(x2, y2, a + 0.3 + R(d * 17 + (y | 0)) * 0.35, l * 0.66, d + 1);
+  };
+  tree(w * 0.09, base + 6, -1.5, h * 0.17, 0);
+  const gr = g.createLinearGradient(0, base, 0, h); gr.addColorStop(0, '#100d0a'); gr.addColorStop(1, '#040302'); g.fillStyle = gr; g.fillRect(0, base, w, h - base);
+  const fire = g.createRadialGradient(w / 2, h * 0.8, 10, w / 2, h * 0.8, w * 0.5); fire.addColorStop(0, 'rgba(255,120,40,.22)'); fire.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = fire; g.fillRect(0, 0, w, h);
+  const vg = g.createRadialGradient(w / 2, h * 0.6, h * 0.3, w / 2, h * 0.6, w * 0.62); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.92)'); g.fillStyle = vg; g.fillRect(0, 0, w, h);
+  return c;
 }
 
 // Lagerfeuer der Charakterauswahl: Glut, Holzscheite, Flammenzungen und Funken
@@ -1783,7 +1896,7 @@ function campfire(cnv, t) {
   const r = cnv.getBoundingClientRect();
   if (cnv.width !== Math.round(r.width) || cnv.height !== Math.round(r.height)) { cnv.width = Math.round(r.width); cnv.height = Math.round(r.height); }
   const g = cnv.getContext('2d'), w = cnv.width, h = cnv.height, cx = w / 2, cy = h * 0.8, fl = 1 + Math.sin(t * 11) * 0.04 + Math.sin(t * 17.3) * 0.03;
-  g.clearRect(0, 0, w, h);
+  g.clearRect(0, 0, w, h); g.drawImage(campBackdrop(w, h), 0, 0);
   // vom Feuer beleuchteter Boden
   g.save(); g.translate(cx, cy); g.scale(1, 0.32);
   const gr = g.createRadialGradient(0, 0, 0, 0, 0, w * 0.55 * fl);
@@ -1824,14 +1937,14 @@ function showSelect() {
   // Helden im Halbkreis hinter dem Feuer: vorn die aus D2, dahinter versetzt die aus Champions
   const ring = (list, rx, ry, a0, a1, sc) => list.map((c, i) => {
     const a = a0 + (a1 - a0) * i / (list.length - 1), x = 50 + Math.cos(a) * rx, y = 76 - Math.sin(a) * ry;
-    return `<button class="cls" data-cls="${c.id}" style="left:${x}%;top:${y}%;--s:${sc};z-index:${Math.round(y)}"><canvas width="110" height="130" data-fx="${x < 50 ? 1 : -1}" data-face="${(Math.PI / 4 - (x - 50) / 50 * 1.2).toFixed(2)}"></canvas><b>${c.nm}</b></button>`;
+    return `<button class="cls" data-cls="${c.id}" style="left:${x}%;top:${y}%;--s:${sc};z-index:${Math.round(y)}"><canvas width="${Math.round(220 * sc)}" height="${Math.round(260 * sc)}" data-fx="${x < 50 ? 1 : -1}" data-face="${(Math.PI / 4 - (x - 50) / 50 * 1.2).toFixed(2)}"></canvas><b>${c.nm}</b></button>`;
   }).join('');
   sel.innerHTML = `<h1>Sanctuary <span>&amp;</span> Norrath</h1>
     <p class="sub">Im Geiste von Diablo II: Lord of Destruction und Champions: Return to Arms</p>
     ${record() ? `<p class="sub">Rekord: Runde ${record().round} · ${esc(record().name)} (${CL[record().cls]?.nm || ''})</p>` : ''}
     <div id="camp"><canvas id="fire"></canvas>
-      ${ring(CLASSES.filter(c => c.g === 'CRtA'), 46, 40, 2.73, 0.41, 0.9)}
-      ${ring(CLASSES.filter(c => c.g === 'D2'), 40, 22, 2.97, 0.17, 1.22)}
+      ${ring(CLASSES.filter(c => c.g === 'CRtA'), 46, 34, 2.78, 0.36, 0.95)}
+      ${ring(['ama', 'asn', 'nec', 'bar', 'pal', 'sor', 'dru'].map(id => CL[id]), 43, 15, 3.0, 0.14, 1.45)}
     </div>
     <div class="info" id="clsinfo">Wähle eine Klasse</div>
     ${saved ? `<button class="big" data-act="continue">Fortsetzen · ${esc(saved.name)}, Stufe ${saved.lvl} ${CL[saved.cls].nm} · Runde ${saved.depth}</button>` : ''}

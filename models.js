@@ -52,13 +52,49 @@ const SPR = (() => {
     const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 3); t.colorSpace = THREE.SRGBColorSpace;
     return t;
   })();
-  // [Rauheit, Metall]
-  const KIND = { skin: [0.6, 0], cloth: [0.95, 0], leather: [0.68, 0.05], metal: [0.33, 0.9], gold: [0.3, 1], bone: [0.55, 0], fur: [1, 0], wood: [0.82, 0], horn: [0.42, 0], scale: [0.48, 0.12], flesh: [0.4, 0] };
+  // Oberflächen wie auf den vorgerenderten Originalen: Fellsträhnen, Schuppen, Kettenglieder, Ledernarben, Gewebe.
+  // Dieselbe Textur dient als Relief (bump), damit das harte Oberlicht die Struktur herausarbeitet
+  const surf = {};
+  function surface(kind) {
+    if (kind in surf) return surf[kind];
+    const n = 128, c = mkCanvas(n), g = c.getContext('2d'), R = Math.random;
+    g.fillStyle = '#d8d8d8'; g.fillRect(0, 0, n, n);
+    const wrapped = f => { for (const dx of [-n, 0, n]) for (const dy of [-n, 0, n]) { g.save(); g.translate(dx, dy); f(); g.restore(); } };
+    if (kind === 'fur' || kind === 'tiger') for (let i = 0; i < 900; i++) { // Strähnen in Wuchsrichtung
+      const x = R() * n, y = R() * n, l = 4 + R() * 9, v = R() < 0.5 ? 60 + R() * 60 : 230 + R() * 25;
+      g.strokeStyle = `rgba(${v},${v},${v},.55)`; g.lineWidth = 0.8 + R(); wrapped(() => { g.beginPath(); g.moveTo(x, y); g.lineTo(x + R() * 2 - 1, y + l); g.stroke(); });
+    } else if (kind === 'scale') for (let y = 0; y < n + 8; y += 8) for (let x = (y / 8 % 2) * 6; x < n + 12; x += 12) { // überlappende Schuppen
+      const gr = g.createRadialGradient(x, y - 2, 1, x, y, 7); gr.addColorStop(0, '#f4f4f4'); gr.addColorStop(0.8, '#a8a8a8'); gr.addColorStop(1, '#505050');
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, 6.5, 0, Math.PI); g.fill();
+    } else if (kind === 'metal') { // Kettenglieder mit Kratzern
+      for (let y = 0; y < n; y += 5) for (let x = (y / 5 % 2) * 3; x < n; x += 6) { g.strokeStyle = 'rgba(40,40,40,.45)'; g.lineWidth = 1; g.beginPath(); g.arc(x, y, 2.6, 0, 7); g.stroke(); g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(x - 1, y - 2, 1.4, 1.2); }
+      for (let i = 0; i < 40; i++) { g.strokeStyle = `rgba(${R() < 0.5 ? '255,255,255' : '0,0,0'},.18)`; g.beginPath(); const x = R() * n, y = R() * n; g.moveTo(x, y); g.lineTo(x + R() * 30 - 15, y + R() * 6 - 3); g.stroke(); }
+    } else if (kind === 'leather') { // Narben, Falten und Nähte
+      for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(${R() < 0.5 ? '0,0,0' : '255,255,255'},${0.06 + R() * 0.1})`; g.beginPath(); g.ellipse(R() * n, R() * n, 1 + R() * 5, 0.6 + R() * 2, R() * 3, 0, 7); g.fill(); }
+      g.strokeStyle = 'rgba(30,20,10,.5)'; g.setLineDash([3, 3]); g.lineWidth = 1.2; for (const y of [31, 95]) { g.beginPath(); g.moveTo(0, y); g.lineTo(n, y); g.stroke(); } g.setLineDash([]);
+    } else if (kind === 'cloth') { // grobes Gewebe mit weichen Falten
+      for (let y = 0; y < n; y += 2) { g.fillStyle = `rgba(0,0,0,${0.06 + (y % 4 ? 0.04 : 0)})`; g.fillRect(0, y, n, 1); }
+      for (let x = 0; x < n; x += 2) { g.fillStyle = 'rgba(255,255,255,.05)'; g.fillRect(x, 0, 1, n); }
+      for (let i = 0; i < 6; i++) { const x = R() * n, gr = g.createLinearGradient(x - 8, 0, x + 8, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.5, 'rgba(0,0,0,.16)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - 8, 0, 16, n); }
+    } else return surf[kind] = null;
+    const tex = (cv, rep) => { const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep, rep); return t; };
+    const bump = tex(c, kind === 'scale' ? 4 : 3), map = tex(c, kind === 'scale' ? 4 : 3); map.colorSpace = THREE.SRGBColorSpace;
+    if (kind === 'tiger') { // Tigerstreifen des Vah Shir: dunkle, wellige Querbänder über dem Fell
+      const s2 = mkCanvas(n), h = s2.getContext('2d'); h.drawImage(c, 0, 0); h.fillStyle = 'rgba(20,12,4,.92)';
+      for (let y = 6; y < n; y += 21) { h.beginPath(); h.moveTo(0, y); for (let x = 0; x <= n; x += 8) h.lineTo(x, y + Math.sin(x * 0.11 + y) * 4); for (let x = n; x >= 0; x -= 8) h.lineTo(x, y + 5 + Math.sin(x * 0.09 + y * 2) * 3 - (x % 32 < 12 ? 3 : 0)); h.fill(); }
+      const m2 = tex(s2, 2); m2.colorSpace = THREE.SRGBColorSpace; bump.repeat.set(2, 2);
+      return surf[kind] = { map: m2, bump };
+    }
+    return surf[kind] = { map, bump };
+  }
+  // [Rauheit, Metall, Relief]
+  const KIND = { skin: [0.6, 0, 0.6], cloth: [0.95, 0, 1.5], leather: [0.68, 0.05, 2], metal: [0.33, 0.9, 1.6], gold: [0.3, 1, 0.8], bone: [0.55, 0, 0.8], fur: [1, 0, 3], tiger: [1, 0, 3], wood: [0.82, 0, 1], horn: [0.42, 0, 0.8], scale: [0.48, 0.12, 3], flesh: [0.4, 0, 0.6] };
   const mats = new Map();
   function mat(col, kind = 'cloth', two = false) {
     const k = `${col}|${kind}|${two}`;
     if (!mats.has(k)) mats.set(k, kind === 'glow' ? new THREE.MeshBasicMaterial({ color: col, toneMapped: false })
-      : new THREE.MeshStandardMaterial({ color: col, roughness: KIND[kind][0], metalness: KIND[kind][1], map: grit, envMapIntensity: KIND[kind][1] > 0.5 ? 1 : 0.35, side: two ? THREE.DoubleSide : THREE.FrontSide }));
+      : new THREE.MeshStandardMaterial({ color: col, roughness: KIND[kind][0], metalness: KIND[kind][1], map: surface(kind)?.map || grit, bumpMap: surface(kind)?.bump || grit, bumpScale: KIND[kind][2],
+        envMapIntensity: KIND[kind][1] > 0.5 ? 1 : 0.35, side: two ? THREE.DoubleSide : THREE.FrontSide }));
     return mats.get(k);
   }
   const geos = new Map(), memo = (k, f) => { if (!geos.has(k)) geos.set(k, f()); return geos.get(k); };
@@ -158,7 +194,7 @@ const SPR = (() => {
     const B = { ...BASE, ...BUILDS[b] }, k = B.k, bones = !!L.bones;
     const skin = L.skin, body = L.body || skin, legs = L.legs || body;
     const armored = !!L.armor, bare = (body === skin || !!L.top) && !bones; // L.top: Oberteil über freiem Bauch
-    const sk = bones ? 'bone' : b === 'lizard' ? 'scale' : b === 'cat' || b === 'bear' ? 'fur' : b === 'demon' ? 'flesh' : 'skin';
+    const sk = bones ? 'bone' : b === 'lizard' ? 'scale' : b === 'cat' || b === 'bear' ? (L.stripes ? 'tiger' : 'fur') : b === 'demon' ? 'flesh' : 'skin';
     const torsoK = armored ? 'metal' : bare ? sk : L.robe ? 'cloth' : 'leather';
     const legK = armored ? 'metal' : legs === skin ? sk : 'cloth';
     const boots = L.boots || (armored ? shade(legs, -0.06) : '#2e2218'), bootK = armored ? 'metal' : 'leather';

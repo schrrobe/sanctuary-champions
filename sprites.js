@@ -1,7 +1,7 @@
 'use strict';
 // Grafik: prozedurale Texturen, Figuren, Fähigkeits- und Gegenstandssymbole (keine Originalgrafiken)
 const Z = 1.6; // Zoom der isometrischen Projektion
-const WALL_H = { brick: 104, rock: 78, sandstone: 96, hell: 104 };
+const WALL_H = { brick: 104, rock: 78, sandstone: 96, hell: 150 };
 
 const mkCanvas = (w, h = w) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
 const rr = (a, b) => a + Math.random() * (b - a);
@@ -123,24 +123,24 @@ function genTextures() {
 // ---------- Figuren ----------
 const LOOKS = {
   // Diablo II
-  ama: { skin: '#d8a878', body: '#7a5a38', legs: '#d8a878', head: 'hair', hair: '#d8b860', weapon: 'bow', belt: '#3a2a1a', pony: 1, top: '#7a5a38', boots: '#4a3020' },
+  ama: { skin: '#d8a878', body: '#9a3424', legs: '#d8a878', head: 'hair', hair: '#d8b860', weapon: 'bow', belt: '#6a4a24', pony: 1, top: '#9a3424', boots: '#5a3a20', pauldron: '#a08050' },
   asn: { skin: '#c89878', body: '#2a2030', legs: '#1a1420', head: 'mask', hair: '#202020', weapon: 'claw', cape: '#3a2050', sleeves: 1 },
-  bar: { skin: '#c8946a', body: '#c8946a', legs: '#6a5038', head: 'horns', helm: '#8a8478', horn: '#d8d0c0', weapon: 'axe', belt: '#5a3a20', hm: 1.08, build: 'big', boots: '#5a4632' },
-  dru: { skin: '#c8a080', body: '#4a5a30', legs: '#3a3020', head: 'pelt', hood: '#6a6258', weapon: 'staff', orb: '#90e070', cape: '#5a4a30', beard: '#6a5040' },
+  bar: { skin: '#c8946a', body: '#c8946a', legs: '#7a2418', head: 'horns', helm: '#8a8478', horn: '#d8d0c0', weapon: 'axe', belt: '#5a3a20', hm: 1.08, build: 'big', boots: '#5a4632' },
+  dru: { skin: '#c8a080', body: '#6a4028', legs: '#4a3020', head: 'pelt', hood: '#7a6a5a', weapon: 'staff', orb: '#90e070', cape: '#6a5a44', beard: '#6a5040', belt: '#c8a040' },
   nec: { skin: '#d8d0c8', body: '#1e1e22', robe: 1, trim: '#c8c0b0', head: 'hair', hair: '#101010', weapon: 'dagger', pauldron: '#d8d0c0', spiky: 1 },
   pal: { skin: '#d8b090', body: '#a8a8b2', tabard: '#e8e0d0', legs: '#8a8a98', head: 'helm', helm: '#b0b0b8', weapon: 'sword', shield: '#c8b060', armor: 1, emblem: '#a01810' },
-  sor: { skin: '#e0b898', body: '#5a2a6a', robe: 1, trim: '#c8a040', head: 'hair', hair: '#8a2020', weapon: 'staff', orb: '#80c0ff', long: 1 },
+  sor: { skin: '#e0b898', body: '#1e6a5e', robe: 1, trim: '#d8b048', head: 'hair', hair: '#2a1810', weapon: 'staff', orb: '#c060ff', long: 1, sleeves: 0 },
   // Champions: Return to Arms
-  bw: { skin: '#d8a080', body: '#7a3020', legs: '#5a3a28', head: 'hair', hair: '#c05020', weapon: 'axe', belt: '#3a2010', hm: 1.08, build: 'big', long: 1, beard: '#c05020', boots: '#5a4632' },
-  ew: { skin: '#5a3a28', body: '#22348a', robe: 1, trim: '#c8b060', head: 'bald', weapon: 'staff', orb: '#a0c0ff', build: 'tall' },
+  bw: { skin: '#d8a080', body: '#6a1c16', legs: '#5a2218', head: 'hair', hair: '#5a3820', weapon: 'axe', belt: '#2a1810', hm: 1.08, build: 'big', long: 1, boots: '#3a2418', pauldron: '#4a1410', armor: 1 },
+  ew: { skin: '#5a3a28', body: '#22408a', robe: 1, trim: '#9ab8e0', head: 'bald', weapon: 'staff', orb: '#a0c0ff', build: 'tall', pauldron: '#2a4a9a' },
   wr: { skin: '#e0c0a0', body: '#3a5a28', legs: '#4a3a20', head: 'elf', hair: '#e0d080', weapon: 'bow', cape: '#2a4020' },
-  hc: { skin: '#f0d8c0', body: '#d8d0b8', tabard: '#c8a040', legs: '#b8b0a0', head: 'helm', helm: '#d8c070', weapon: 'mace', shield: '#e0d0a0', armor: 1, build: 'slim' },
-  sk: { skin: '#4a4a7a', body: '#24242c', legs: '#1a1a22', head: 'helm', helm: '#30303a', weapon: 'sword', cape: '#4a0010', eyes: '#ff3020', shield: '#3a1018', armor: 1, spiky: 1, build: 'slim' },
-  vb: { skin: '#d89040', body: '#6a4020', legs: '#d89040', head: 'cat', tail: '#d89040', weapon: 'axe', belt: '#3a2010' },
-  is: { skin: '#5a8a50', body: '#6a4a20', robe: 1, trim: '#a0a060', head: 'lizard', tail: '#5a8a50', weapon: 'staff', orb: '#a0ff60' },
+  hc: { skin: '#f0d8c0', body: '#c8a878', tabard: '#ece4d0', legs: '#a88a60', head: 'elf', hair: '#f0e0a0', long: 1, weapon: 'mace', shield: '#e0d0a0', armor: 1, build: 'slim', pauldron: '#d8c070' },
+  sk: { skin: '#5a6488', body: '#8a8a92', legs: '#6a6a74', head: 'elf', hair: '#ecece8', weapon: 'sword', eyes: '#ff3020', armor: 1, spiky: 1, build: 'slim', pauldron: '#b0aca0' },
+  vb: { skin: '#e0902e', body: '#2e7a68', legs: '#e0902e', head: 'cat', tail: '#e0902e', weapon: 'axe', belt: '#3a2010', stripes: 1, top: '#2e7a68', pauldron: '#2e7a68' },
+  is: { skin: '#5a8a50', body: '#a8384a', legs: '#5a8a50', top: '#a8384a', head: 'lizard', tail: '#5a8a50', weapon: 'staff', orb: '#a0ff60', belt: '#e0c0a0', pauldron: '#a8384a', spiky: 1 },
 };
 const MON_LOOKS = {
-  'Gefallener': { skin: '#a83228', body: '#7a2018', legs: '#5a1810', head: 'horns', helm: '#a83228', horn: '#d8c8a0', weapon: 'sword', hunch: 0.3, eyes: '#ffd040' },
+  'Gefallener': { skin: '#a83228', body: '#7a2018', legs: '#5a1810', head: 'horns', helm: '#a83228', horn: '#d8c8a0', weapon: 'sword', hunch: 0.3, eyes: '#ffd040', hm: 0.78 },
   'Zombie': { skin: '#6e7d5e', body: '#4a3e30', legs: '#3a3228', head: 'bald', hunch: 0.45, arms: 1, eyes: '#c0d040' },
   'Stachelratte': { rig: 'quad', col: '#6a5038', spikes: '#c8b898', eyes: '#ff4020' },
   'Goblin': { skin: '#5a7a30', body: '#5a4028', legs: '#3a2a1a', head: 'goblin', weapon: 'dagger', hunch: 0.2, eyes: '#ffe040' },
@@ -159,7 +159,7 @@ const MON_LOOKS = {
   'Mephisto': { skin: '#8090c0', body: '#5a6890', head: 'skull', weapon: 'none', float: 1, ribs: 1, spread: 1, tentacles: '#3a4468', glow: '#6080ff', eyes: '#c0e0ff' },
   'Innoruuk': { skin: '#503060', body: '#200a30', robe: 1, trim: '#8040a0', head: 'horns', helm: '#503060', horn: '#d0b0e0', weapon: 'staff', orb: '#c040ff', cape: '#100018', eyes: '#ff40ff' },
   'Diablo': { rig: 'demon', col: '#a02010', horn: '#e0c090', spikes: '#e0c090', eyes: '#ffe040' },
-  'Verdammnisritter': { skin: '#9a9088', body: '#3a3440', legs: '#2a2630', head: 'horns', helm: '#4a4450', horn: '#c8b898', weapon: 'sword', shield: '#2a2430', eyes: '#ff3010', armor: 1, spiky: 1 },
+  'Verdammnisritter': { skin: '#c8b898', bones: 1, body: '#6a3a1e', legs: '#5a321a', head: 'helm', helm: '#7a4424', weapon: 'sword', eyes: '#ff3010', armor: 1, spiky: 1 },
   'Venomfürst': { rig: 'demon', col: '#b03018', horn: '#d0b080', spikes: '#e0a070', eyes: '#ffe040' },
   'Vergessensritter': { skin: '#c8c0b0', body: '#4a3a60', robe: 1, trim: '#a080c0', head: 'skull', weapon: 'staff', orb: '#c060ff', eyes: '#c060ff' },
   'Großwesir des Chaos': { skin: '#a04030', body: '#501010', robe: 1, trim: '#e0a040', head: 'horns', helm: '#702018', horn: '#e0c090', weapon: 'staff', orb: '#ff6020', cape: '#200404', eyes: '#ffd040', hm: 1.1 },
