@@ -17,6 +17,9 @@ Kein Build: `index.html` öffnen oder per GitHub Pages spielen. Einzige Fremdbib
 - **Vorgerenderte 3D-Figuren wie in D2**: Helden und Monster sind aus 3D-Körpern gebaut (three.js) und werden unter festem Licht in 8 Richtungen gerendert, die Helden in 16. Animationen: Stehen, Gehen, Schlagen, Zaubern, Sterben. Jedes Bild entsteht beim ersten Gebrauch und wird zwischengespeichert. Die Völker aus Champions haben eigene Körper (Vah Shir mit Katzenbeinen und Schwanz, Iksar als Echsen, große Erudit, schlanke Elfen). Abschaltbar im Menü; ohne WebGL erscheinen die gezeichneten Figuren
 - **Beschwörungen**: je zwei Fertigkeitspunkte eine mehr gleichzeitig (Feuergolem auf Stufe 1–2 einer, 3–4 zwei, 5–6 drei), ein Wirken ruft gleich alle; alle Beschwörungen haben doppeltes Leben, je mehr gleichzeitig, desto schwächer ist jede einzelne
 - **Weite Sicht**: weit herausgezoomte Ansicht mit großem Lichtkreis um den Helden
+- **Zwei Ringe** wie in D2: zwei Ringfelder, ein neuer Ring kommt ins freie
+- **Eigene Animation je Aura** wie in D2: Klingen bei Macht, Flammenkranz bei Heiligem Feuer, Eiszacken und Schneeflocken bei Heiligem Frost, knisternde Blitze bei Heiligem Schock, Dornen, Pfeile zur Mitte bei Gesegnetem Zielen, Wirbel bei Fanatismus und Überzeugung, Kreuze bei Gebet, Lichtwellen bei Zuflucht, Schilde bei Trotz, kreisende Elementkugeln bei den Resistenz-Auren, Blasen bei Läuterung, Hexagramm bei Meditation, aufsteigende Seelen bei Erlösung, dreifarbiger Kreis bei Heil; Begleiter im Wirkbereich tragen das Zeichen klein
+- **Aurafeld**: ein drittes Fähigkeitsfeld nur für Auren und Stärkungen, die dort wie Paladin-Auren in D2 ständig aktiv bleiben
 - **Unendlich Mana**: standardmäßig an, im Menü (M) abschaltbar; die Balance-Prüfung rechnet immer mit echtem Mana
 - **Grafik im Stil von D2**: Charakterauswahl am Lagerfeuer vor einer Burgruine mit Zinnen, Bannern und totem Baum wie im Original (die D2-Helden in der Originalreihenfolge), Bedienleiste mit Steinfassungen sowie Engel- und Dämonenstatue
 - **Chaos-Sanktuarium wie in D2**: die Wege schweben über leuchtender Lava mit Krustenschollen, flimmernder Glut und Felskanten, hohe Mauern stehen nur im Hintergrund, mit glühenden Spitzbogenfenstern und Turmspitzen
@@ -34,6 +37,8 @@ Kein Build: `index.html` öffnen oder per GitHub Pages spielen. Einzige Fremdbib
 | Linksklick | Laufen bzw. Gegner mit der linken Fähigkeit angreifen, Gegenstände aufheben |
 | Umschalt + Linksklick | Angreifen ohne zu laufen |
 | Rechtsklick | Rechte Fähigkeit |
+| Ö / Ä | Linke / rechte Fähigkeit auf den Mauszeiger wirken (gedrückt halten wiederholt) |
+| Drittes Feld neben der rechten Fähigkeit | Aura oder Stärkung wählen: bleibt ständig aktiv und wird von selbst erneuert |
 | Klick auf die Felder neben den Kugeln | Linke/rechte Fähigkeit wählen |
 | F1–F8 / Mausrad | Rechte Fähigkeit wechseln (Maus über Fähigkeit + F-Taste: belegen) |
 | 1–4 (oder Q/E) | Tränke aus dem Gürtel |

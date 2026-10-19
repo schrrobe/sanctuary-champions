@@ -975,6 +975,13 @@ const AREA_VIS = { fissure: 'lava', volcano: 'volcano', fist_of_heavens: 'sky', 
 const AURA_COL = { might: '#ff4030', prayer: '#60a0ff', holy_fire: '#ff8020', holy_freeze: '#80d0ff', conviction: '#c050e0', fanaticism: '#ffd040',
   thorns: '#c08040', blessed_aim: '#e8e8ff', pal_concentration: '#ffb060', holy_shock: '#fff27a', sanctuary: '#a0e0ff', resist_fire: '#ff6030', defiance: '#d0c090',
   resist_cold: '#60b0ff', cleansing: '#b0ffb0', resist_lightning: '#fff080', vigor: '#80ffa0', meditation: '#8080ff', redemption: '#ffffff', salvation: '#ffd8a0' };
+// eigene Animation je Aura wie in D2: [Bodenzeichen, aufsteigende Teilchen]
+const AURA_FX = {
+  might: ['swords', 'ember'], holy_fire: ['fire', 'flame'], thorns: ['thorns'], blessed_aim: ['aim', 'soft'], pal_concentration: ['focus', 'ember'],
+  holy_freeze: ['frost', 'snow'], holy_shock: ['shock', 'soft'], sanctuary: ['sanct', 'soft'], fanaticism: ['swirl', 'ember'], conviction: ['swirlback', 'soft'],
+  prayer: ['cross', 'soft'], resist_fire: ['orbs'], defiance: ['shield'], resist_cold: ['orbs'], cleansing: ['ring', 'bubble'], resist_lightning: ['orbs'],
+  vigor: ['chevrons'], meditation: ['star', 'soft'], redemption: ['ring', 'soul'], salvation: ['tri'],
+};
 // Fluchzeichen über dem Kopf wie in D2: Symbol und Farbe
 const CURSE_VIS = {
   amplify_damage: ['skull', '#ff3020'], decrepify: ['hourglass', '#a0a0c0'], dim_vision: ['eye', '#a060ff'], weaken: ['drop', '#c09030'], iron_maiden: ['fang', '#ff5020'],

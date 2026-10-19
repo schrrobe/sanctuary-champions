@@ -87,6 +87,7 @@
   #ctrl { position: relative; z-index: 1; flex: 1; display: flex; align-items: flex-end; gap: 8px; padding: 0 10px 9px; }
   .skbox { width: 56px; height: 56px; flex: none; background: #000 center/cover; border: 2px solid #000; box-shadow: 0 0 0 2px #5a4e3c, 0 0 0 4px #14110d, inset 0 0 6px #000; cursor: pointer; }
   .skbox:hover { border-color: var(--gold); }
+  .skbox.aura { width: 44px; height: 44px; box-shadow: 0 0 0 2px #8a7440, 0 0 0 4px #14110d, inset 0 0 6px #000; }
   .skbox.oom { filter: sepia(1) hue-rotate(-50deg) saturate(3) brightness(.6); }
   #mid { flex: 1; display: flex; flex-direction: column; gap: 5px; align-items: center; min-width: 0; }
   #xp { width: 100%; height: 6px; background: #000; border: 1px solid #000; box-shadow: 0 0 0 1px #4a4034; }
@@ -152,7 +153,7 @@
   .eqs span { font: 11px Cinzel, serif; color: #4a4034; }
   .eqs img { width: 44px; height: 44px; }
   .eqs.h { grid-column: 2; } .eqs.a { grid-column: 3; grid-row: 1; width: 52px; height: 52px; align-self: center; }
-  .eqs.w { grid-column: 1; grid-row: 2; } .eqs.b { grid-column: 2; grid-row: 2; } .eqs.r { grid-column: 1; grid-row: 3; width: 52px; }
+  .eqs.w { grid-column: 1; grid-row: 2; } .eqs.b { grid-column: 2; grid-row: 2; } .eqs.r { grid-column: 1; grid-row: 3; width: 52px; } .eqs.r2 { grid-column: 3; grid-row: 3; width: 52px; justify-self: end; }
   .bag { display: grid; grid-template-columns: repeat(10, 1fr); gap: 1px; background: #1c1c26; border: 1px solid #000; box-shadow: 0 0 0 1px #4a4034; }
   .cell { aspect-ratio: 1; background: radial-gradient(#0c0d12, #050507); display: flex; align-items: center; justify-content: center; }
   .cell[data-bag] { cursor: pointer; } .cell[data-bag]:hover { background: #1a1a40; }
@@ -193,6 +194,7 @@
         </div>
       </div>
       <div class="skbox" id="skR"></div>
+      <div class="skbox aura" id="skA" data-tip="Aura oder Stärkung: bleibt ständig aktiv"></div>
     </div>
     <div class="orb mana"><div class="clip"><div class="liq"></div></div><span></span></div>
   </div>

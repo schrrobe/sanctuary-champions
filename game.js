@@ -795,6 +795,19 @@ function cast(slot, tx, ty) {
   return true;
 }
 
+// drittes Feld: die Aura oder Stärkung bleibt wie in D2 ständig aktiv und wird erneuert, sobald sie ausläuft.
+// Eine von Hand gewirkte andere Aura oder Gestalt hat Vorrang, bis sie ausläuft
+function keepAura(p) {
+  const id = P.slots[2], s = id && SK[id], r = s && rank(id);
+  if (!r || p.dead || !AURA_SLOT(s) || G.cds[id] > 0 || (s.t === 'buff' ? G.buffs[id] : G.shield > 0)) return;
+  if ((s.aura || s.shape) && Object.values(G.buffs).some(b => (s.aura && b.s.aura) || (s.shape && b.s.shape))) return;
+  const cost = (s.mp || 0) * (1 + 0.08 * (r - 1));
+  if (p.mp < cost && !infMana()) return;
+  if (useSkill(s, r, p.x, p.y) === false) return;
+  if (!infMana()) p.mp -= cost;
+  if (s.cd) G.cds[id] = s.cd;
+}
+
 function pulse(b) {
   const p = G.player, pl = b.s.pulse, m = 1 + 0.2 * (b.r - 1), v = (pl.d || 0) * (1 + 0.3 * (b.r - 1)) * (1 + S.spellPct) * S.lvlMult * (b.s.c === P.cls ? 1.25 : 1);
   // Gewittersturm und Armageddon treffen je Puls ein Ziel aus dem Himmel
@@ -1131,7 +1144,8 @@ function control(p, dt) {
     } else if (o.prop && dist(p, o.prop) < p.r + 30) { useProp(o.prop); p.order = null; }
     else if (pathMove(p, o.x, o.y, dt)) p.order = null;
   }
-  if (mouse.r) cast(1, aim.x, aim.y);
+  if (keys['ö'] && !mouse.l) cast(0, aim.x, aim.y); // Ö: linke Fähigkeit, ohne zu laufen
+  if (mouse.r || keys['ä']) cast(1, aim.x, aim.y); // Ä: rechte Fähigkeit
 }
 
 function update(dt) {
@@ -1147,6 +1161,7 @@ function update(dt) {
     if (b.s.trail && p.movT > 0 && (b.pt -= dt) <= 0) { b.pt = 0.12; trail(b); }
     if ((b.t -= dt) <= 0) delete G.buffs[id];
   }
+  keepAura(p);
   for (const k in G.cds) G.cds[k] -= dt;
   if ((G.flowT -= dt) <= 0) { G.flowT = 0.25; updateFlow(); }
   updateCam();
@@ -1192,6 +1207,52 @@ function respawn() {
 }
 
 // ---------- Darstellung ----------
+// Aurazeichen wie in D2: jede Aura hat ihr eigenes Bodenzeichen und eigene aufsteigende Effekte (gezeichnet im Bodenraum)
+function auraFx(id, e, t, small) {
+  const c = AURA_COL[id], [glyph, rise] = AURA_FX[id] || ['ring'], x = e.x, y = e.y, R = small ? 15 : 36;
+  const A = (a, r) => [x + Math.cos(a) * r, y + Math.sin(a) * r];
+  const ring = (r, w, al) => { ctx.globalAlpha = al; ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.stroke(); };
+  const poly = pts => { ctx.beginPath(); pts.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.closePath(); ctx.fill(); };
+  const line = pts => { ctx.beginPath(); pts.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.stroke(); };
+  const gl = ctx.createRadialGradient(x, y, 0, x, y, R * 1.25); gl.addColorStop(0, c + '50'); gl.addColorStop(1, 'transparent');
+  ctx.globalAlpha = 1; ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(x, y, R * 1.25, 0, 7); ctx.fill();
+  ring(R, 1.6, 0.85); ring(R * 0.74, 1.1, 0.55);
+  if (small) { ctx.globalAlpha = 1; return; }
+  ctx.fillStyle = ctx.strokeStyle = c; ctx.globalAlpha = 0.85; ctx.lineWidth = 2;
+  if (glyph === 'swords') for (let i = 0; i < 6; i++) { const a = t * 0.6 + i * 1.047; poly([A(a, R * 0.42), A(a - 0.07, R * 0.92), A(a, R * 1.18), A(a + 0.07, R * 0.92)]); } // Macht: Klingen
+  else if (glyph === 'thorns') for (let i = 0; i < 16; i++) { const a = -t * 0.4 + i * 0.393; poly([A(a - 0.11, R), A(a, R * 1.34), A(a + 0.11, R)]); } // Dornen
+  else if (glyph === 'aim') for (let i = 0; i < 4; i++) { const a = t * 0.8 + i * 1.571; line([A(a, R * 1.15), A(a, R * 0.45)]); poly([A(a, R * 0.3), A(a - 0.3, R * 0.52), A(a + 0.3, R * 0.52)]); } // Pfeile zur Mitte
+  else if (glyph === 'focus') for (let i = 0; i < 3; i++) { const k = 1 - (t * 0.7 + i / 3) % 1; ring(R * (0.15 + 0.95 * k), 1.6, 0.9 * (1 - k * 0.6)); } // Wellen nach innen
+  else if (glyph === 'fire' || glyph === 'frost') for (let i = 0; i < 12; i++) { const a = (glyph === 'fire' ? t * 0.5 : -t * 0.25) + i * 0.524; poly([A(a - 0.06, R * 0.78), A(a, R * (glyph === 'fire' ? 1.12 : 1.32)), A(a + 0.06, R * 0.78)]); }
+  else if (glyph === 'sanct') { // Zuflucht: Lichtwellen stoßen nach außen, Untote werden weggedrückt
+    for (let i = 0; i < 3; i++) { const k = (t * 0.8 + i / 3) % 1; ring(R * (0.2 + 1.1 * k), 2.2, 0.9 * (1 - k)); }
+    ctx.globalAlpha = 0.85; ctx.lineWidth = 2; for (let i = 0; i < 6; i++) { const a = t * 0.3 + i * 1.047; line([A(a, R * 0.86), A(a, R * 1.14)]); line([A(a - 0.1, R), A(a + 0.1, R)]); }
+  } else if (glyph === 'cross') for (let i = 0; i < 4; i++) { const a = t * 0.5 + i * 1.571; poly([A(a - 0.05, R * 0.55), A(a - 0.05, R * 1.12), A(a + 0.05, R * 1.12), A(a + 0.05, R * 0.55)]); poly([A(a - 0.2, R * 0.84), A(a - 0.2, R * 0.94), A(a + 0.2, R * 0.94), A(a + 0.2, R * 0.84)]); }
+  else if (glyph === 'swirl' || glyph === 'swirlback') { const dir = glyph === 'swirl' ? 1 : -1; ctx.lineWidth = 2.2; for (let i = 0; i < 4; i++) line(Array.from({ length: 13 }, (_, k) => A(dir * t * 1.6 + i * 1.571 + k * 0.3, R * (0.12 + k * 0.08)))); }
+  else if (glyph === 'shield') for (let i = 0; i < 3; i++) { const a = t * 0.3 + i * 2.094; poly([A(a - 0.35, R * 0.5), A(a + 0.35, R * 0.5), A(a + 0.3, R * 0.85), A(a, R * 1.08), A(a - 0.3, R * 0.85)]); } // Trotz: Schilde
+  else if (glyph === 'chevrons') for (let i = 0; i < 8; i++) { const a = t * 2.4 + i * 0.785; line([A(a - 0.22, R * 0.8), A(a, R), A(a - 0.22, R * 1.2)]); } // Elan: umlaufende Pfeilspitzen
+  else if (glyph === 'star') for (const off of [0, 1.047]) line(Array.from({ length: 4 }, (_, i) => A(t * 0.25 + off + i * 2.094, R * 0.95))); // Meditation: Hexagramm
+  else if (glyph === 'tri') for (let i = 0; i < 3; i++) { ctx.strokeStyle = ['#ff5030', '#60b0ff', '#fff070'][i]; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, R * 1.06, t * 1.2 + i * 2.094, t * 1.2 + i * 2.094 + 1.6); ctx.stroke(); } // Heil
+  ctx.globalAlpha = 1;
+  if (glyph === 'fire' || glyph === 'shock' || glyph === 'orbs') { // senkrechte Teile: Flammenkranz, Blitze, kreisende Elementkugeln
+    scrT();
+    if (glyph === 'fire') for (let i = 0; i < 10; i++) { const [sx, sy] = proj(...A(t * 0.5 + i * 0.628, R)); flame(ctx, sx, sy, 16 + 6 * Math.sin(t * 9 + i * 1.3), 5, t * 8 + i); }
+    if (glyph === 'shock') for (let i = 0; i < 3; i++) { const a = rnd(0, 6.283), [x1, y1] = proj(...A(a, R)), [x2, y2] = proj(...A(a + rnd(0.6, 1.6), R)); zap(ctx, x1, y1 - 4, x2, y2 - 4 - rnd(0, 18), c, 6, 0.6); }
+    if (glyph === 'orbs') for (let i = 0; i < 3; i++) { const [sx, sy] = proj(...A(t * 1.5 + i * 2.094, R * 0.9)), h = sy - 22 - 6 * Math.sin(t * 3 + i); glowDot(ctx, sx, h, 16, c); glowDot(ctx, sx, h, 5, '#ffffff'); }
+    isoT();
+  }
+  if (rise && Math.random() < (rise === 'flame' ? 0.5 : 0.35)) { // aufsteigende Teilchen
+    const [px, py] = A(rnd(0, 6.283), rnd(0.2, 1) * R), q = { x: px, y: py, z: 2, vx: 0, vy: 0, vz: rnd(30, 70), life: rnd(0.8, 1.4), t: 0, col: c, s: 2, add: true };
+    if (rise === 'flame') Object.assign(q, { flame: 1, s: 4, col: pick(FIRE) });
+    else if (rise === 'snow') Object.assign(q, { flake: 1, s: 3, col: '#e8f8ff', vz: rnd(15, 35) });
+    else if (rise === 'soft') Object.assign(q, { soft: 1 });
+    else if (rise === 'soul') Object.assign(q, { soft: 1, s: 4, col: '#ffffff', vz: rnd(25, 45), life: 1.6 });
+    else if (rise === 'bubble') Object.assign(q, { bubble: 1, s: 2.5 });
+    else if (rise === 'ember') q.col = pick([c, '#ff9040']);
+    G.parts.push(q);
+  }
+}
+
 function text(e, s, col) { G.texts.push({ x: e.x, y: e.y, h: figH(e), s, col, t: 0 }); }
 function fx(o) {
   o.t = 0;
@@ -1307,16 +1368,9 @@ function draw() {
     if (a.t > 0 && a.delay) { ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(a.x, a.y, a.r * (a.t / a.delay) + 4, 0, 7); ctx.stroke(); }
   }
   for (const id in G.buffs) {
-    const c = AURA_COL[id];
-    if (c) {
-      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 40); g.addColorStop(0, c + '50'); g.addColorStop(1, 'transparent');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, 40, 0, 7); ctx.fill();
-      ctx.strokeStyle = c; ctx.globalAlpha = 0.8; ctx.lineWidth = 1.6;
-      ctx.beginPath(); ctx.arc(p.x, p.y, 34, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(p.x, p.y, 26, 0, 7); ctx.stroke();
-      for (let i = 0; i < 8; i++) { const a = G.t * 1.2 + i * 0.785; ctx.beginPath(); ctx.moveTo(p.x + Math.cos(a) * 27, p.y + Math.sin(a) * 27); ctx.lineTo(p.x + Math.cos(a + 0.2) * 33, p.y + Math.sin(a + 0.2) * 33); ctx.stroke(); }
-      for (let i = 0; i < 3; i++) { const a = -G.t * 0.8 + i * 2.094; ctx.beginPath(); ctx.moveTo(p.x + Math.cos(a) * 25, p.y + Math.sin(a) * 25); ctx.lineTo(p.x + Math.cos(a + 2.094) * 25, p.y + Math.sin(a + 2.094) * 25); ctx.stroke(); }
-      ctx.globalAlpha = 1;
-      if (Math.random() < 0.3) G.parts.push({ x: p.x + rnd(-24, 24), y: p.y + rnd(-24, 24), z: 0, vx: 0, vy: 0, vz: rnd(40, 80), life: 0.9, t: 0, col: c, s: id === 'holy_fire' ? 4 : 2, add: true, flame: id === 'holy_fire' });
+    if (AURA_COL[id]) {
+      auraFx(id, p, G.t);
+      for (const e of G.ents) if (e.minion && !e.dead && dist(e, p) < 260) auraFx(id, e, G.t, true); // Begleiter im Wirkbereich tragen das Zeichen klein
     }
     if (id === 'hurricane') {
       ctx.strokeStyle = '#c8e0f0'; ctx.lineWidth = 2.5;
@@ -1429,7 +1483,10 @@ function draw() {
       const y = sy - q.z;
       if (q.drop === 'cold') { ctx.fillStyle = q.col; ctx.beginPath(); ctx.moveTo(sx + 2.3, y + 5.5); ctx.lineTo(sx + 1.1, y - 2.8); ctx.lineTo(sx - 6.1, y - 14.8); ctx.lineTo(sx - 3.4, y - 1); ctx.fill(); }
       else { ctx.strokeStyle = q.col; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(sx - 7, y - 17); ctx.lineTo(sx, y); ctx.stroke(); glowDot(ctx, sx, y, 12, '#ff6a10'); }
-    } else { ctx.fillStyle = q.col; ctx.fillRect(sx - q.s / 2, sy - q.z - q.s / 2, q.s, q.s); }
+    } else if (q.soft) glowDot(ctx, sx + Math.sin(G.t * 3 + q.s * 7 + q.x) * 3, sy - q.z, q.s * 4, q.col); // Lichtfunken, Mana, Seelen
+    else if (q.flake) { ctx.strokeStyle = q.col; ctx.lineWidth = 1.2; for (let k = 0; k < 3; k++) { const a = k * 1.047 + q.t * 2; ctx.beginPath(); ctx.moveTo(sx - Math.cos(a) * q.s, sy - q.z - Math.sin(a) * q.s); ctx.lineTo(sx + Math.cos(a) * q.s, sy - q.z + Math.sin(a) * q.s); ctx.stroke(); } }
+    else if (q.bubble) { ctx.strokeStyle = q.col; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(sx, sy - q.z, q.s, 0, 7); ctx.stroke(); }
+    else { ctx.fillStyle = q.col; ctx.fillRect(sx - q.s / 2, sy - q.z - q.s / 2, q.s, q.s); }
   }
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'lighter';
   for (const f of G.fx) {
@@ -1552,7 +1609,7 @@ function automap() {
 // ---------- HUD ----------
 const el = {
   lifeLiq: $('.life .liq'), lifeTxt: $('.life span'), manaLiq: $('.mana .liq'), manaTxt: $('.mana span'), xp: $('#xp i'),
-  skL: $('#skL'), skR: $('#skR'), hot: $('#hot'), belt: $('#belt'), area: $('#area'), pause: $('#pause'), pauseTxt: $('#pauseTxt'), target: $('#target'), msg: $('#msg'), note: $('#note'),
+  skL: $('#skL'), skR: $('#skR'), skA: $('#skA'), hot: $('#hot'), belt: $('#belt'), area: $('#area'), pause: $('#pause'), pauseTxt: $('#pauseTxt'), target: $('#target'), msg: $('#msg'), note: $('#note'),
   states: $('#states'), newStats: $('#newStats'), newSkill: $('#newSkill'), popup: $('#popup'), tip: $('#tip'),
 };
 let hudKey = '', noteT = 0;
@@ -1575,7 +1632,7 @@ function hud() {
   const k = [...P.slots, ...P.hot, P.pots.hp, P.pots.mp].join();
   if (k !== hudKey) {
     hudKey = k;
-    [el.skL, el.skR].forEach((b, i) => { const id = P.slots[i]; b.style.backgroundImage = id ? `url(${skillIcon(SK[id])})` : 'none'; b.dataset.skill = id || ''; });
+    [el.skL, el.skR, el.skA].forEach((b, i) => { const id = P.slots[i]; b.style.backgroundImage = id ? `url(${skillIcon(SK[id])})` : 'none'; b.dataset.skill = id || ''; });
     el.hot.innerHTML = P.hot.map((id, i) => `<div class="hk ${id && id === P.slots[1] ? 'on' : ''}" data-hk="${i}" ${id ? `data-skill="${id}" style="background-image:url(${skillIcon(SK[id])})"` : ''}><em>F${i + 1}</em></div>`).join('');
     el.belt.innerHTML = [['hp', 1], ['hp', 2], ['mp', 1], ['mp', 2]].map(([t, n], i) => `<div class="bs" data-tip="${t === 'hp' ? 'Heiltrank' : 'Manatrank'} (${P.pots[t]})">${P.pots[t] >= n ? `<img src="${potionIcon(t)}" alt="">` : ''}${n === 1 && P.pots[t] ? `<b>${P.pots[t]}</b>` : ''}<em>${i + 1}</em></div>`).join('');
   }
@@ -1723,7 +1780,7 @@ function renderInv() {
   const box = (k, n, cls) => `<div class="eqs ${cls}" data-eqslot="${k}">${P.eq[k] ? `<img src="${itemIcon(P.eq[k])}" alt="">` : `<span>${n}</span>`}</div>`;
   const cells = Array.from({ length: 30 }, (_, i) => P.bag[i] ? `<div class="cell r${P.bag[i].rar}" data-bag="${i}"><img src="${itemIcon(P.bag[i])}" alt=""></div>` : '<div class="cell"></div>').join('');
   return `<header><h2>Inventar</h2><div class="pts">${P.gold} Gold</div><button class="x" data-act="close">✕</button></header>
-    <div class="doll">${box('helm', 'Helm', 'h')}${box('amulet', 'Amulett', 'a')}${box('weapon', 'Waffe', 'w')}${box('armor', 'Rüstung', 'b')}${box('ring', 'Ring', 'r')}</div>
+    <div class="doll">${box('helm', 'Helm', 'h')}${box('amulet', 'Amulett', 'a')}${box('weapon', 'Waffe', 'w')}${box('armor', 'Rüstung', 'b')}${box('ring', 'Ring', 'r')}${box('ring2', 'Ring', 'r2')}</div>
     <div class="bag">${cells}</div>
     <div class="row"><button data-buy="hp">Heiltrank (${potCost()} Gold)</button><button data-buy="mp">Manatrank (${potCost()} Gold)</button><button data-act="sellall">Normale Gegenstände verkaufen</button></div>
     <p class="hint">Klick: anlegen · Rechtsklick: verkaufen · Tränke: ${P.pots.hp}/10 Heil, ${P.pots.mp}/10 Mana</p>`;
@@ -1732,7 +1789,7 @@ function renderInv() {
 function renderMenu() {
   return `<header><h2>Menü</h2><button class="x" data-act="close">✕</button></header>
     <div class="menu"><button data-act="close">Spiel fortsetzen</button><button data-act="sound">Ton: ${SFX.on ? 'an' : 'aus'}</button><button data-act="pixel">Pixel-Look: ${PX < 1 ? 'an' : 'aus'}</button><button data-act="fig3d">3D-Figuren: ${SPR.on ? 'an' : 'aus'}</button><button data-act="infmana">Unendlich Mana: ${infOn ? 'an' : 'aus'}</button><button data-act="menu">Speichern und zum Hauptmenü</button></div>
-    <table class="keys">${[['Linksklick', 'Laufen / mit linker Fähigkeit angreifen'], ['Umschalt + Linksklick', 'Angreifen ohne zu laufen'], ['Rechtsklick', 'Rechte Fähigkeit'], ['F1–F8 / Mausrad', 'Rechte Fähigkeit wechseln'], ['1–4 (Q/E)', 'Tränke aus dem Gürtel'], ['WASD', 'Alternativ laufen'], ['C · I · T', 'Charakter · Inventar · Fähigkeiten'], ['Tab', 'Automap']].map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>`;
+    <table class="keys">${[['Linksklick', 'Laufen / mit linker Fähigkeit angreifen'], ['Umschalt + Linksklick', 'Angreifen ohne zu laufen'], ['Rechtsklick', 'Rechte Fähigkeit'], ['Ö / Ä', 'Linke / rechte Fähigkeit auf den Mauszeiger'], ['Drittes Feld', 'Aura oder Stärkung, bleibt ständig aktiv'], ['F1–F8 / Mausrad', 'Rechte Fähigkeit wechseln'], ['1–4 (Q/E)', 'Tränke aus dem Gürtel'], ['WASD', 'Alternativ laufen'], ['C · I · T', 'Charakter · Inventar · Fähigkeiten'], ['Tab', 'Automap']].map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>`;
 }
 
 const wareCost = it => it.val * 4, gambleCost = () => 60 + P.depth * 30, rerollCost = () => 15 + P.depth * 10;
@@ -1772,11 +1829,12 @@ function learn(id) {
   if (first && s.t !== 'passive') { const i = P.hot.indexOf(null); if (i >= 0) P.hot[i] = id; }
 }
 
+const AURA_SLOT = s => s.t === 'buff' || s.t === 'shield'; // ins dritte Feld passen nur Auren und Stärkungen
 function openPopup(side) {
   popup = side;
-  const list = SKILLS.filter(s => rank(s.id) > 0 && s.t !== 'passive');
+  const list = SKILLS.filter(s => rank(s.id) > 0 && s.t !== 'passive' && (side < 2 || AURA_SLOT(s)));
   el.popup.className = side ? 'right' : 'left';
-  el.popup.innerHTML = `<div class="ph">${side ? 'Rechte' : 'Linke'} Fähigkeit wählen</div><div class="pl">${list.map(s => {
+  el.popup.innerHTML = `<div class="ph">${['Linke Fähigkeit', 'Rechte Fähigkeit', 'Aura oder Stärkung (bleibt aktiv)'][side]} wählen</div>${side === 2 && !list.length ? '<div class="ph g">Noch keine Aura oder Stärkung gelernt</div>' : ''}<div class="pl">${list.map(s => {
     const i = P.hot.indexOf(s.id);
     return `<div class="pi ${P.slots[side] === s.id ? 'on' : ''}" data-skill="${s.id}" data-pick="${s.id}" style="background-image:url(${skillIcon(s)})">${i >= 0 ? `<em>F${i + 1}</em>` : ''}</div>`;
   }).join('')}</div><div class="ph g">Maus darüber + F1–F8: Schnelltaste</div>`;
@@ -1815,7 +1873,10 @@ $('#panel').addEventListener('click', e => {
   else if (d.filter) filter = d.filter;
   else if (d.up) learn(d.up);
   else if (d.stat && P.statPts > 0) { P[d.stat]++; P.statPts--; }
-  else if (d.bag) { const it = P.bag.splice(+d.bag, 1)[0], old = P.eq[it.slot]; P.eq[it.slot] = it; if (old) P.bag.push(old); }
+  else if (d.bag) { // Ringe kommen in das freie der beiden Ringfelder
+    const it = P.bag.splice(+d.bag, 1)[0], k = it.slot === 'ring' && P.eq.ring && !P.eq.ring2 ? 'ring2' : it.slot, old = P.eq[k];
+    P.eq[k] = it; if (old) P.bag.push(old);
+  }
   else if (d.eqslot && P.eq[d.eqslot] && P.bag.length < 30) { P.bag.push(P.eq[d.eqslot]); delete P.eq[d.eqslot]; }
   else if (d.buy && P.gold >= potCost() && P.pots[d.buy] < 10) { P.gold -= potCost(); P.pots[d.buy]++; }
   S = calc(); renderPanel();
@@ -1834,7 +1895,8 @@ $('#panel').addEventListener('input', e => {
   search = e.target.value; renderPanel();
   const i = $('#sksearch'); i.focus(); i.setSelectionRange(search.length, search.length);
 });
-el.popup.addEventListener('click', e => { const b = e.target.closest('[data-pick]'); if (b) { P.slots[popup] = b.dataset.pick; closePopup(); } });
+el.popup.addEventListener('click', e => { const b = e.target.closest('[data-pick]'); if (b) { P.slots[popup] = popup === 2 && P.slots[2] === b.dataset.pick ? null : b.dataset.pick; closePopup(); } });
+el.skA.addEventListener('click', () => popup === 2 ? closePopup() : openPopup(2));
 el.skL.addEventListener('click', () => popup === 0 ? closePopup() : openPopup(0));
 el.skR.addEventListener('click', () => popup === 1 ? closePopup() : openPopup(1));
 el.hot.addEventListener('click', e => { const b = e.target.closest('[data-hk]'); if (b && P.hot[+b.dataset.hk]) P.slots[1] = P.hot[+b.dataset.hk]; });
@@ -1992,7 +2054,7 @@ $('#select').addEventListener('click', e => {
 
 // ---------- Eingabe ----------
 addEventListener('keydown', e => {
-  const k = e.key.toLowerCase();
+  const k = { Semicolon: 'ö', Quote: 'ä' }[e.code] || e.key.toLowerCase(); // Ö und Ä auch auf Tastaturen ohne Umlaute
   if (/^f[1-8]$/.test(k)) { e.preventDefault(); if (G) bindHot(+k.slice(1) - 1); return; }
   if (k === 'escape') { if (popup !== null) closePopup(); else if (panel) closePanel(); else if (G) openPanel('menu'); return; }
   if (e.target.tagName === 'INPUT' || !G) return;
@@ -2007,7 +2069,7 @@ addEventListener('keydown', e => {
   else if (!panel && (k === '1' || k === '2' || k === 'q')) potion('hp');
   else if (!panel && (k === '3' || k === '4' || k === 'e')) potion('mp');
 });
-addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+addEventListener('keyup', e => { keys[{ Semicolon: 'ö', Quote: 'ä' }[e.code] || e.key.toLowerCase()] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.l = mouse.r = false; });
 cv.addEventListener('mousedown', e => {
   if (!G || panel) return;
