@@ -7,7 +7,7 @@ const SPR = (() => {
   const KEY = 'sanctuary-3d';
   let on = true;
   try { on = localStorage.getItem(KEY) !== '0'; } catch { /* privater Modus */ }
-  const stub = { draw: () => false, tick() {}, warm() {}, toggle() {}, get on() { return false; } };
+  const stub = { draw: () => false, tick() {}, warm() {}, toggle() {}, shadows() {}, get on() { return false; }, stats: { baked: 0, ms: 0, calls: 0, tris: 0, pagePx: 0 }, pending: 0 };
   if (typeof THREE === 'undefined') return stub;
   let R;
   try { R = new THREE.WebGLRenderer({ canvas: document.createElement('canvas'), alpha: true, antialias: true, preserveDrawingBuffer: true }); }
@@ -34,8 +34,14 @@ const SPR = (() => {
     pm.dispose();
   }
   const keyL = new THREE.DirectionalLight(0xffe2c0, 2.6), rimL = new THREE.DirectionalLight(0xffb070, 1.6);
-  keyL.position.set(-1.5, 2.6, 2.6); rimL.position.set(-1.2, 1.2, -2.6);
-  scene.add(keyL, rimL, new THREE.HemisphereLight(0xb0a088, 0x140e0a, 0.45));
+  // Ziel des Hauptlichts in Körpermitte (Richtung wie zuvor): so deckt der Schattenbereich auch große Gestalten ab
+  keyL.position.set(-1.5, 3.3, 2.6); keyL.target.position.set(0, 0.7, 0); rimL.position.set(-1.2, 1.2, -2.6);
+  scene.add(keyL, keyL.target, rimL, new THREE.HemisphereLight(0xb0a088, 0x140e0a, 0.45));
+  // Eigenverschattung (Grafikstufe): das Hauptlicht wirft Schatten innerhalb der Figur, etwa von Armen, Umhang und Kopf.
+  // Kostet nur beim Rendern der Figurenbilder, nicht in jedem Spielbild
+  R.shadowMap.type = THREE.PCFSoftShadowMap;
+  keyL.shadow.mapSize.set(1024, 1024); keyL.shadow.bias = -0.0006; keyL.shadow.normalBias = 0.015;
+  Object.assign(keyL.shadow.camera, { left: -1.5, right: 1.5, top: 1.5, bottom: -1.5, near: 0.5, far: 10 }); keyL.shadow.camera.updateProjectionMatrix();
   // Blick von schräg oben unter 30°, passend zur 2:1-Projektion des Spiels (Bild-rechts = Welt x − y)
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 60);
   cam.position.set(Math.SQRT1_2 * COS30 * 20, 10, Math.SQRT1_2 * COS30 * 20); cam.lookAt(0, 0, 0);
@@ -699,12 +705,27 @@ const SPR = (() => {
   const FR = { idle: 8, walk: 8, attack: 8, cast: 8, death: 8 }, HEROES = new Set(Object.values(LOOKS));
   const models = new WeakMap(), ents = new Map(), queue = [];
   let ids = 0, frameNo = 0, deadline = 0, pagePx = 0;
+  const stats = { baked: 0, ms: 0, calls: 0, tris: 0, tinted: 0 }; // für die Grafik-Messung (bench.js)
+  // gefärbte Figurenbilder (Trefferblitz, Kälte, Gift, Frost, Leichen) einmal erzeugen statt bei jeder Zeichnung zu filtern.
+  // Sie liegen wie die Figurenbilder auf eigenen Atlasseiten ihrer Gestalt (alle Färbungen gemeinsam) und fallen mit ihr heraus
+  function tinted(e, fr, flt) {
+    const pages = e.tp ||= [];
+    let at = (fr.t ||= {})[flt];
+    if (!at) {
+      at = fr.t[flt] = place(e, fr.w, fr.h, pages);
+      const g = pages[at.pg].g;
+      g.filter = flt; g.drawImage(e.pages[fr.pg].c, fr.x, fr.y, fr.w, fr.h, at.x, at.y, fr.w, fr.h); g.filter = 'none';
+      stats.tinted++;
+    }
+    return [pages[at.pg].c, at.x, at.y];
+  }
   function model(L) {
     if (models.has(L)) return models.get(L);
     let M = null;
     if (!['wisp', 'hammer', 'trap', 'hydra', 'bonewall', 'vine', 'totem'].includes(L.rig)) {
       M = L.rig === 'quad' ? quad(L) : L.rig === 'grub' ? grub(L) : L.rig === 'bird' ? bird(L) : human(L.rig === 'demon' ? demonLook(L) : L);
       M.turn = new THREE.Group(); M.turn.add(M.root);
+      M.root.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = !o.material.isMeshBasicMaterial; }); // Leuchtteile werfen keinen Schatten
       M.id = ++ids; M.dirs = HEROES.has(L) ? 16 : 8;
     }
     models.set(L, M);
@@ -723,14 +744,14 @@ const SPR = (() => {
     return e;
   }
   // Regal-Packen: Bilder reihenweise auf Atlasseiten
-  function place(e, w, h) {
-    let pg = e.pages[e.pages.length - 1];
+  function place(e, w, h, pages = e.pages) {
+    let pg = pages[pages.length - 1];
     if (pg && pg.x + w > e.ps) { pg.y += pg.row; pg.x = 0; pg.row = 0; }
     if (!pg || pg.y + h > e.ps) {
       pg = { c: mkCanvas(e.ps), x: 0, y: 0, row: 0 }; pg.g = pg.c.getContext('2d'); pg.g.imageSmoothingQuality = 'high';
-      e.pages.push(pg); pagePx += e.ps * e.ps; evict();
+      pages.push(pg); pagePx += e.ps * e.ps; evict();
     }
-    const at = { pg: e.pages.length - 1, x: pg.x, y: pg.y };
+    const at = { pg: pages.length - 1, x: pg.x, y: pg.y };
     pg.x += w + 1; pg.row = Math.max(pg.row, h + 1);
     return at;
   }
@@ -740,12 +761,13 @@ const SPR = (() => {
       let old = null;
       for (const [k, e] of ents) if (e.used < frameNo - 60 && (!old || e.used < old[1].used)) old = [k, e];
       if (!old) return;
-      for (const pg of old[1].pages) pagePx -= old[1].ps * old[1].ps;
+      pagePx -= (old[1].pages.length + (old[1].tp?.length || 0)) * old[1].ps * old[1].ps;
       ents.delete(old[0]);
     }
   }
   const v3 = new THREE.Vector3(), box = new THREE.Box3();
   function bake(e, M, an, d, f) {
+    const t0 = performance.now();
     M.pose(an, f / FR[an]);
     M.turn.rotation.y = -d * TAU / M.dirs;
     stage.add(M.turn); M.turn.updateMatrixWorld(true);
@@ -763,7 +785,7 @@ const SPR = (() => {
     const fr = { w: Math.max(0, x1 - x0), h: Math.max(0, y1 - y0), ox: cw / 2 - x0, oy: FOOT * ch - y0, glow: [] };
     if (fr.w && fr.h) {
       R.setViewport(0, GS - ch * ss, cw * ss, ch * ss); R.setScissor(0, GS - ch * ss, cw * ss, ch * ss); R.setScissorTest(true);
-      R.render(scene, cam);
+      R.render(scene, cam); stats.calls += R.info.render.calls; stats.tris += R.info.render.triangles;
       Object.assign(fr, place(e, fr.w, fr.h));
       e.pages[fr.pg].g.drawImage(R.domElement, x0 * ss, y0 * ss, fr.w * ss, fr.h * ss, fr.x, fr.y, fr.w, fr.h);
     }
@@ -776,6 +798,7 @@ const SPR = (() => {
     }
     stage.remove(M.turn);
     e.fr.set(`${an}${d}.${f}`, fr);
+    stats.baked++; stats.ms += performance.now() - t0;
     return fr;
   }
   // fehlt ein Bild und ist das Zeitbudget aufgebraucht: nächstes fertiges Bild derselben Bewegung und Richtung,
@@ -808,11 +831,13 @@ const SPR = (() => {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha *= (L.ghost || 1) * (st.alpha ?? 1);
     if (L.glow) glowDot(g, px, py - want * 0.5, want * 0.55, L.glow);
-    if (st.flash) g.filter = 'brightness(2.4) saturate(.5)';
-    else if (st.lying) g.filter = `brightness(${1 - 0.3 * st.lying})`;
-    else if (st.tint) g.filter = st.tint;
-    if (fr.w) g.drawImage(e.pages[fr.pg].c, fr.x, fr.y, fr.w, fr.h, Math.round(px - fr.ox * s), Math.round(py - fr.oy * s), Math.round(fr.w * s), Math.round(fr.h * s));
-    g.filter = 'none';
+    if (fr.w) {
+      const dx = Math.round(px - fr.ox * s), dy = Math.round(py - fr.oy * s), dw = Math.round(fr.w * s), dh = Math.round(fr.h * s);
+      // Trefferblitz vor Leiche vor Färbung, wie bisher; Leichen-Abdunklung in Viertelstufen, damit die Kopien wiederverwendbar sind
+      const flt = st.flash ? 'brightness(2.4) saturate(.5)' : st.lying ? `brightness(${1 - 0.075 * Math.round(st.lying * 4)})` : st.tint;
+      const [src, sx, sy] = flt ? tinted(e, fr, flt) : [e.pages[fr.pg].c, fr.x, fr.y];
+      g.drawImage(src, sx, sy, fr.w, fr.h, dx, dy, dw, dh);
+    }
     for (const [gx, gy, r, c] of fr.glow) glowDot(g, px + gx * s, py + gy * s, r * s, c);
     g.restore();
     return true;
@@ -838,6 +863,16 @@ const SPR = (() => {
       for (const an of anims) for (let d = 0; d < M.dirs; d++) for (let f = 0; f < FR[an]; f++) queue.push([L, want, an, d, f]);
     },
     get on() { return on; },
+    get stats() { return { ...stats, pagePx }; },
+    get pending() { return queue.length; },
+    // Eigenverschattung an/aus: Materialien neu übersetzen und alle Figurenbilder neu rendern lassen
+    shadows(v) {
+      v = !!v;
+      if (R.shadowMap.enabled === v) return;
+      R.shadowMap.enabled = keyL.castShadow = v;
+      for (const m of mats.values()) m.needsUpdate = true;
+      ents.clear(); pagePx = 0;
+    },
     toggle() { on = !on; try { localStorage.setItem(KEY, on ? '1' : '0'); } catch { /* privater Modus */ } },
   };
 })();

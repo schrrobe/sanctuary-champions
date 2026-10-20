@@ -16,6 +16,7 @@ Kein Build: `index.html` öffnen oder per GitHub Pages spielen. Einzige Fremdbib
 - **Pixel-Look**: Die Spielfläche wird in etwa 600 Bildpunkten Höhe gezeichnet (wie 800×600 im Original) und grob hochskaliert, abschaltbar im Menü. Der Bildausschnitt richtet sich nach der Fensterhöhe, weit herausgezoomt nehmen Figuren etwa ein Elftel der Bildhöhe ein
 - **Vorgerenderte 3D-Figuren wie in D2**: Helden und Monster sind aus 3D-Körpern gebaut (three.js) und werden unter festem Licht in 8 Richtungen gerendert, die Helden in 16. Animationen: Stehen, Gehen, Schlagen, Zaubern, Sterben. Jedes Bild entsteht beim ersten Gebrauch und wird zwischengespeichert. Die Völker aus Champions haben eigene Körper (Vah Shir mit Katzenbeinen und Schwanz, Iksar als Echsen, große Erudit, schlanke Elfen). Abschaltbar im Menü; ohne WebGL erscheinen die gezeichneten Figuren
 - **Beschwörungen**: je zwei Fertigkeitspunkte eine mehr gleichzeitig (Feuergolem auf Stufe 1–2 einer, 3–4 zwei, 5–6 drei), ein Wirken ruft gleich alle; alle Beschwörungen haben doppeltes Leben, je mehr gleichzeitig, desto schwächer ist jede einzelne
+- **Grafikstufen** (Menü: „Grafik: …“): Niedrig, Mittel, Hoch (Standard) und Ultra. Ab Mittel gibt es Bloom für Feuer, Lava und Zauber, eine dezente Farbkorrektur, lebendige Lava mit Glutstellen und Funken, flackernde Fenster und Fackeln mit Flamme. Ab Hoch kommt die Eigenverschattung der 3D-Figuren dazu. Ultra hat einen breiteren Bloom und ist ohne Pixel-Look auf Retina-Bildschirmen scharf, braucht dann aber deutlich mehr Grafikspeicher. Niedrig verzichtet auf Nachbearbeitung, nutzt eine kleinere Lichtfläche und weniger Partikel. Die Stufe ändert nur die Darstellung, nie den Spielablauf. Details in `docs/graphics/06-graphics-presets.md`
 - **Weite Sicht**: weit herausgezoomte Ansicht mit großem Lichtkreis um den Helden
 - **Zwei Ringe** wie in D2: zwei Ringfelder, ein neuer Ring kommt ins freie
 - **Eigene Animation je Aura** wie in D2: Klingen bei Macht, Flammenkranz bei Heiligem Feuer, Eiszacken und Schneeflocken bei Heiligem Frost, knisternde Blitze bei Heiligem Schock, Dornen, Pfeile zur Mitte bei Gesegnetem Zielen, Wirbel bei Fanatismus und Überzeugung, Kreuze bei Gebet, Lichtwellen bei Zuflucht, Schilde bei Trotz, kreisende Elementkugeln bei den Resistenz-Auren, Blasen bei Läuterung, Hexagramm bei Meditation, aufsteigende Seelen bei Erlösung, dreifarbiger Kreis bei Heil; Begleiter im Wirkbereich tragen das Zeichen klein
@@ -54,6 +55,8 @@ Kein Build: `index.html` öffnen oder per GitHub Pages spielen. Einzige Fremdbib
 python3 -m http.server 8000   # dann http://localhost:8000
 ```
 
+Grafik-Messung: `http://localhost:8000/?bench` spielt feste Szenen ab und zeigt Bildrate, Bildzeiten (Ø, P95, P99), Rechenzeit und Speicher. Optionen wie `&scene=dicht` oder `&gfx=mittel` stehen im Kopf von `bench.js`. Spielstand und Einstellungen bleiben dabei unberührt. Audit, Messungen und Umsetzung der Grafikarbeit: `docs/graphics/`.
+
 ## Dateien
 
 - `data.js`: Klassen, Fähigkeiten, Monster, Beschwörungen, Gegenstände (zum Erweitern hier Einträge ergänzen)
@@ -63,6 +66,7 @@ python3 -m http.server 8000   # dann http://localhost:8000
 - `audio.js`: Geräusche und Musik
 - `game.js`: Engine (Arena, Runden, Kampf, KI, Darstellung, UI)
 - `index.html`: Layout und Stil
+- `bench.js`: Grafik-Messung (nur mit `?bench` geladen)
 
 ## Hinweise
 

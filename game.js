@@ -12,12 +12,63 @@ const pixelOn = () => { try { return localStorage.getItem(PIXEL) !== '0'; } catc
 const INFMANA = 'sanctuary-infmana';
 let infOn = (() => { try { return localStorage.getItem(INFMANA) !== '0'; } catch { return true; } })();
 const infMana = () => infOn && panel !== 'balance';
+// Grafikstufen, reine Darstellung, nie Spielablauf. light: Auflösung der Lichtfläche relativ zur Renderfläche · bloom: Stärke
+// (0 = aus) · wide: zweite, breitere Bloom-Stufe · grade: Farbkorrektur · shadows: Eigenverschattung im Figuren-Bake ·
+// life: lebendige Umgebung (Lava, Funken, Flackern) · parts: Partikelbudget · dpr: Höchstwert für scharfes Rendern ohne Pixel-Look
+// (nur Ultra: doppelte Auflösung heißt vierfache Fläche für die Figurenbilder, also deutlich mehr Grafikspeicher)
+const GFX_KEY = 'sanctuary-gfx', GFX_NM = { niedrig: 'Niedrig', mittel: 'Mittel', hoch: 'Hoch', ultra: 'Ultra' }, GFX_SETS = {
+  niedrig: { light: 0.5, bloom: 0, wide: 0, grade: 0, shadows: 0, life: 0, parts: 350, dpr: 1 },
+  mittel: { light: 0.75, bloom: 0.22, wide: 0, grade: 1, shadows: 0, life: 1, parts: 700, dpr: 1 },
+  hoch: { light: 1, bloom: 0.32, wide: 0, grade: 1, shadows: 1, life: 1, parts: 1200, dpr: 1 },
+  ultra: { light: 1, bloom: 0.36, wide: 1, grade: 1, shadows: 1, life: 1, parts: 2000, dpr: 2 },
+};
+const GFX = {
+  name: 'hoch', ...GFX_SETS.hoch,
+  // keep: Wahl speichern (die Grafik-Messung wählt Stufen nur vorübergehend)
+  set(n, keep = true) {
+    if (!GFX_SETS[n]) return;
+    Object.assign(GFX, GFX_SETS[n], { name: n });
+    if (keep) try { localStorage.setItem(GFX_KEY, n); } catch { /* privater Modus */ }
+    SPR.shadows(GFX.shadows); resize();
+  },
+  next() { const k = Object.keys(GFX_SETS); GFX.set(k[(k.indexOf(GFX.name) + 1) % k.length]); },
+};
+try { const n = localStorage.getItem(GFX_KEY); if (GFX_SETS[n]) Object.assign(GFX, GFX_SETS[n], { name: n }); } catch { /* privater Modus */ }
+SPR.shadows(GFX.shadows);
+let LS = 1; // Bildpunkte der Lichtfläche je Weltbildpunkt
+// Bloom: helle Stellen (Feuer, Lava, Zauber) strahlen über. Das fertige Bild wird auf ein Viertel verkleinert, über eine
+// weiche Helligkeitsschwelle gezogen (erst ab etwa 57 % Helligkeit, voll ab 86 %) und weichgezeichnet, dann additiv zurückgelegt.
+// Braucht ctx.filter; wo Filter nicht wirken, bleibt Bloom aus, statt das ganze Bild aufzuhellen
+const bloomA = mkCanvas(1), bloomB = mkCanvas(1);
+const FILTER_OK = (() => {
+  try { const a = mkCanvas(2), b = mkCanvas(2), g = b.getContext('2d'); a.getContext('2d').fillRect(0, 0, 2, 2); g.fillStyle = '#fff'; g.fillRect(0, 0, 2, 2); g.filter = 'brightness(0)'; g.drawImage(a, 0, 0); g.filter = 'invert(1)'; g.drawImage(a, 0, 0); return g.getImageData(0, 0, 1, 1).data[0] > 200; }
+  catch { return false; }
+})();
+function bloom() {
+  if (!GFX.bloom || !FILTER_OK) return;
+  const w = Math.ceil(cv.width / 4), h = Math.ceil(cv.height / 4), ga = bloomA.getContext('2d');
+  if (bloomA.width !== w || bloomA.height !== h) { bloomA.width = w; bloomA.height = h; }
+  ga.globalCompositeOperation = 'copy'; ga.filter = 'brightness(.7) contrast(5) blur(2px)'; ga.drawImage(cv, 0, 0, w, h); ga.filter = 'none';
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = GFX.bloom;
+  ctx.drawImage(bloomA, 0, 0, cv.width, cv.height);
+  if (GFX.wide) { // Ultra: zweite, breitere Stufe auf einem Achtel der Fläche
+    const gb = bloomB.getContext('2d'), w2 = Math.ceil(w / 2), h2 = Math.ceil(h / 2);
+    if (bloomB.width !== w2 || bloomB.height !== h2) { bloomB.width = w2; bloomB.height = h2; }
+    gb.globalCompositeOperation = 'copy'; gb.filter = 'blur(3px)'; gb.drawImage(bloomA, 0, 0, w2, h2); gb.filter = 'none';
+    ctx.globalAlpha = GFX.bloom * 0.6; ctx.drawImage(bloomB, 0, 0, cv.width, cv.height);
+  }
+  ctx.restore();
+}
 function resize() {
   VS = Math.max(0.5, Math.min(1.1, innerHeight / 1050));
-  PX = pixelOn() ? Math.max(0.5, Math.min(1, 620 / innerHeight)) : 1;
+  // ohne Pixel-Look scharf nach devicePixelRatio, begrenzt je Grafikstufe
+  PX = pixelOn() ? Math.max(0.5, Math.min(1, 620 / innerHeight)) : Math.min(devicePixelRatio || 1, GFX.dpr);
   cv.width = Math.round(innerWidth * PX); cv.height = Math.round(innerHeight * PX);
   cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px'; cv.style.imageRendering = PX < 1 ? 'pixelated' : 'auto';
-  W = light.width = Math.ceil(innerWidth / VS); H = light.height = Math.ceil(innerHeight / VS);
+  cv.style.filter = GFX.grade ? 'contrast(1.06) saturate(1.1)' : ''; // Farbkorrektur, vom Compositor berechnet
+  W = Math.ceil(innerWidth / VS); H = Math.ceil(innerHeight / VS);
+  // Licht ist weich: die Lichtfläche braucht höchstens die Auflösung der Renderfläche, nicht die der Welt
+  LS = VS * PX * GFX.light; light.width = Math.ceil(W * LS); light.height = Math.ceil(H * LS);
   LH = Math.round(7.5 / (VS * PX));
 }
 addEventListener('resize', resize); resize();
@@ -1280,12 +1331,13 @@ function drawWall(tx, ty, fade) {
   const windows = (wx, wy) => {
     if (!gothic || hs % 3) return;
     ctx.globalCompositeOperation = 'lighter';
+    if (GFX.life) ctx.globalAlpha = fade * (0.72 + 0.28 * Math.sin(G.t * 6.3 + hs) * Math.sin(G.t * 2.1 + hs * 0.37)); // Glut hinter den Fenstern flackert
     for (const fx of [0.26, 0.6]) {
       const x = T * fx, w = T * 0.13, y0w = -h * 0.8, y1 = -h * 0.42, gr = ctx.createLinearGradient(0, y0w, 0, y1);
       gr.addColorStop(0, '#ffd070'); gr.addColorStop(1, '#ff5a10'); ctx.fillStyle = gr;
       ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y0w + w); ctx.quadraticCurveTo(x, y0w, x + w / 2, y0w - w * 0.6); ctx.quadraticCurveTo(x + w, y0w, x + w, y0w + w); ctx.lineTo(x + w, y1); ctx.fill();
     }
-    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = fade;
     G.winLamps.push([wx, wy - h * 0.6]);
   };
   if (m[(ty + 1) * MW + tx]) {
@@ -1321,7 +1373,7 @@ function drawWall(tx, ty, fade) {
     ctx.fillStyle = '#2a2018'; ctx.fillRect(sx - 3, sy - 62, 6, 12);
     ctx.globalCompositeOperation = 'lighter';
     glowDot(ctx, sx, sy - 70, 22 + fl, '#ff9a30');
-    ctx.fillStyle = '#ffd070'; ctx.beginPath(); ctx.ellipse(sx, sy - 70 - fl * 0.5, 3.5, 8 + fl, 0, 0, 7); ctx.fill();
+    flame(ctx, sx, sy - 62, 15 + fl * 1.5, 4, G.t * 9 + tx * 1.7);
     ctx.globalCompositeOperation = 'source-over';
     if (Math.random() < 0.15) { const w = unproj(sx, sy); G.parts.push({ x: w.x, y: w.y, z: 74, vx: rnd(-8, 8), vy: rnd(-8, 8), vz: rnd(30, 70), life: 0.8, t: 0, col: pick(FIRE), s: 1.5, add: true }); }
   }
@@ -1367,6 +1419,21 @@ function draw() {
     if (sx < -80 || sy < -80 || sx > W + 80 || sy > H + 80) continue;
     scrT(); glowDot(ctx, sx, sy, 34 + 10 * Math.sin(G.t * 1.7 + l.h), 'rgba(255,190,70,.22)'); isoT();
     if (Math.random() < 0.02) G.parts.push({ x: l.x + rnd(-15, 15), y: l.y + rnd(-15, 15), z: 2, vx: rnd(-6, 6), vy: rnd(-6, 6), vz: rnd(30, 70), life: rnd(0.8, 1.6), t: 0, col: pick(FIRE), s: 1.6, add: true });
+  }
+  // Lava lebt (Grafikstufe): wandernde, pulsierende Glutstellen auf den sichtbaren Lavafeldern und aufsteigende Glutfunken
+  if (GFX.life && G.lava) {
+    const cs = [unproj(-60, -60), unproj(W + 60, -60), unproj(-60, H + 60), unproj(W + 60, H + 60)], xs = cs.map(c => c.x / T), ys = cs.map(c => c.y / T);
+    const x0 = Math.max(0, Math.floor(Math.min(...xs))), x1 = Math.min(MW - 1, Math.ceil(Math.max(...xs))), y0 = Math.max(0, Math.floor(Math.min(...ys))), y1 = Math.min(MH - 1, Math.ceil(Math.max(...ys)));
+    scrT();
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+      const i = ty * MW + tx, h = hash(tx, ty);
+      if (!G.lava[i] || G.wall[i] || h % 3) continue;
+      const a = G.t * 0.35 + h, [sx, sy] = proj((tx + 0.5 + Math.sin(a) * 0.35) * T, (ty + 0.5 + Math.cos(a * 0.8) * 0.35) * T);
+      if (sx < -40 || sy < -40 || sx > W + 40 || sy > H + 40) continue; // das Rechteck um die Bildraute enthält viele unsichtbare Felder
+      glowDot(ctx, sx, sy, 20 + 10 * Math.sin(G.t * 1.3 + h), 'rgba(255,140,30,.2)');
+      if (Math.random() < 0.008) G.parts.push({ x: (tx + Math.random()) * T, y: (ty + Math.random()) * T, z: 2, vx: rnd(-10, 10), vy: rnd(-10, 10), vz: rnd(40, 90), life: rnd(1.4, 2.6), t: 0, col: pick(FIRE), s: rnd(1.4, 2.4), add: true });
+    }
+    isoT();
   }
   for (const a of G.areas) {
     const c = EL[a.el][1], g = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, a.r);
@@ -1480,6 +1547,7 @@ function draw() {
       disc(ctx, sx, sy, q.sz * Z * 0.7, '#ffffff');
     }
   }
+  if (G.parts.length > GFX.parts) G.parts.splice(0, G.parts.length - GFX.parts); // Partikelbudget der Grafikstufe
   for (const q of G.parts) {
     const [sx, sy] = proj(q.x, q.y), a = 1 - q.t / q.life;
     ctx.globalCompositeOperation = q.add ? 'lighter' : 'source-over';
@@ -1528,6 +1596,7 @@ function draw() {
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
 
   // Licht
+  lctx.setTransform(LS, 0, 0, LS, 0, 0);
   lctx.globalCompositeOperation = 'source-over';
   lctx.clearRect(0, 0, W, H);
   lctx.fillStyle = `rgba(0,0,0,${amb})`; lctx.fillRect(0, 0, W, H);
@@ -1540,7 +1609,7 @@ function draw() {
   };
   lamp(ppx, ppy - 30, 620, 1); // Sichtweite des Helden
   if (G.lavaImg) { // Lava ist selbstleuchtend: die Dunkelheit wird dort ausgestanzt, leicht pulsierend
-    lctx.save(); lctx.setTransform(Z, Z / 2, -Z, Z / 2, cam.x, cam.y); lctx.globalAlpha = 0.82 + 0.1 * Math.sin(G.t * 1.3); lctx.drawImage(G.lavaImg, 0, 0); lctx.restore();
+    lctx.save(); lctx.setTransform(Z * LS, Z / 2 * LS, -Z * LS, Z / 2 * LS, cam.x * LS, cam.y * LS); lctx.globalAlpha = 0.82 + 0.1 * Math.sin(G.t * 1.3); lctx.drawImage(G.lavaImg, 0, 0); lctx.restore();
     for (const l of G.lavaEdge) if (l.h % 3 === 0) { const [sx, sy] = proj(l.x, l.y); lamp(sx, sy, 120, 0.5); }
   }
   for (const [sx, sy] of G.winLamps || []) lamp(sx, sy, 46, 0.9);
@@ -1557,7 +1626,7 @@ function draw() {
   const vg = lctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.42, W / 2, H * 0.45, Math.max(W, H) * 0.78);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)');
   lctx.fillStyle = vg; lctx.fillRect(0, 0, W, H);
-  ctx.drawImage(light, 0, 0);
+  ctx.drawImage(light, 0, 0, W, H);
   // farbiges Licht: Fackeln orange, Pentagramm rot, Zauber in ihrer Elementfarbe
   const tint = (x, y, r, c) => { if (x > -r && y > -r && x < W + r && y < H + r) glowDot(ctx, x, y, r, c); };
   for (const t of G.torches) { const [sx, sy] = proj(t.x, t.y); tint(sx, sy - 60, 170, 'rgba(255,120,30,.16)'); }
@@ -1565,6 +1634,8 @@ function draw() {
   for (const l of G.lavaEdge) if (l.h % 4 === 0) { const [sx, sy] = proj(l.x, l.y); tint(sx, sy, 110, 'rgba(255,110,20,.12)'); }
   for (const q of G.projs) if (!q.arrow) { const [sx, sy] = proj(q.x, q.y); tint(sx, sy - 26, 110, EL[q.el][1] + '30'); }
   for (const a of G.areas) if (a.dmg) { const [sx, sy] = proj(a.x, a.y); tint(sx, sy, a.r * Z * 1.4, EL[a.el][1] + '28'); }
+
+  bloom();
 
   // Bodenbeschriftungen wie mit gedrückter Alt-Taste
   ctx.font = `600 ${Math.round(13 / (VS * PX))}px "Crimson Text", Georgia, serif`; ctx.textAlign = 'center';
@@ -1799,7 +1870,7 @@ function renderInv() {
 
 function renderMenu() {
   return `<header><h2>Menü</h2><button class="x" data-act="close">✕</button></header>
-    <div class="menu"><button data-act="close">Spiel fortsetzen</button><button data-act="sound">Ton: ${SFX.on ? 'an' : 'aus'}</button><button data-act="pixel">Pixel-Look: ${PX < 1 ? 'an' : 'aus'}</button><button data-act="fig3d">3D-Figuren: ${SPR.on ? 'an' : 'aus'}</button><button data-act="infmana">Unendlich Mana: ${infOn ? 'an' : 'aus'}</button><button data-act="menu">Speichern und zum Hauptmenü</button></div>
+    <div class="menu"><button data-act="close">Spiel fortsetzen</button><button data-act="sound">Ton: ${SFX.on ? 'an' : 'aus'}</button><button data-act="pixel">Pixel-Look: ${PX < 1 ? 'an' : 'aus'}</button><button data-act="fig3d">3D-Figuren: ${SPR.on ? 'an' : 'aus'}</button><button data-act="gfx">Grafik: ${GFX_NM[GFX.name]}</button><button data-act="infmana">Unendlich Mana: ${infOn ? 'an' : 'aus'}</button><button data-act="menu">Speichern und zum Hauptmenü</button></div>
     <table class="keys">${[['Linksklick', 'Laufen / mit linker Fähigkeit angreifen'], ['Umschalt + Linksklick', 'Angreifen ohne zu laufen'], ['Rechtsklick', 'Rechte Fähigkeit'], ['Ö / Ä', 'Linke / rechte Fähigkeit auf den Mauszeiger'], ['Drittes Feld', 'Aura oder Stärkung, bleibt ständig aktiv'], ['F1–F8 / Mausrad', 'Rechte Fähigkeit wechseln'], ['1–4 (Q/E)', 'Tränke aus dem Gürtel'], ['WASD', 'Alternativ laufen'], ['C · I · T', 'Charakter · Inventar · Fähigkeiten'], ['Tab', 'Automap']].map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>`;
 }
 
@@ -1872,6 +1943,7 @@ $('#panel').addEventListener('click', e => {
   if (d.act === 'menu') { save(); return showSelect(); }
   if (d.act === 'sound') { SFX.toggle(); return renderPanel(); }
   if (d.act === 'fig3d') { SPR.toggle(); return renderPanel(); }
+  if (d.act === 'gfx') { GFX.next(); return renderPanel(); }
   if (d.act === 'infmana') { infOn = !infOn; try { localStorage.setItem(INFMANA, infOn ? '1' : '0'); } catch { /* privater Modus */ } return renderPanel(); }
   if (d.act === 'pixel') { try { localStorage.setItem(PIXEL, pixelOn() ? '0' : '1'); } catch { /* privater Modus */ } resize(); return renderPanel(); }
   if (d.act === 'next') return startRound();
