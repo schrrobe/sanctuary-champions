@@ -23,6 +23,7 @@ function resize() {
 addEventListener('resize', resize); resize();
 
 const T = 40, MW = 70, MH = 70, SAVE = 'sanctuary-champions-v1';
+const METER = 17; // ein „Meter“ wie in den deutschen D2-Beschreibungen, knapp eine halbe Bodenplatte
 const rnd = (a, b) => a + Math.random() * (b - a);
 const rint = (a, b) => Math.floor(rnd(a, b + 1));
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -810,33 +811,39 @@ function keepAura(p) {
 
 function pulse(b) {
   const p = G.player, pl = b.s.pulse, m = 1 + 0.2 * (b.r - 1), v = (pl.d || 0) * (1 + 0.3 * (b.r - 1)) * (1 + S.spellPct) * S.lvlMult * (b.s.c === P.cls ? 1.25 : 1);
+  // Radius in Metern wächst mit jedem Punkt (Heiliger Frost: 10 m, je Punkt 0,4 m mehr)
+  const pr = pl.rm ? (pl.rm + (pl.rmUp || 0) * (b.r - 1)) * METER : pl.r;
   // Gewittersturm und Armageddon treffen je Puls ein Ziel aus dem Himmel
   if (pl.strike || pl.meteor) {
-    const e = pick(G.ents.filter(e => e.team === 'e' && !e.dead && dist(e, p) < pl.r + e.r));
+    const e = pick(G.ents.filter(e => e.team === 'e' && !e.dead && dist(e, p) < pr + e.r));
     if (pl.strike && e) { hit(p, e, v, pl.el); fx({ k: 'sky', x: e.x, y: e.y, life: 0.35 }); boom(e.x, e.y, 20, pl.el, 30, 0.4); }
-    if (pl.meteor) G.areas.push({ x: e ? e.x : p.x + rnd(-0.7, 0.7) * pl.r, y: e ? e.y : p.y + rnd(-0.7, 0.7) * pl.r, r: 70, el: 'fire', dmg: v, t: 0.7, delay: 0.7, ticks: 1, iv: 0, burn: 2, src: p, meteor: true, boom: true, seed: rnd(0, 6) });
+    if (pl.meteor) G.areas.push({ x: e ? e.x : p.x + rnd(-0.7, 0.7) * pr, y: e ? e.y : p.y + rnd(-0.7, 0.7) * pr, r: 70, el: 'fire', dmg: v, t: 0.7, delay: 0.7, ticks: 1, iv: 0, burn: 2, src: p, meteor: true, boom: true, seed: rnd(0, 6) });
     return;
   }
-  fx({ k: 'ring', x: p.x, y: p.y, r0: pl.r * 0.7, r1: pl.r, col: pl.heal ? '#80ff90' : pl.amp ? '#ff8080' : pl.el ? EL[pl.el][1] : AURA_COL[b.s.id], life: 0.4, a: 0.35 });
-  if (pl.heal) for (const e of G.ents) if (e.team === 'p' && !e.noTarget && dist(e, p) < pl.r) { const mx = e.player ? S.maxhp : e.maxhp; e.hp = Math.min(mx, e.hp + mx * pl.heal * m); }
-  if (pl.cleanse) for (const e of G.ents) if (e.team === 'p' && dist(e, p) < pl.r) { e.pois = 0; e.slow = 0; e.chill = 0; } // Läuterung
+  fx({ k: 'ring', x: p.x, y: p.y, r0: pr * 0.7, r1: pr, col: pl.heal ? '#80ff90' : pl.amp ? '#ff8080' : pl.el ? EL[pl.el][1] : AURA_COL[b.s.id], life: 0.4, a: 0.35 });
+  if (pl.heal) for (const e of G.ents) if (e.team === 'p' && !e.noTarget && dist(e, p) < pr) { const mx = e.player ? S.maxhp : e.maxhp; e.hp = Math.min(mx, e.hp + mx * pl.heal * m); }
+  if (pl.cleanse) for (const e of G.ents) if (e.team === 'p' && dist(e, p) < pr) { e.pois = 0; e.slow = 0; e.chill = 0; } // Läuterung
   if (pl.redeem) { // Erlösung: eine Leiche wird zu Leben und Mana
-    const c = nearest(p, G.corpses.filter(c => dist(c, p) < pl.r));
+    const c = nearest(p, G.corpses.filter(c => dist(c, p) < pr));
     if (c) {
       G.corpses.splice(G.corpses.indexOf(c), 1);
       p.hp = Math.min(S.maxhp, p.hp + S.maxhp * pl.redeem * m); p.mp = Math.min(S.maxmp, p.mp + S.maxmp * pl.redeem * m);
       fx({ k: 'tele', x: c.x, y: c.y, col: '#ffffff', life: 0.6, seed: rnd(0, 6) }); fx({ k: 'bolt', a: { x: c.x, y: c.y }, b: { x: p.x, y: p.y }, col: '#ffffff', life: 0.3 });
     }
   }
-  for (const e of G.ents) if (e.team === 'e' && !e.dead && dist(e, p) < pl.r + e.r) {
+  for (const e of G.ents) if (e.team === 'e' && !e.dead && dist(e, p) < pr + e.r) {
     if (pl.undead && !e.undead) continue; // Zuflucht wirkt nur auf Untote
     if (pl.d) {
-      hit(p, e, v, pl.el, { kb: pl.undead ? 50 : 0 });
+      const frz = pl.frz && Math.random() < pl.frz; // Heiliger Frost friert mit einer Chance von 1 zu 10 ein
+      hit(p, e, v, pl.el, { kb: pl.undead ? 50 : 0, st: frz ? pl.frzT : 0 });
+      if (frz) boom(e.x, e.y, figH(e) * 0.5, 'cold', 34, 0.5);
       if (AURA_COL[b.s.id]) boom(e.x, e.y, figH(e) * 0.45, pl.el, 14, 0.35); else emit(e.x, e.y, 20, pl.el, 3, 20);
     }
     if (pl.amp) { e.amp = pl.amp + 0.05 * (b.r - 1); e.ampT = pl.iv + 0.2; }
+    if (pl.slow) { e.hfK = hfSlow(pl, b.r); e.hfT = pl.iv + 0.3; } // verlangsamt Laufen und Angriffe, mit jedem Punkt mehr
   }
 }
+const hfSlow = (pl, r) => Math.min(0.6, pl.slow + pl.slowUp * (r - 1));
 
 // Lodern: hinter der Zauberin bleibt brennender Boden zurück
 function trail(b) {
@@ -998,7 +1005,7 @@ function status(e, dt) {
     if (e.hp <= 0) kill(e);
   }
   e.slow -= dt; e.fear -= dt; e.st -= dt; e.movT -= dt; e.flash = (e.flash || 0) - dt; e.root = (e.root || 0) - dt; e.dark = (e.dark || 0) - dt;
-  e.chill = (e.chill || 0) - dt; e.frz = (e.frz || 0) - dt; e.prison = (e.prison || 0) - dt; e.curseT = (e.curseT || 0) - dt;
+  e.chill = (e.chill || 0) - dt; e.frz = (e.frz || 0) - dt; e.hfT = (e.hfT || 0) - dt; e.prison = (e.prison || 0) - dt; e.curseT = (e.curseT || 0) - dt;
   if (e.cur) for (const k in e.cur) e.cur[k] -= dt;
   e.atkA = Math.max(0, (e.atkA || 0) - dt * 3.5);
   if ((e.ampT -= dt) <= 0) e.amp = 1;
@@ -1014,7 +1021,7 @@ function think(e, dt) {
   }
   if (e.rise > 0) { e.rise -= dt; return; }
   if (e.st > 0) return;
-  const p = G.player, spd = e.v * (e.slow > 0 ? 0.5 : 1), c = e.cur || {};
+  const hf = e.hfT > 0 ? 1 - e.hfK : 1, p = G.player, spd = e.v * (e.slow > 0 ? 0.5 : 1) * hf, c = e.cur || {};
   let tg;
   if (e.team === 'e') {
     if (!e.awake) { if (dist(e, p) < 380) wake(e); else return; }
@@ -1031,7 +1038,7 @@ function think(e, dt) {
   if (!tg) return;
   if (e.fear > 0) { const a = Math.atan2(e.y - p.y, e.x - p.x); e.face = a; move(e, Math.cos(a) * spd * dt, Math.sin(a) * spd * dt); return; }
   const d = dist(e, tg);
-  e.atkT -= dt;
+  e.atkT -= dt * hf; // Heiliger Frost verlangsamt auch Angriffe
   if (e.nova && (e.novaT -= dt) <= 0 && d < e.nova.r) {
     e.novaT = e.nova.cd; e.atkA = 1; e.atkCast = true;
     fx({ k: 'ring', x: e.x, y: e.y, r0: 20, r1: e.nova.r, col: EL[e.nova.el][1], life: 0.5 });
@@ -1703,6 +1710,10 @@ function desc(s, r) {
     o.push(p.heal ? `heilt alle ${p.iv} s ${Math.round(p.heal * 100 * (1 + 0.2 * (R - 1)))}% Leben` : p.amp ? 'Gegner in der Nähe erleiden mehr Schaden'
       : p.cleanse ? 'heilt Gift und Verlangsamung' : p.redeem ? 'verwandelt Leichen in Leben und Mana'
       : `${Math.round(p.d * (1 + 0.3 * (R - 1)))} Schaden (${EL[p.el][0]}) ${p.strike ? 'per Blitz aus dem Himmel' : p.meteor ? 'per Meteor' : 'pro Puls'}${p.undead ? ', nur gegen Untote' : ''}`);
+    const de = x => String(+x.toFixed(1)).replace('.', ',');
+    if (p.slow) o.push(`verlangsamt Laufen und Angriffe der Gegner zusätzlich um ${Math.round(hfSlow(p, R) * 100)} %`);
+    if (p.frz) o.push(`friert mit einer Chance von 1 zu ${Math.round(1 / p.frz)} je Puls ${de(p.frzT)} s ein`);
+    if (p.rm) o.push(`Radius ${de(p.rm + p.rmUp * (R - 1))} Meter`);
   }
   if (s.dur && s.t === 'buff') o.push(`Dauer ${s.dur} s`);
   if (s.amt) o.push(s.t === 'heal' ? `heilt ${Math.round(s.amt * (1 + 0.15 * (R - 1)) * 100)}% Leben` : `absorbiert ${Math.round(s.amt * (1 + 0.3 * (R - 1)))} Schaden`);

@@ -170,7 +170,7 @@ const SKILLS = [
   { id: 'holy_fire', nm: 'Heiliges Feuer (Aura)', g: 'D2', c: 'pal', t: 'buff', aura: 1, q: 6, mp: 8, dur: 60, pulse: { iv: 1, r: 170, d: 0.7, el: 'fire' } },
   { id: 'holy_bolt', nm: 'Heiliger Blitz', g: 'D2', c: 'pal', t: 'proj', q: 6, mp: 4, d: 92.2, el: 'mag', v: 500 },
   { id: 'charge', nm: 'Ansturm', g: 'D2', c: 'pal', t: 'dash', q: 12, mp: 9, wm: 16.97, v: 750 },
-  { id: 'holy_freeze', nm: 'Heiliger Frost (Aura)', g: 'D2', c: 'pal', t: 'buff', aura: 1, q: 18, mp: 10, dur: 60, pulse: { iv: 1, r: 170, d: 0.7, el: 'cold' } },
+  { id: 'holy_freeze', nm: 'Heiliger Frost (Aura)', g: 'D2', c: 'pal', t: 'buff', aura: 1, q: 18, mp: 10, dur: 60, pulse: { iv: 1, rm: 10, rmUp: 0.4, d: 0.7, el: 'cold', slow: 0.1, slowUp: 0.02, frz: 0.1, frzT: 1.5 } },
   { id: 'blessed_hammer', nm: 'Gesegneter Hammer', g: 'D2', c: 'pal', t: 'proj', q: 18, mp: 6, d: 15.3, el: 'mag', spiral: 1, pr: 99, life: 2 },
   { id: 'conversion', nm: 'Bekehrung', g: 'D2', c: 'pal', t: 'convert', q: 24, mp: 12, cd: 4, dur: 20 },
   { id: 'conviction', nm: 'Überzeugung (Aura)', g: 'D2', c: 'pal', t: 'buff', aura: 1, q: 24, mp: 12, dur: 60, pulse: { iv: 1, r: 220, amp: 1.4 } },
