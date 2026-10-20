@@ -2,10 +2,10 @@
 // Grafik-Messung: index.html?bench spielt drei feste Szenen ab und misst Bildabstände, Rechenzeit je Bild,
 // Zeichenoperationen, Speicher und das Rendern der 3D-Figuren. Ergebnis als Tabelle im Bild und als JSON in
 // der Konsole (Zeile „BENCH …“). Spielstand, Rekord und Einstellungen bleiben unberührt.
-// Optionen: &scene=typisch|dicht|action|lava · &secs=8 (Messdauer je Szene) · &gfx=niedrig|mittel|hoch|ultra
+// Optionen: &scene=typisch|dicht|action|lava|horde · &secs=8 (Messdauer je Szene) · &gfx=niedrig|mittel|hoch|ultra
 // (Grafikstufe nur für die Messung) · &set=bloom:0,life:0 (einzelne Werte der Stufe überschreiben) · &pixel=0 (ohne Pixel-Look) · &shot=3 (Szene 3 s mit festem Takt rechnen, dann eingefroren zeigen,
 // für vergleichbare Bilder) · &kalt (nur 3 s Aufwärmen wie beim Rundenstart, Bake läuft während der Messung weiter) ·
-// &notint (Färbungen per Filter aus, nur zur Ursachensuche)
+// &notint (Färbungen per Filter aus, nur zur Ursachensuche) · &at=x,y (Lage des Helden in Feldern ab Kartenmitte, etwa für Bilder vom Highway) · &mon=n (Gegnerzahl der Szene)
 const BENCH = (() => {
   const Q = new URLSearchParams(location.search), SECS = +(Q.get('secs') || 8), WARM = 3, WARM_MAX = 25;
   const seeded = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -18,6 +18,8 @@ const BENCH = (() => {
     action: { cls: 'sor', at: [0, 0], mon: 30, pool: ALL, mortal: false, every: 0.18,
       skills: ['blizzard', 'meteor', 'frozen_orb', 'frost_nova', 'chain_lightning', 'fire_ball', 'static_field', 'fire_wall'] },
     lava: { cls: 'ama', at: [20, 2], mon: 12, pool: EARLY, mortal: true, skills: ['fire_arrow'], every: 0.4 },
+    // Highway der Toten: volle Horde (Obergrenze 165) um den Helden an der Kreuzung, Zombies sterben und rücken nach
+    horde: { cls: 'sor', map: 'hw', at: [0, 4], mon: 165, pool: ZOMBIES.map(z => z.lk || z.nm), mortal: true, skills: ['frost_nova', 'chain_lightning', 'fire_ball'], every: 0.35 },
   };
   const names = Q.get('scene') ? [Q.get('scene')] : Object.keys(SCENES), results = [];
   // ohne Pixel-Look messen; die Einstellung des Spielers wird danach wiederhergestellt
@@ -40,11 +42,12 @@ const BENCH = (() => {
 
   function setup(sc) {
     Math.random = seeded(42);
-    newChar(sc.cls, 'Messung'); startGame(); closePanel(); G.phase = 'fight'; G.queue = [];
-    const p = G.player;
-    p.x = (AC + sc.at[0] + 0.5) * T; p.y = (AC + sc.at[1] + 0.5) * T; p.order = null;
+    newChar(sc.cls, 'Messung'); setMap(sc.map || 'sanct'); startGame(); closePanel(); G.phase = 'fight'; G.queue = [];
+    const p = G.player, c = sc.map ? HW_C : AC, at = Q.get('at') ? Q.get('at').split(',').map(Number) : sc.at;
+    p.x = (c + at[0] + 0.5) * T; p.y = (c + at[1] + 0.5) * T; p.order = null;
     for (const id of [...(sc.skills || []), ...(sc.summons || []), sc.aura].filter(Boolean)) P.ranks[id] = 10;
     if (sc.aura) G.buffs[sc.aura] = { s: SK[sc.aura], r: 10, t: 1e9, pt: 0 };
+    if (Q.has('mon')) sc.mon = +Q.get('mon');
     for (let i = 0; i < sc.mon; i++) spawn(sc);
     for (const id of sc.summons || []) { P.slots[0] = id; p.mp = 1e5; G.cds[id] = 0; cast(0, p.x + 60, p.y + 40); }
     // alle Gestalten der Szene vorab rendern lassen, gemessen wird danach im eingeschwungenen Zustand
@@ -53,9 +56,9 @@ const BENCH = (() => {
   function spawn(sc) {
     const p = G.player;
     for (let k = 0; k < 30; k++) {
-      const a = Math.random() * 6.283, d = 150 + Math.random() * 230, x = p.x + Math.cos(a) * d, y = p.y + Math.sin(a) * d * 0.8;
+      const a = Math.random() * 6.283, d = (150 + Math.random() * 230) * (sc.map ? 1.6 : 1), x = p.x + Math.cos(a) * d, y = p.y + Math.sin(a) * d * 0.8;
       if (!free(x, y, 18)) continue;
-      const nm = sc.pool[Math.floor(Math.random() * sc.pool.length)], e = spawnMon(MONSTERS.find(m => m.nm === nm), x, y, null);
+      const nm = sc.pool[Math.floor(Math.random() * sc.pool.length)], e = spawnMon((sc.map ? ZOMBIES : MONSTERS).find(m => (m.lk || m.nm) === nm), x, y, null);
       e.awake = true;
       if (!sc.mortal) e.hp = e.maxhp = 1e9;
       return;

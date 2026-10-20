@@ -8,7 +8,8 @@ Kein Build: `index.html` öffnen oder per GitHub Pages spielen. Einzige Fremdbib
 - **Diablo-II-Optik**: isometrische Ansicht mit texturierten Böden und Mauern, Fackeln und dynamischem Licht, Partikeleffekte für Zauber, Blut und Leichen, animierte Figuren, D2-Bedienleiste mit Lebens- und Manakugel, Gürtel, Fähigkeitsbaum, Inventarraster und Automap. Alle Grafiken werden im Code erzeugt, es werden keine Originalgrafiken verwendet.
 - **14 Klassen**: die 7 Klassen aus Diablo II: LoD (Amazone, Assassine, Barbar, Druide, Totenbeschwörer, Paladin, Zauberin) und die 7 aus Champions: Return to Arms (Barbaren-Krieger, Erudit-Zauberer, Waldelfen-Waldläufer, Hochelfen-Kleriker, Dunkelelfen-Schattenritter, Vah-Shir-Berserker, Iksar-Schamane)
 - **Freier Skill-Baukasten**: Jede Klasse kann jede der 292 Fähigkeiten aus beiden Spielen lernen (alle 30 je Diablo-II-Klasse), ohne Stufensperre. Zum Start gibt es 30 Punkte, jeder Aufstieg bringt einen weiteren. Rechtsklick gibt einen Punkt zurück. Fähigkeiten der eigenen Klasse wirken 25 % stärker.
-- **Arena im Chaos-Sanktuarium**: Gegner kommen rundenweise aus den vier Armen der Halle, jede Runde wird schwerer, alle 5 Runden ein Boss (Andariel, Duriel, Mephisto, Innoruuk, Diablo, Baal). Champions und einzigartige Monster werden mit den Runden häufiger. Wer fällt, beginnt die Runde von vorn.
+- **Chaos-Sanktuarium**: Gegner kommen rundenweise aus den vier Armen der Halle, jede Runde wird schwerer, alle 5 Runden ein Boss (Andariel, Duriel, Mephisto, Innoruuk, Diablo, Baal). Champions und einzigartige Monster werden mit den Runden häufiger. Wer fällt, beginnt die Runde von vorn.
+- **Zweite Karte: Highway der Toten** (Kartenwahl auf dem Startbildschirm): eine moderne Wüste bei Tag, 20-mal so groß wie das Chaos-Sanktuarium, mit Highway, Tankstelle, Diner, Motel, Autowracks, Wohnwagenpark, Farm, Quarantänelager und verlassenem Dorf. Zombiehorden nach Dead Nation (PS3) kommen rundenweise aus Gebäuden, Bussen und Gullys knapp außerhalb des Bildes, bis zu 165 gleichzeitig. Derselbe Held spielt auf beiden Karten, jede Karte hat eigene Runden und einen eigenen Rekord. Planung und Stand: `docs/highway-der-toten.md`
 - **Händler zwischen den Runden**: Ausrüstung und Tränke kaufen, kostenlos heilen, Urnen zerschlagen, Belohnungstruhe öffnen, jede dritte Runde ein Erneuerungsschrein
 - **Siegel und Wächter**: Fünf Siegel auf dem Pentagramm. In Runde 5, 10 und 15 jedes 20er-Zyklus erscheinen der Großwesir des Chaos, Lord De Seis und der Seelenverseucher und brechen die Siegel, in Runde 20 kommt Diablo. Ab dem zweiten Zyklus bringt jeder Wächter einen weiteren Boss mit. Rundenzähler mit verbleibenden Gegnern und Rekord (höchste geschaffte Runde)
 - **Händler**: Ausrüstung mit Vergleich zur angelegten, Glücksspiel, neues Angebot gegen Gold
@@ -55,7 +56,7 @@ Kein Build: `index.html` öffnen oder per GitHub Pages spielen. Einzige Fremdbib
 python3 -m http.server 8000   # dann http://localhost:8000
 ```
 
-Grafik-Messung: `http://localhost:8000/?bench` spielt feste Szenen ab und zeigt Bildrate, Bildzeiten (Ø, P95, P99), Rechenzeit und Speicher. Optionen wie `&scene=dicht` oder `&gfx=mittel` stehen im Kopf von `bench.js`. Spielstand und Einstellungen bleiben dabei unberührt. Audit, Messungen und Umsetzung der Grafikarbeit: `docs/graphics/`.
+Grafik-Messung: `http://localhost:8000/?bench` spielt feste Szenen ab und zeigt Bildrate, Bildzeiten (Ø, P95, P99), Rechenzeit und Speicher. Optionen wie `&scene=dicht`, `&scene=horde` (165 Zombies auf dem Highway der Toten) oder `&gfx=mittel` stehen im Kopf von `bench.js`. Spielstand und Einstellungen bleiben dabei unberührt. Audit, Messungen und Umsetzung der Grafikarbeit: `docs/graphics/`.
 
 ## Dateien
 
@@ -64,6 +65,7 @@ Grafik-Messung: `http://localhost:8000/?bench` spielt feste Szenen ab und zeigt 
 - `models.js`: 3D-Figuren: Körperbau, Köpfe, Waffen, Animationen und der Bildspeicher für die vorgerenderten Ansichten
 - `vendor/three.min.js`: three.js r159 (MIT-Lizenz, siehe `vendor/three-LICENSE.txt`)
 - `audio.js`: Geräusche und Musik
+- `highway.js`: Highway der Toten: fester Kartenaufbau, Boden in Kacheln, Gebäude und Fahrzeuge, Zombie-Runden
 - `game.js`: Engine (Arena, Runden, Kampf, KI, Darstellung, UI)
 - `index.html`: Layout und Stil
 - `bench.js`: Grafik-Messung (nur mit `?bench` geladen)
@@ -73,4 +75,5 @@ Grafik-Messung: `http://localhost:8000/?bench` spielt feste Szenen ab und zeigt 
 Fan-Projekt ohne Originalgrafiken oder -code. Die Fähigkeitslisten stammen aus öffentlichen Übersichten
 (z. B. GameBanshee); die Liste des Hochelfen-Klerikers ist teilweise angenähert. Werte und Wirkungen sind
 eigene Umsetzungen, keine Nachbildung der Originalformeln.
-Diablo ist eine Marke von Blizzard Entertainment, Champions: Return to Arms von Sony Online Entertainment.
+Diablo ist eine Marke von Blizzard Entertainment, Champions: Return to Arms von Sony Online Entertainment,
+Dead Nation von Housemarque und Sony Interactive Entertainment.

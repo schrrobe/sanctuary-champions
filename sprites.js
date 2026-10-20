@@ -166,6 +166,19 @@ const MON_LOOKS = {
   'Lord De Seis': { skin: '#8a8078', body: '#2e2a34', legs: '#222028', head: 'horns', helm: '#3a3440', horn: '#e8d8b0', weapon: 'axe', shield: '#4a2018', cape: '#300a0a', eyes: '#ff2010', hm: 1.15, armor: 1, spiky: 1, build: 'big' },
   'Seelenverseucher': { rig: 'demon', col: '#802050', horn: '#e0c0d0', spikes: '#f0b0d0', eyes: '#80ff40' },
   'Baal': { skin: '#9080c0', body: '#403060', robe: 1, trim: '#c0b0f0', head: 'horns', helm: '#9080c0', horn: '#302040', weapon: 'staff', orb: '#80c0ff', backTents: '#6a5a90', eyes: '#ffffff' },
+  // Highway der Toten: Zombies in zerrissener Alltagskleidung wie in Dead Nation, je Art mehrere Kleidungen
+  'Schlurfer': [
+    { skin: '#8f9a80', body: '#5a6a8a', legs: '#3a4560', head: 'hair', hair: '#3a2a1a', hunch: 0.45, arms: 1, boots: '#2a2420' },
+    { skin: '#9aa088', top: '#c8c0ac', legs: '#5a5048', head: 'bald', hunch: 0.5, arms: 1, boots: '#3a3028' },
+    { skin: '#8a9478', body: '#8a2a20', legs: '#3a4560', sleeves: 1, head: 'hair', hair: '#6a5030', hunch: 0.4, arms: 1, boots: '#2a2018' },
+    { skin: '#949c86', body: '#4a5a3a', legs: '#8a7a5a', head: 'hair', hair: '#1a1410', long: 1, hunch: 0.45, arms: 1, boots: '#2a2420' },
+  ],
+  'Dicker Schlurfer': [
+    { skin: '#8f9a80', top: '#8a8070', legs: '#3a3a40', head: 'bald', build: 'big', hm: 1.04, hunch: 0.35, arms: 1, boots: '#2a2420' },
+    { skin: '#9aa088', body: '#6a3a5a', legs: '#4a4038', head: 'hair', hair: '#2a2018', build: 'big', hm: 1.04, hunch: 0.35, arms: 1, boots: '#2a2420' },
+  ],
+  'Schutzanzug': { skin: '#9aa088', body: '#d8c030', legs: '#d0b828', sleeves: 1, head: 'mask', hair: '#d8c030', boots: '#1a1a1a', belt: '#2a2a2a', hunch: 0.4, arms: 1 },
+  'Häutling': { skin: '#a8392a', body: '#a8392a', legs: '#952f22', head: 'bald', build: 'slim', ribs: 1, hunch: 0.3, arms: 1, boots: '#7a2018' },
 };
 const MIN_LOOKS = {
   skel: MON_LOOKS['Skelett'],

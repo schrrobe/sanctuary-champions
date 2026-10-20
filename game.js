@@ -46,16 +46,17 @@ const FILTER_OK = (() => {
 })();
 function bloom() {
   if (!GFX.bloom || !FILTER_OK) return;
+  const bk = G?.hw ? 0.35 : 1; // im hellen Tageslicht würde der Sand überstrahlen
   const w = Math.ceil(cv.width / 4), h = Math.ceil(cv.height / 4), ga = bloomA.getContext('2d');
   if (bloomA.width !== w || bloomA.height !== h) { bloomA.width = w; bloomA.height = h; }
   ga.globalCompositeOperation = 'copy'; ga.filter = 'brightness(.7) contrast(5) blur(2px)'; ga.drawImage(cv, 0, 0, w, h); ga.filter = 'none';
-  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = GFX.bloom;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = GFX.bloom * bk;
   ctx.drawImage(bloomA, 0, 0, cv.width, cv.height);
   if (GFX.wide) { // Ultra: zweite, breitere Stufe auf einem Achtel der Fläche
     const gb = bloomB.getContext('2d'), w2 = Math.ceil(w / 2), h2 = Math.ceil(h / 2);
     if (bloomB.width !== w2 || bloomB.height !== h2) { bloomB.width = w2; bloomB.height = h2; }
     gb.globalCompositeOperation = 'copy'; gb.filter = 'blur(3px)'; gb.drawImage(bloomA, 0, 0, w2, h2); gb.filter = 'none';
-    ctx.globalAlpha = GFX.bloom * 0.6; ctx.drawImage(bloomB, 0, 0, cv.width, cv.height);
+    ctx.globalAlpha = GFX.bloom * 0.6 * bk; ctx.drawImage(bloomB, 0, 0, cv.width, cv.height);
   }
   ctx.restore();
 }
@@ -73,7 +74,8 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 
-const T = 40, MW = 70, MH = 70, SAVE = 'sanctuary-champions-v1';
+const T = 40, SAVE = 'sanctuary-champions-v1';
+let MW = 70, MH = 70; // Kartengröße in Feldern, je nach Karte
 const METER = 17; // ein „Meter“ wie in den deutschen D2-Beschreibungen, knapp eine halbe Bodenplatte
 const rnd = (a, b) => a + Math.random() * (b - a);
 const rint = (a, b) => Math.floor(rnd(a, b + 1));
@@ -97,7 +99,10 @@ const DIRS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const DIRS8 = [...DIRS4, [1, 1], [1, -1], [-1, 1], [-1, -1]];
 const xpNext = l => Math.round(120 * l * 1.1 ** (l - 1));
 const clsName = id => CL[id]?.nm || GROUPS[id];
-const potCost = () => 10 + P.depth * 2;
+// Gegnerstufe: danach wachsen Leben, Schaden, Erfahrung und Beute. Im Sanktuarium die Runde, auf dem Highway der Toten
+// mindestens die zur Heldenstufe passende Sanktuarium-Runde (Balance-Prüfung: Stufe 6 ≈ Runde 5, Stufe 18 ≈ Runde 15)
+const gs = () => P.map === 'hw' ? Math.max(P.depth, Math.round(P.lvl / 1.2)) : P.depth;
+const potCost = () => 10 + gs() * 2;
 
 let P = null, G = null, S = null, panel = null, popup = null, filter = 'all', search = '', chosen = null, mapOn = false;
 const keys = {}, mouse = { x: 0, y: 0, l: false, r: false, mode: null, target: null };
@@ -122,7 +127,7 @@ function newChar(cid, name) {
   P = {
     cls: cid, name: name || 'Namenloser Held', lvl: 1, xp: 0, str: c.str, dex: c.dex, vit: c.vit, ene: c.ene, statPts: 0, skillPts: 30,
     ranks: { [a]: 1, [b]: 1 }, slots: [a, b], hot: [a, b, basic, null, null, null, null, null],
-    gold: 0, pots: { hp: 3, mp: 3 }, bag: [], depth: 1,
+    gold: 0, pots: { hp: 3, mp: 3 }, bag: [], depth: 1, map: 'sanct', rounds: {}, bests: {}, // depth und best gelten für die gewählte Karte
     eq: { weapon: { slot: 'weapon', base: wpn, nm: wpn, rar: 0, min: 2, max: 5, mods: {}, val: 5 } },
   };
 }
@@ -148,7 +153,7 @@ function calc() {
   s.crit = Math.min(0.6, s.crit + s.dex / 500);
   s.dodge = Math.min(0.5, s.dodge);
   s.res = Math.min(0.75, s.res);
-  s.dr = clamp(s.armor / (Math.max(0, s.armor) + 40 + 8 * P.depth), 0, 0.7);
+  s.dr = clamp(s.armor / (Math.max(0, s.armor) + 40 + 8 * gs()), 0, 0.7);
   s.lvlMult = 1 + 0.08 * (P.lvl - 1);
   s.regen += s.maxhp * 0.004;
   s.mregenTot = s.maxmp * 0.025 * (1 + s.mregen);
@@ -189,15 +194,21 @@ function genArena() {
   return map;
 }
 
-// Baut die Arena neu auf; danach ist Pause vor Runde P.depth
+// Baut die gewählte Karte neu auf; danach ist Pause vor Runde P.depth
 function genLevel() {
-  const map = genArena(), old = G, keep = old ? old.ents.filter(e => e.minion && !e.dead && !e.conv) : [];
+  const hw = P.map === 'hw';
+  MW = MH = hw ? HW_N : 70;
+  const L = hw ? (HW_MAP ||= hwGen()) : null, map = hw ? L.map.slice() : genArena(), old = G, keep = old ? old.ents.filter(e => e.minion && !e.dead && !e.conv) : [];
   G = {
-    map, seen: new Uint8Array(MW * MH).fill(1), edge: new Uint8Array(MW * MH), wall: new Uint8Array(MW * MH), lavaEdge: [], area: ARENA, props: [],
+    map, seen: new Uint8Array(MW * MH).fill(1), edge: new Uint8Array(MW * MH), wall: hw ? L.draw : new Uint8Array(MW * MH), lavaEdge: [], area: hw ? HIGHWAY : ARENA, props: [],
     ents: [], projs: [], fx: [], areas: [], parts: [], texts: [], loot: [], corpses: [], labels: [], torches: [], buffs: old?.buffs || {}, cds: {},
     shield: old?.shield || 0, shieldVis: old?.shieldVis, t: 0, flowT: 0, flow: new Int16Array(MW * MH), saveT: 15, dead: 0, hover: null,
-    boss: null, phase: 'pause', queue: [], waveT: 0, wares: [],
+    boss: null, phase: 'pause', queue: [], waveT: 0, wares: [], hw, L, tp: [], te: [], lures: [],
   };
+  if (hw) genPlayer(old, keep, L.start);
+  else genSanct(map, old, keep);
+}
+function genSanct(map, old, keep) {
   for (let i = 0; i < MW * MH; i++) if (!map[i]) {
     const x = i % MW, y = (i / MW) | 0;
     if (DIRS8.some(([dx, dy]) => x + dx >= 0 && x + dx < MW && map[(y + dy) * MW + x + dx])) G.edge[i] = 1;
@@ -210,8 +221,12 @@ function genLevel() {
   for (let i = 0; i < MW * MH; i++) if (G.edge[i] && (!out[i] || map[i + MW] || map[i + 1] || map[i + MW + 1])) G.wall[i] = 1;
   G.lava = out;
   G.floor = bakeFloor();
+  genPlayer(old, keep, { x: (AC + 0.5) * T, y: (AC + 4.5) * T });
+}
+// Held (und seine Beschwörungen) am Startpunkt der Karte, dann Pause
+function genPlayer(old, keep, at) {
   const p = old?.player || { r: 14, team: 'p', player: true, hp: 1, mp: 1, atkT: 0, face: 0.8, seed: 0, st: 0, slow: 0, fear: 0, amp: 1, ampT: 0, pois: 0, poisT: 0, look: LOOKS[P.cls] };
-  Object.assign(p, { x: (AC + 0.5) * T, y: (AC + 4.5) * T, dash: null, dead: false, order: null, path: null, pathT: -1 });
+  Object.assign(p, { x: at.x, y: at.y, dash: null, dead: false, order: null, path: null, pathT: -1 });
   G.player = p; G.ents.push(p);
   keep.forEach(m => { m.x = p.x + rnd(-30, 30); m.y = p.y + rnd(-30, 30); G.ents.push(m); });
   S = calc();
@@ -223,24 +238,33 @@ function genLevel() {
 // ---------- Runden ----------
 function pause() {
   G.phase = 'pause'; G.boss = null;
-  G.wares = Array.from({ length: 8 }, () => genItem(P.depth + 1, Math.random() < 0.3));
+  G.wares = Array.from({ length: 8 }, () => genItem(gs() + 1, Math.random() < 0.3));
 }
 function startRound() {
   if (G.phase !== 'pause') return;
   closePanel();
-  const pool = MONSTERS.filter(m => m.from <= P.depth), d = P.depth;
-  G.queue = [];
-  for (let i = Math.min(12, 2 + Math.ceil(d * 0.7)); i > 0; i--) {
-    const roll = Math.random(), kind = roll < 0.04 + d * 0.005 ? 'unique' : roll < 0.15 + d * 0.01 ? 'champ' : null;
-    G.queue.push({ t: pick(pool), kind, n: kind === 'unique' ? 4 : rint(3, 5) });
+  const d = P.depth;
+  let boss = null;
+  if (G.hw) G.queue = hwQueue(d);
+  else {
+    const pool = MONSTERS.filter(m => m.from <= P.depth);
+    G.queue = [];
+    for (let i = Math.min(12, 2 + Math.ceil(d * 0.7)); i > 0; i--) {
+      const roll = Math.random(), kind = roll < 0.04 + d * 0.005 ? 'unique' : roll < 0.15 + d * 0.01 ? 'champ' : null;
+      G.queue.push({ t: pick(pool), kind, n: kind === 'unique' ? 4 : rint(3, 5) });
+    }
+    const c = d % 20;
+    boss = c === 0 ? BOSSES.find(b => b.nm === 'Diablo') : c % 5 === 0 ? SEAL_BOSSES[c / 5 - 1] : null;
+    if (boss) G.queue.push({ t: boss, kind: 'boss', n: 1 });
+    if (boss && c && d > 20) G.queue.push({ t: pick(BOSSES.filter(b => b.nm !== 'Diablo')), kind: 'boss', n: 1 });
   }
-  const c = d % 20, boss = c === 0 ? BOSSES.find(b => b.nm === 'Diablo') : c % 5 === 0 ? SEAL_BOSSES[c / 5 - 1] : null;
-  if (boss) G.queue.push({ t: boss, kind: 'boss', n: 1 });
-  if (boss && c && d > 20) G.queue.push({ t: pick(BOSSES.filter(b => b.nm !== 'Diablo')), kind: 'boss', n: 1 });
   G.phase = 'fight'; G.waveT = 1;
-  for (const q of G.queue) if (MON_LOOKS[q.t.nm]) SPR.warm(MON_LOOKS[q.t.nm], q.t.r * (q.kind === 'champ' ? 1.15 : q.kind === 'unique' ? 1.3 : 1) * 4.8 * Z * (MON_LOOKS[q.t.nm]?.hm || 1) * VS * PX);
+  for (const q of G.queue) { const L = monLook(q.t); if (L) SPR.warm(L, q.t.r * (q.kind === 'champ' ? 1.15 : q.kind === 'unique' ? 1.3 : 1) * 4.8 * Z * (L.hm || 1) * VS * PX); }
   msg(`Runde ${d}${boss ? ` · ${boss.nm} erscheint` : ''}`, '#c7b377');
 }
+// Aussehen einer Gegnerart; Zombies tragen eine von mehreren Kleidungen
+// k = -1: zufällig (der Zufall wird nur bei mehreren Kleidungen gezogen, damit die Balance-Prüfung gleich bleibt)
+const monLook = (t, k = 0) => { const L = MON_LOOKS[t.lk || t.nm]; return Array.isArray(L) ? L[k < 0 ? rint(0, L.length - 1) : k % L.length] : L; };
 // eine Gruppe tritt am Ende eines zufälligen Arms aus einem Höllenriss
 function spawnGroup({ t, kind, n }) {
   const [tx, ty] = pick(ARMS), x = (tx + 0.5) * T, y = (ty + 0.5) * T;
@@ -253,24 +277,32 @@ function spawnGroup({ t, kind, n }) {
     if (kind === 'boss') G.boss = e;
   }
 }
-const RECORD = 'sanctuary-champions-record';
-const record = () => { try { return JSON.parse(localStorage.getItem(RECORD)); } catch { return null; } };
+// Rekord je Karte: höchste überstandene Runde mit Name und Klasse des Helden
+const RECORD = 'sanctuary-champions-record', RECORD_HW = 'sanctuary-champions-record-hw';
+const record = (map = P?.map) => { try { return JSON.parse(localStorage.getItem(map === 'hw' ? RECORD_HW : RECORD)); } catch { return null; } };
 const enemiesLeft = () => G.ents.filter(e => e.team === 'e' && !e.dead).length + G.queue.reduce((a, q) => a + q.n, 0);
 function rounds(dt) {
   if (G.phase !== 'fight') return;
-  if (G.queue.length && (G.waveT -= dt) <= 0) { G.waveT = 3; spawnGroup(G.queue.shift()); }
+  if (G.hw) hwRounds(dt);
+  else if (G.queue.length && (G.waveT -= dt) <= 0) { G.waveT = 3; spawnGroup(G.queue.shift()); }
   if (!G.queue.length && !G.ents.some(e => e.team === 'e' && !e.dead)) {
-    const gold = Math.round(15 * P.depth * (1 + P.depth * 0.1));
+    const gold = Math.round(15 * gs() * (1 + gs() * 0.1));
     P.gold += gold;
     msg(`Runde ${P.depth} überstanden · +${gold} Gold`, '#c7b377'); SFX.play('level');
     P.depth++;
     P.best = Math.max(P.best || 0, P.depth - 1);
     if (P.best > (record()?.round || 0)) {
-      try { localStorage.setItem(RECORD, JSON.stringify({ round: P.best, name: P.name, cls: P.cls })); } catch { /* privater Modus */ }
+      try { localStorage.setItem(P.map === 'hw' ? RECORD_HW : RECORD, JSON.stringify({ round: P.best, name: P.name, cls: P.cls })); } catch { /* privater Modus */ }
       note(`Neuer Rekord: Runde ${P.best}`);
     }
     placeProps(); pause(); save();
   }
+}
+// Karte wechseln: Runde und Bestwert der bisherigen Karte merken, die der neuen holen
+function setMap(m) {
+  if (P.map === m) return;
+  P.rounds[P.map] = P.depth; P.bests[P.map] = P.best || 0;
+  P.map = m; P.depth = P.rounds[m] || 1; P.best = P.bests[m] || 0;
 }
 
 // Boden einmal backen (inkl. Schatten an Wänden, Blut, Knochen, Geröll und dem Pentagramm)
@@ -344,6 +376,7 @@ const PROP_NM = { barrel: 'Fass', urn: 'Urne', chest: 'Truhe', shrine: 'Erneueru
 function placeProps() {
   const c = (AC + 0.5) * T, add = (x, y, k) => G.props.push({ x, y, k, seed: rnd(0, 100), open: false });
   G.props = [];
+  if (G.hw) return; // Kofferräume, Beutekiste und Medikit kommen in Etappe 4
   for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) for (let i = rint(1, 3); i > 0; i--) add(c + sx * 11 * T + rnd(-24, 24), c + sy * 11 * T + rnd(-24, 24), 'urn');
   if (P.depth > 1) add(c, c - 2 * T, 'chest');
   if (P.depth % 3 === 0) add(c, c + 7 * T, 'shrine');
@@ -361,8 +394,8 @@ function useProp(pr) {
   }
   if (pr.k === 'chest') {
     SFX.play('chest');
-    put({ k: 'gold', n: Math.round(rnd(4, 14) * P.depth) });
-    if (Math.random() < 0.6) put({ k: 'item', it: genItem(P.depth, Math.random() < 0.25) });
+    put({ k: 'gold', n: Math.round(rnd(4, 14) * gs()) });
+    if (Math.random() < 0.6) put({ k: 'item', it: genItem(gs(), Math.random() < 0.25) });
     if (Math.random() < 0.3) put({ k: pick(['hp', 'mp']) });
     return;
   }
@@ -370,9 +403,9 @@ function useProp(pr) {
   const col = pr.k === 'urn' ? ['#a0603a', '#7a4428', '#c08050'] : ['#6a4a2a', '#4a3018', '#8a6a3a'];
   for (let i = 0; i < 16; i++) G.parts.push({ x: pr.x, y: pr.y, z: rnd(6, 24), vx: rnd(-90, 90), vy: rnd(-90, 90), vz: rnd(80, 200), g: 420, life: rnd(0.4, 0.7), t: 0, col: pick(col), s: rnd(2, 4) });
   const r = Math.random();
-  if (r < 0.3) put({ k: 'gold', n: Math.round(rnd(1, 5) * P.depth) });
+  if (r < 0.3) put({ k: 'gold', n: Math.round(rnd(1, 5) * gs()) });
   else if (r < 0.42) put({ k: pick(['hp', 'mp']) });
-  else if (r < 0.46) put({ k: 'item', it: genItem(P.depth, false) });
+  else if (r < 0.46) put({ k: 'item', it: genItem(gs(), false) });
 }
 function hoverProp() {
   for (const pr of G.props) {
@@ -387,11 +420,11 @@ const uniqueName = () => `${pick(['Knochen', 'Seuchen', 'Grimm', 'Blut', 'Aschen
 const baseEnt = () => ({ atkT: 0, st: 0, slow: 0, fear: 0, amp: 1, ampT: 0, pois: 0, poisT: 0, face: rnd(0, 6), walk: 0, movT: 0, atkA: 0, seed: rnd(0, 10) });
 
 function spawnMon(t, x, y, kind) {
-  const d = P.depth, hm = 1.14 ** (d - 1), dm = 1.11 ** (d - 1);
+  const d = gs(), hm = 1.14 ** (d - 1), dm = 1.11 ** (d - 1);
   const k = { champ: [3, 1.5, 3, 1.15], unique: [5, 1.8, 6, 1.3], minion: [1.5, 1.2, 1.5, 1] }[kind] || [1, 1, 1, 1];
   const e = {
     ...baseEnt(), x, y, r: t.r * k[3], team: 'e', kind, col: t.col, rng: t.rng, el: t.el || 'phys', undead: t.undead, nova: t.nova, novaT: 3, tpl: t,
-    look: MON_LOOKS[t.nm] || { skin: t.col, body: t.col, head: 'bald' },
+    look: monLook(t, -1) || { skin: t.col, body: t.col, head: 'bald' },
     nm: kind === 'champ' ? `${t.nm} (Champion)` : kind === 'unique' ? uniqueName() : t.nm,
     hp: t.hp * hm * k[0], d: t.d * dm * k[1], xp: Math.round(t.xp * 1.12 ** (d - 1) * k[2]), v: t.v * (kind === 'champ' ? 1.2 : 1), awake: false,
   };
@@ -429,9 +462,10 @@ function revive(s, r, c) {
 function updateFlow() {
   const f = G.flow, s = tileOf(G.player), q = [s];
   f.fill(-1); f[s] = 0;
+  const R = G.hw ? 64 : 40; // auf dem Highway weiter, damit zurückfallende Zombies um Wracks und Häuser finden
   for (let i = 0; i < q.length; i++) {
     const c = q[i], cd = f[c];
-    if (cd > 40) continue;
+    if (cd > R) continue;
     for (const [dx, dy] of DIRS4) { const n = c + dy * MW + dx; if (G.map[n] && f[n] < 0) { f[n] = cd + 1; q.push(n); } }
   }
 }
@@ -452,9 +486,11 @@ function seek(e, tg, spd, dt) {
 }
 
 // Wegsuche für Klick-zum-Laufen (Breitensuche, 8 Richtungen)
+let pathBuf = null; // wird wiederverwendet: auf dem Highway hat die Karte fast 100.000 Felder
 function findPath(a, b) {
   if (!G.map[b] || a === b) return [];
-  const prev = new Int32Array(MW * MH).fill(-1), q = [a];
+  if (pathBuf?.length !== MW * MH) pathBuf = new Int32Array(MW * MH);
+  const prev = pathBuf.fill(-1), q = [a];
   prev[a] = a;
   for (let i = 0; i < q.length && prev[b] < 0; i++) {
     const c = q[i];
@@ -510,7 +546,7 @@ function blood(e, n) {
 
 // ---------- Kampf ----------
 const foes = e => G.ents.filter(o => o.team !== e.team && !o.dead && !o.noTarget);
-const nearest = (e, list) => list.reduce((b, o) => !b || dist(e, o) < dist(e, b) ? o : b, null);
+const nearest = (e, list) => list.reduce((b, o) => o.dead ? b : !b || dist(e, o) < dist(e, b) ? o : b, null); // Ziellisten eines Bildes können inzwischen Gefallene enthalten
 
 function wake(e) {
   if (e.awake) return;
@@ -628,6 +664,7 @@ function kill(e) {
   if (e.team !== 'e') return;
   SFX.play('die', 50);
   if (!['wisp', 'hammer', 'trap'].includes(e.look.rig)) G.corpses.push({ x: e.x, y: e.y, r: e.r, look: e.look, face: e.face, h: figH(e), t: 40, tpl: e.kind === 'boss' || e.kind === 'unique' ? null : e.tpl });
+  if (G.hw && G.corpses.length > 150) G.corpses.shift(); // bei Horden bleiben nur die letzten 150 Leichen liegen
   gainXp(e.xp); drop(e);
   if (e === G.boss) { G.boss = null; msg(`${e.nm} wurde besiegt!`, '#c7b377'); }
 }
@@ -645,12 +682,14 @@ function gainXp(v) {
 
 function drop(e) {
   const b = e.kind === 'boss', u = e.kind === 'unique', c = e.kind === 'champ';
+  // gewöhnliche Zombies kommen gut sechsmal so zahlreich wie die Gegner einer Sanktuarium-Runde: je Runde gleich viel Beute
+  const z = G.hw && !b && !u && !c && !e.tpl?.special ? 0.15 : 1;
   const put = l => G.loot.push({ x: e.x + rnd(-24, 24), y: e.y + rnd(-24, 24), ...l });
-  if (b || Math.random() < 0.35) put({ k: 'gold', n: Math.round(rnd(2, 9) * P.depth * (b ? 12 : u ? 4 : 1)) });
-  if (Math.random() < 0.07) put({ k: 'hp' });
-  if (Math.random() < 0.06) put({ k: 'mp' });
-  const n = b ? 3 : u ? 2 : Math.random() < (c ? 0.5 : 0.08) ? 1 : 0;
-  for (let i = 0; i < n; i++) put({ k: 'item', it: genItem(P.depth, b || u) });
+  if (b || Math.random() < 0.35 * z) put({ k: 'gold', n: Math.round(rnd(2, 9) * gs() * (b ? 12 : u ? 4 : 1)) });
+  if (Math.random() < 0.07 * z) put({ k: 'hp' });
+  if (Math.random() < 0.06 * z) put({ k: 'mp' });
+  const n = b ? 3 : u ? 2 : Math.random() < (c ? 0.5 : 0.08 * z) ? 1 : 0;
+  for (let i = 0; i < n; i++) put({ k: 'item', it: genItem(gs(), b || u) });
 }
 
 function genItem(ilvl, good) {
@@ -739,7 +778,7 @@ function useSkill(s, r, tx, ty) {
       }
       // Trank oder Gegenstand aus einer Leiche
       if (s.loot) {
-        G.loot.push({ x, y, ...(s.loot === 'pot' ? { k: pick(['hp', 'mp']) } : Math.random() < 0.3 + 0.02 * r ? { k: 'item', it: genItem(P.depth, false) } : { k: 'gold', n: Math.round(rnd(4, 12) * P.depth) }) });
+        G.loot.push({ x, y, ...(s.loot === 'pot' ? { k: pick(['hp', 'mp']) } : Math.random() < 0.3 + 0.02 * r ? { k: 'item', it: genItem(gs(), false) } : { k: 'gold', n: Math.round(rnd(4, 12) * gs()) }) });
         fx({ k: 'appear', x, y, col: '#ffd860', life: 0.5 });
         return;
       }
@@ -1076,14 +1115,15 @@ function think(e, dt) {
   let tg;
   if (e.team === 'e') {
     if (!e.awake) { if (dist(e, p) < 380) wake(e); else return; }
-    // Flüche: Verwirrte greifen ihresgleichen an, Angezogene ziehen die anderen auf sich, Verspottete wollen nur zum Helden
-    const lure = G.ents.find(o => o !== e && o.team === 'e' && !o.dead && o.cur?.attract > 0 && dist(o, e) < 200);
-    tg = c.conf > 0 ? nearest(e, G.ents.filter(o => o !== e && o.team === 'e' && !o.dead)) : lure || (c.taunt > 0 ? p : nearest(e, G.ents.filter(o => o.team === 'p' && !o.dead && !o.noTarget)));
+    // Flüche: Verwirrte greifen ihresgleichen an, Angezogene ziehen die anderen auf sich, Verspottete wollen nur zum Helden.
+    // Ziellisten einmal je Bild (G.tp: Held und Beschwörungen, G.ta: Angezogene), damit Horden nicht jeder gegen jeden suchen
+    const lure = G.ta.length ? G.ta.find(o => o !== e && !o.dead && o.cur?.attract > 0 && dist(o, e) < 200) : null;
+    tg = c.conf > 0 ? nearest(e, G.te.filter(o => o !== e && !o.dead)) : lure || (c.taunt > 0 ? p : nearest(e, G.tp));
     if (c.dim > 0 && tg && dist(e, tg) > 120) return; // mit getrübter Sicht sieht er nur, was direkt vor ihm steht
   } else {
     minionAct(e, p, dt);
     if (e.bait || !e.d) return; // Köder, Wände, Ranken und die Grauenswacht kämpfen nicht selbst
-    tg = nearest(e, G.ents.filter(o => o.team === 'e' && !o.dead && dist(o, p) < 450));
+    tg = nearest(e, G.te.filter(o => !o.dead && dist(o, p) < 450));
     if (!tg || (spd && dist(e, p) > 500)) { if (spd && dist(e, p) > 90) seek(e, p, spd * 1.2, dt); return; }
   }
   if (!tg) return;
@@ -1131,16 +1171,35 @@ function minionAct(e, p, dt) {
   }
 }
 
+// Figuren schieben einander auseinander. Ein Raster aus 80er-Zellen begrenzt den Vergleich auf Nachbarn (größter Radius ist
+// kleiner als eine halbe Zelle), damit auch Horden mit über hundert Zombies günstig bleiben. Die Paare werden in derselben
+// Reihenfolge wie beim Vergleich jeder mit jeder bearbeitet, so bleibt das Ergebnis (und die Balance-Prüfung) gleich
+const SEP = 80, sepCells = new Map(), sepNear = [];
 function separate() {
   const es = G.ents;
-  for (let i = 0; i < es.length; i++) for (let j = i + 1; j < es.length; j++) {
-    const a = es[i], b = es[j];
-    if (a.dead || b.dead) continue;
-    const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01, o = a.r + b.r - d;
-    if (o <= 0) continue;
-    const am = a.v !== 0 ? 1 : 0, bm = b.v !== 0 ? 1 : 0, push = o / ((am + bm) || 1);
-    if (am) move(a, -dx / d * push * 0.5, -dy / d * push * 0.5);
-    if (bm) move(b, dx / d * push * 0.5, dy / d * push * 0.5);
+  for (const v of sepCells.values()) v.length = 0;
+  for (let i = 0; i < es.length; i++) {
+    const e = es[i];
+    if (e.dead) continue;
+    e.si = i; e.sc = ((e.x / SEP) | 0) * 4096 + ((e.y / SEP) | 0);
+    let c = sepCells.get(e.sc); if (!c) sepCells.set(e.sc, c = []);
+    c.push(e);
+  }
+  for (let i = 0; i < es.length; i++) {
+    const a = es[i];
+    if (a.dead) continue;
+    sepNear.length = 0;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const b of sepCells.get(a.sc + dx * 4096 + dy) || []) if (b.si > i) sepNear.push(b);
+    sepNear.sort((x, y) => x.si - y.si);
+    for (const b of sepNear) {
+      const dx = b.x - a.x, dy = b.y - a.y, o0 = a.r + b.r;
+      if (dx > o0 || dx < -o0 || dy > o0 || dy < -o0) continue;
+      const d = Math.hypot(dx, dy) || 0.01, o = o0 - d;
+      if (o <= 0) continue;
+      const am = a.v !== 0 ? 1 : 0, bm = b.v !== 0 ? 1 : 0, push = o / ((am + bm) || 1);
+      if (am) move(a, -dx / d * push * 0.5, -dy / d * push * 0.5);
+      if (bm) move(b, dx / d * push * 0.5, dy / d * push * 0.5);
+    }
   }
 }
 
@@ -1229,6 +1288,9 @@ function update(dt) {
   if (p.dead) return;
   p.atkT -= dt;
   if (p.dash) dashStep(p, dt); else control(p, dt);
+  G.tp = G.ents.filter(o => o.team === 'p' && !o.dead && !o.noTarget);
+  G.te = G.ents.filter(o => o.team === 'e' && !o.dead);
+  G.ta = G.te.filter(o => o.cur?.attract > 0);
   for (const e of G.ents) if (!e.player && !e.dead) think(e, dt);
   separate();
   // Geschwindigkeit jeder Figur, für die Zielhilfe
@@ -1253,6 +1315,7 @@ function update(dt) {
     const x = tx + dx, y = ty + dy;
     if (x >= 0 && y >= 0 && x < MW && y < MH && dx * dx + dy * dy <= 81) G.seen[y * MW + x] = 1;
   }
+  if (G.hw) hwDust(dt);
   rounds(dt);
   if ((G.saveT -= dt) <= 0) { G.saveT = 15; save(); }
 }
@@ -1410,8 +1473,8 @@ function drawEnt(e) {
 function draw() {
   const p = G.player, amb = G.area[3];
   updateCam();
-  scrT(); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-  isoT(); ctx.drawImage(G.floor, 0, 0);
+  scrT(); ctx.fillStyle = G.hw ? '#7a5034' : '#000'; ctx.fillRect(0, 0, W, H);
+  isoT(); if (G.hw) hwFloor(); else ctx.drawImage(G.floor, 0, 0);
   // Bodeneffekte
   ctx.globalCompositeOperation = 'lighter';
   for (const l of G.lavaEdge || []) if (l.h % 4 === 0) {
@@ -1473,19 +1536,23 @@ function draw() {
   }
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
-  // Schlagschatten fallen vom Licht des Helden weg, dazu ein dunkler Fleck direkt unter den Füßen
+  // Schlagschatten fallen vom Licht des Helden weg (auf dem Highway von der Nachmittagssonne), dazu ein dunkler Fleck unter den Füßen
+  const sun = G.hw && Math.atan2(SUN[1], SUN[0]);
   for (const e of G.ents) if (!e.dead && !['wisp', 'hammer', 'bird'].includes(e.look.rig)) {
-    const dx = e.x - p.x, dy = e.y - p.y, l = Math.hypot(dx, dy), k = e.player || l < 1 ? 1 : clamp(l / 160, 0.6, 2.4);
-    const an = e.player || l < 1 ? 0.35 : Math.atan2(dy, dx);
+    const dx = e.x - p.x, dy = e.y - p.y, l = Math.hypot(dx, dy), k = sun ? 2.2 : e.player || l < 1 ? 1 : clamp(l / 160, 0.6, 2.4);
+    if (sun && !onScr(...proj(e.x, e.y))) continue;
+    const an = sun || (e.player || l < 1 ? 0.35 : Math.atan2(dy, dx));
     ctx.fillStyle = 'rgba(0,0,0,.32)'; ctx.beginPath(); ctx.ellipse(e.x + Math.cos(an) * e.r * k * 0.9, e.y + Math.sin(an) * e.r * k * 0.9, e.r * (1 + k * 0.6), e.r * 0.7, an, 0, 7); ctx.fill();
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.75, 0, 7); ctx.fill();
   }
   scrT();
   // Pentagramm glüht, während Gegner kommen
   const [pcx, pcy] = proj((AC + 0.5) * T, (AC + 0.5) * T);
-  ctx.globalCompositeOperation = 'lighter';
-  glowDot(ctx, pcx, pcy, 260, G.phase === 'fight' ? `rgba(160,20,0,${0.25 + Math.sin(G.t * 3) * 0.08})` : 'rgba(90,10,0,.18)');
-  ctx.globalCompositeOperation = 'source-over';
+  if (!G.hw) {
+    ctx.globalCompositeOperation = 'lighter';
+    glowDot(ctx, pcx, pcy, 260, G.phase === 'fight' ? `rgba(160,20,0,${0.25 + Math.sin(G.t * 3) * 0.08})` : 'rgba(90,10,0,.18)');
+    ctx.globalCompositeOperation = 'source-over';
+  }
   // Leichen und Beute
   for (const c of G.corpses) { const [sx, sy] = proj(c.x, c.y), f = clamp((40 - c.t) / 0.4, 0, 1); if (onScr(sx, sy)) drawFigure(ctx, sx, sy, c.look, { h: c.h, fx: Math.cos(c.face) - Math.sin(c.face) >= 0 ? 1 : -1, face: c.face, walk: 0, atk: 0, t: 0, lying: Math.max(0.01, f * f), alpha: Math.min(1, c.t / 5) }); }
   for (const l of G.loot) {
@@ -1494,20 +1561,23 @@ function draw() {
     else { const img = icon(l.k === 'item' ? itemIcon(l.it) : potionIcon(l.k)); if (img.complete) ctx.drawImage(img, sx - 12, sy - 18, 24, 24); }
   }
   // Wände und Figuren nach Tiefe sortiert
-  const cs = [unproj(-120, -220), unproj(W + 120, -220), unproj(-120, H + 160), unproj(W + 120, H + 160)];
+  const cs = [unproj(-120, -220), unproj(W + 120, -220), unproj(-120, H + (G.hw ? 380 : 160)), unproj(W + 120, H + (G.hw ? 380 : 160))]; // hohe Objekte des Highways ragen weiter ins Bild
   const tx0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c.x)) / T)), tx1 = Math.min(MW - 1, Math.ceil(Math.max(...cs.map(c => c.x)) / T));
   const ty0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c.y)) / T)), ty1 = Math.min(MH - 1, Math.ceil(Math.max(...cs.map(c => c.y)) / T));
   const list = [], [ppx, ppy] = proj(p.x, p.y), pd = p.x + p.y;
   G.winLamps = [];
-  for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) if (G.wall[ty * MW + tx]) list.push({ d: (tx + ty + 1) * T, tx, ty });
+  for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) if (G.wall[ty * MW + tx]) {
+    const o = G.hw && G.L.obs[G.L.ob[ty * MW + tx]];
+    list.push({ d: o?.spr ? o.d : (tx + ty + 1) * T, tx, ty });
+  }
   for (const e of G.ents) if (!e.dead && onScr(...proj(e.x, e.y))) list.push({ d: e.x + e.y, e });
   for (const pr of G.props) if (onScr(...proj(pr.x, pr.y))) list.push({ d: pr.x + pr.y, pr });
   list.sort((a, b) => a.d - b.d);
   for (const it of list) {
     if (it.e) { drawEnt(it.e); continue; }
     if (it.pr) { const [sx, sy] = proj(it.pr.x, it.pr.y); drawProp(ctx, it.pr, sx, sy, G.t, it.pr === G.hoverProp); continue; }
-    const [wx, wy] = proj((it.tx + 0.5) * T, (it.ty + 0.5) * T);
-    drawWall(it.tx, it.ty, it.d > pd + 10 ? clamp(0.2 + (Math.hypot((wx - ppx) / 190, (wy - ppy - 70) / 150) - 0.55) * 2, 0.2, 1) : 1);
+    const [wx, wy] = proj((it.tx + 0.5) * T, (it.ty + 0.5) * T), fade = it.d > pd + 10 ? clamp(0.2 + (Math.hypot((wx - ppx) / 190, (wy - ppy - 70) / 150) - 0.55) * 2, 0.2, 1) : 1;
+    if (G.hw) hwObst(it.tx, it.ty, fade); else drawWall(it.tx, it.ty, fade);
   }
   // Geschosse, Partikel, Blitze
   ctx.globalCompositeOperation = 'lighter';
@@ -1618,19 +1688,20 @@ function draw() {
   for (const a of G.areas) if (a.dmg && a.el !== 'pois') { const [sx, sy] = proj(a.x, a.y); lamp(sx, sy, a.r * Z * 1.6, 0.6); }
   for (const f of G.fx) if (f.k === 'boom' || f.k === 'nova' || f.k === 'tele') { const [sx, sy] = proj(f.x, f.y); lamp(sx, sy - (f.z || 20), Math.min(400, Math.max(90, (f.r || 30) * Z * 2.6)), 0.75 * (1 - f.t / f.life)); }
   for (const f of G.fx) if (f.k === 'bolt') { const [sx, sy] = proj(f.b.x, f.b.y); lamp(sx, sy - 30, 220, 0.8 * (1 - f.t / f.life)); }
-  lamp(pcx, pcy, 420, 0.55);
-  if (G.phase === 'fight') for (const [tx, ty] of ARMS) { const [sx, sy] = proj((tx + 0.5) * T, (ty + 0.5) * T); lamp(sx, sy, 200, 0.5); }
+  if (!G.hw) lamp(pcx, pcy, 420, 0.55);
+  if (G.phase === 'fight' && !G.hw) for (const [tx, ty] of ARMS) { const [sx, sy] = proj((tx + 0.5) * T, (ty + 0.5) * T); lamp(sx, sy, 200, 0.5); }
   for (const pr of G.props) if ((pr.k === 'shrine' || pr.k === 'seal') && !pr.open) { const [sx, sy] = proj(pr.x, pr.y); lamp(sx, sy - 50, 130, 0.6); }
   // Vignette: Bildränder bleiben auch im Licht dunkel
   lctx.globalCompositeOperation = 'source-over';
   const vg = lctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.42, W / 2, H * 0.45, Math.max(W, H) * 0.78);
-  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)');
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, G.hw ? 'rgba(40,16,0,.28)' : 'rgba(0,0,0,.45)');
   lctx.fillStyle = vg; lctx.fillRect(0, 0, W, H);
   ctx.drawImage(light, 0, 0, W, H);
+  if (G.hw) hwGrade();
   // farbiges Licht: Fackeln orange, Pentagramm rot, Zauber in ihrer Elementfarbe
   const tint = (x, y, r, c) => { if (x > -r && y > -r && x < W + r && y < H + r) glowDot(ctx, x, y, r, c); };
   for (const t of G.torches) { const [sx, sy] = proj(t.x, t.y); tint(sx, sy - 60, 170, 'rgba(255,120,30,.16)'); }
-  tint(pcx, pcy, 380, G.phase === 'fight' ? 'rgba(255,30,0,.14)' : 'rgba(200,30,0,.07)');
+  if (!G.hw) tint(pcx, pcy, 380, G.phase === 'fight' ? 'rgba(255,30,0,.14)' : 'rgba(200,30,0,.07)');
   for (const l of G.lavaEdge) if (l.h % 4 === 0) { const [sx, sy] = proj(l.x, l.y); tint(sx, sy, 110, 'rgba(255,110,20,.12)'); }
   for (const q of G.projs) if (!q.arrow) { const [sx, sy] = proj(q.x, q.y); tint(sx, sy - 26, 110, EL[q.el][1] + '30'); }
   for (const a of G.areas) if (a.dmg) { const [sx, sy] = proj(a.x, a.y); tint(sx, sy, a.r * Z * 1.4, EL[a.el][1] + '28'); }
@@ -1666,8 +1737,11 @@ const IMG = {};
 function icon(src) { if (!IMG[src]) { IMG[src] = new Image(); IMG[src].src = src; } return IMG[src]; }
 
 function automap() {
-  const p = G.player, zm = 0.32, ox = W / 2 - (p.x - p.y) * zm, oy = H * 0.45 - (p.x + p.y) * zm / 2;
+  const p = G.player, zm = G.hw ? 0.16 : 0.32, ox = W / 2 - (p.x - p.y) * zm, oy = H * 0.45 - (p.x + p.y) * zm / 2;
   tf(zm, zm / 2, -zm, zm / 2, ox, oy);
+  if (G.hw) { // die große Karte einmal als Bild: Straßen, Plätze und Umrisse der Hindernisse
+    ctx.globalAlpha = 0.8; ctx.imageSmoothingEnabled = false; ctx.drawImage(G.L.mini ||= hwMini(), 0, 0, MW * T, MH * T); ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 1;
+  } else {
   ctx.strokeStyle = 'rgba(210,190,150,.75)'; ctx.lineWidth = 1.6 / zm; ctx.beginPath();
   for (let i = 0; i < MW * MH; i++) {
     if (!G.seen[i] || !G.map[i]) continue;
@@ -1678,6 +1752,7 @@ function automap() {
     if (!G.map[i + MW]) { ctx.moveTo(x, y + T); ctx.lineTo(x + T, y + T); }
   }
   ctx.stroke();
+  }
   for (const e of G.ents) if (e.minion) { ctx.fillStyle = '#40d040'; ctx.fillRect(e.x - 8, e.y - 8, 16, 16); }
   ctx.strokeStyle = '#ff3030'; ctx.lineWidth = 6 / zm; ctx.beginPath();
   ctx.moveTo(p.x - 40, p.y); ctx.lineTo(p.x + 40, p.y); ctx.moveTo(p.x, p.y - 40); ctx.lineTo(p.x, p.y + 40); ctx.stroke();
@@ -1874,7 +1949,7 @@ function renderMenu() {
     <table class="keys">${[['Linksklick', 'Laufen / mit linker Fähigkeit angreifen'], ['Umschalt + Linksklick', 'Angreifen ohne zu laufen'], ['Rechtsklick', 'Rechte Fähigkeit'], ['Ö / Ä', 'Linke / rechte Fähigkeit auf den Mauszeiger'], ['Drittes Feld', 'Aura oder Stärkung, bleibt ständig aktiv'], ['F1–F8 / Mausrad', 'Rechte Fähigkeit wechseln'], ['1–4 (Q/E)', 'Tränke aus dem Gürtel'], ['WASD', 'Alternativ laufen'], ['C · I · T', 'Charakter · Inventar · Fähigkeiten'], ['Tab', 'Automap']].map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>`;
 }
 
-const wareCost = it => it.val * 4, gambleCost = () => 60 + P.depth * 30, rerollCost = () => 15 + P.depth * 10;
+const wareCost = it => it.val * 4, gambleCost = () => 60 + gs() * 30, rerollCost = () => 15 + gs() * 10;
 function renderShop() {
   const cells = Array.from({ length: 10 }, (_, i) => G.wares[i] ? `<div class="cell r${G.wares[i].rar}" data-ware="${i}"><img src="${itemIcon(G.wares[i])}" alt=""></div>` : '<div class="cell"></div>').join('');
   return `<header><h2>Händler</h2><div class="pts">${P.gold} Gold</div><button class="x" data-act="close">✕</button></header>
@@ -1948,7 +2023,7 @@ $('#panel').addEventListener('click', e => {
   if (d.act === 'pixel') { try { localStorage.setItem(PIXEL, pixelOn() ? '0' : '1'); } catch { /* privater Modus */ } resize(); return renderPanel(); }
   if (d.act === 'next') return startRound();
   if (d.act === 'respec') respec();
-  if (d.act === 'gamble' && P.gold >= gambleCost() && P.bag.length < 30) { P.gold -= gambleCost(); P.bag.push(genItem(P.depth + 2, Math.random() < 0.5)); SFX.play('item'); }
+  if (d.act === 'gamble' && P.gold >= gambleCost() && P.bag.length < 30) { P.gold -= gambleCost(); P.bag.push(genItem(gs() + 2, Math.random() < 0.5)); SFX.play('item'); }
   if (d.act === 'reroll' && P.gold >= rerollCost()) { P.gold -= rerollCost(); pause(); SFX.play('gold'); }
   if (d.act === 'heal') { G.player.hp = S.maxhp; G.player.mp = S.maxmp; G.player.pois = 0; SFX.play('shrine'); }
   if (d.ware) { const it = G.wares[+d.ware]; if (it && P.gold >= wareCost(it) && P.bag.length < 30) { P.gold -= wareCost(it); P.bag.push(it); G.wares.splice(+d.ware, 1); el.tip.hidden = true; SFX.play('gold'); } }
@@ -1994,6 +2069,7 @@ function loadSave() {
   try {
     const p = JSON.parse(localStorage.getItem(SAVE));
     if (!p || !CL[p.cls]) return null;
+    p.map ||= 'sanct'; p.rounds ||= {}; p.bests ||= {}; // Stände von vor dem Highway der Toten
     if (!p.hot) { p.hot = [...p.slots.slice(2), null, null].slice(0, 8); p.slots = p.slots.slice(0, 2); }
     for (const id in p.ranks) if (!SK[id]) delete p.ranks[id];
     p.slots = p.slots.map(id => SK[id] ? id : null);
@@ -2096,20 +2172,32 @@ function showSelect() {
   $('#hud').hidden = true; $('#panel').hidden = true; el.tip.hidden = true;
   const saved = loadSave(), sel = $('#select');
   sel.hidden = false;
+  selMap = (() => { try { return localStorage.getItem(MAPKEY) === 'hw' ? 'hw' : 'sanct'; } catch { return 'sanct'; } })();
   // Helden im Raster vor der Lagerfeuer-Kulisse, je Spiel eine Gruppe
   const grid = (title, list) => `<h3 class="grp">${title}</h3><div class="grid">${list.map(c => `<button class="cls" data-cls="${c.id}"><canvas width="220" height="260"></canvas><b>${c.nm}</b></button>`).join('')}</div>`;
   sel.innerHTML = `<h1>Sanctuary <span>&amp;</span> Norrath</h1>
     <p class="sub">Im Geiste von Diablo II: Lord of Destruction und Champions: Return to Arms</p>
-    ${record() ? `<p class="sub">Rekord: Runde ${record().round} · ${esc(record().name)} (${CL[record().cls]?.nm || ''})</p>` : ''}
+    <div class="maps">${Object.entries(MAPS).map(([k, nm]) => `<button data-map="${k}" class="${k === selMap ? 'on' : ''}">${nm}</button>`).join('')}</div>
+    <p class="sub" id="mapRec"></p>
     <div id="camp"><canvas id="fire"></canvas>
       ${grid('Diablo II: Lord of Destruction', ['ama', 'asn', 'nec', 'bar', 'pal', 'sor', 'dru'].map(id => CL[id]))}
       ${grid('Champions: Return to Arms', CLASSES.filter(c => c.g === 'CRtA'))}
     </div>
     <div class="info" id="clsinfo">Wähle eine Klasse</div>
-    ${saved ? `<button class="big" data-act="continue">Fortsetzen · ${esc(saved.name)}, Stufe ${saved.lvl} ${CL[saved.cls].nm} · Runde ${saved.depth}</button>` : ''}
+    ${saved ? `<button class="big" data-act="continue"></button>` : ''}
     <div class="row"><input id="cname" maxlength="16" placeholder="Name des Helden"><button class="big" data-act="start" disabled>Abenteuer beginnen</button></div>
     <p class="hint">Jede Klasse kann jede der ${SKILLS.length - 2} Fähigkeiten aus beiden Spielen lernen. Fähigkeiten der eigenen Klasse wirken 25 % stärker.</p>`;
   sel.querySelectorAll('.cls').forEach(b => preview(b.querySelector('canvas'), b.dataset.cls, 0, false));
+  showMap(saved);
+}
+// Kartenwahl: Rekord der Karte und Runde, in der der gespeicherte Held dort weitermacht
+const MAPKEY = 'sanctuary-map', MAPS = { sanct: 'Chaos-Sanktuarium', hw: 'Highway der Toten' };
+let selMap = 'sanct';
+function showMap(saved = loadSave()) {
+  const r = record(selMap), c = $('[data-act="continue"]');
+  document.querySelectorAll('.maps button').forEach(b => b.classList.toggle('on', b.dataset.map === selMap));
+  $('#mapRec').textContent = r ? `Rekord: Runde ${r.round} · ${r.name} (${CL[r.cls]?.nm || ''})` : 'Noch kein Rekord';
+  if (c && saved) c.textContent = `Fortsetzen · ${saved.name}, Stufe ${saved.lvl} ${CL[saved.cls].nm} · Runde ${saved.map === selMap ? saved.depth : saved.rounds[selMap] || 1}`;
 }
 
 function startGame() {
@@ -2130,8 +2218,12 @@ $('#select').addEventListener('click', e => {
     document.querySelectorAll('.cls').forEach(n => n.classList.toggle('on', n === b));
     $('#clsinfo').innerHTML = `<b>${c.nm}</b> <small>(${c.g === 'D2' ? 'Diablo II' : 'Champions: Return to Arms'})</small><br>Stärke ${c.str} · Geschick ${c.dex} · Vitalität ${c.vit} · Energie ${c.ene}${c.ranged ? ' · Fernkampf' : ''}<br>Startfähigkeiten: ${c.start.map(id => SK[id].nm).join(', ')}`;
     $('[data-act="start"]').disabled = false;
-  } else if (b.dataset.act === 'start' && chosen) { newChar(chosen, $('#cname').value.trim()); save(); startGame(); }
-  else if (b.dataset.act === 'continue') { P = loadSave(); startGame(); }
+  } else if (b.dataset.map) {
+    selMap = b.dataset.map;
+    try { localStorage.setItem(MAPKEY, selMap); } catch { /* privater Modus */ }
+    showMap();
+  } else if (b.dataset.act === 'start' && chosen) { newChar(chosen, $('#cname').value.trim()); setMap(selMap); save(); startGame(); }
+  else if (b.dataset.act === 'continue') { P = loadSave(); setMap(selMap); startGame(); }
 });
 
 // ---------- Eingabe ----------

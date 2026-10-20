@@ -423,9 +423,18 @@ const BOSSES = [
   { nm: 'Baal', hp: 1000, d: 26, v: 110, r: 28, col: '#c0a0f0', xp: 1400, el: 'cold', rng: { el: 'cold', v: 420 }, nova: { el: 'cold', r: 260, cd: 4 } },
 ];
 
-// [Name, Boden, Wand, Dunkelheit 0..1]
+// Zombies des Highways der Toten nach Dead Nation: einzeln schwach, gefährlich durch die Masse.
+// w: Anteil an den Gruppen · n: Gruppengröße · lk: Aussehen, falls es nicht am Namen hängt
+const ZOMBIES = [
+  { nm: 'Schlurfer', hp: 6, d: 2.4, v: 48, r: 13, col: '#7a8a6a', xp: 2, from: 1, undead: 1, w: 6, n: [6, 10] },
+  { nm: 'Schlurfer', lk: 'Dicker Schlurfer', hp: 16, d: 4, v: 40, r: 16, col: '#7a8a6a', xp: 4, from: 1, undead: 1, w: 1, n: [2, 4] },
+  { nm: 'Schutzanzug', hp: 4, d: 1.8, v: 50, r: 13, col: '#d8c030', xp: 1, from: 1, undead: 1, w: 3, n: [5, 8] },
+  { nm: 'Häutling', hp: 2, d: 1.6, v: 135, r: 12, col: '#a83a2a', xp: 1, from: 1, undead: 1, w: 2, n: [8, 14] },
+];
+
 // [Name, Boden, Wände, Dunkelheit]
 const ARENA = ['Chaos-Sanktuarium', 'hell', 'hell', 0.84];
+const HIGHWAY = ['Highway der Toten', 'sand', 'rock', 0.06];
 
 const BASES = {
   weapon: [['Kurzschwert', 2, 7], ['Streitkolben', 3, 8], ['Kriegsaxt', 4, 11], ['Langbogen', 3, 9], ['Kampfstab', 3, 10], ['Klaue', 3, 8], ['Breitschwert', 5, 13]],

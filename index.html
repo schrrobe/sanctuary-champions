@@ -36,6 +36,9 @@
   .cls canvas { width: 100%; max-width: 110px; height: auto; }
   .cls b { font-size: 13px; font-weight: 500; line-height: 1.15; color: var(--gold); text-shadow: 0 1px 3px #000; hyphens: auto; overflow-wrap: anywhere; }
   .cls.on, .cls.on:hover { border-color: var(--gold); box-shadow: 0 0 12px rgba(255, 120, 30, .45), inset 0 0 18px rgba(255, 120, 30, .2); }
+  /* Kartenwahl auf dem Startbildschirm */
+  .maps { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 10px 0 2px; }
+  .maps button.on { color: #fff; border-color: var(--gold); box-shadow: 0 0 10px rgba(255, 120, 30, .4); }
   @media (max-width: 760px) { #fire { display: none; } }
   .info { min-height: 48px; margin: 4px auto 0; max-width: 700px; color: var(--white); }
   .info b { color: var(--gold); font-family: Cinzel, serif; }
@@ -207,6 +210,7 @@
 <script src="vendor/three.min.js"></script>
 <script src="models.js"></script>
 <script src="audio.js"></script>
+<script src="highway.js"></script>
 <script src="game.js"></script>
 <script>if (location.search.includes('balance')) document.write('<script src="balance.js"><\/script>');</script>
 <script>if (location.search.includes('bench')) document.write('<script src="bench.js"><\/script>');</script>
