@@ -27,16 +27,16 @@
   #select h1 span { color: #a02818; }
   #select .sub { color: var(--dim); margin: 4px 0 16px; }
   #select .row { justify-content: center; }
-  /* Lagerfeuer-Szene: Helden stehen im Halbkreis, das gewählte tritt ins Licht */
-  #camp { position: relative; width: min(1100px, 100%); height: clamp(380px, 56vh, 520px); margin: 0 auto; }
+  /* Charakterauswahl: Helden im Raster vor der Lagerfeuer-Kulisse, das gewählte leuchtet */
+  #camp { position: relative; width: min(1100px, 100%); margin: 0 auto; padding: 6px 14px 70px; } /* unten Platz für das Lagerfeuer */
   #fire { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .cls { position: absolute; width: 120px; padding: 0; transform: translate(-50%, -88%) scale(var(--s)); display: flex; flex-direction: column; align-items: center; gap: 0; background: none; border: 0; filter: brightness(.62) saturate(.8); transition: filter .2s, transform .2s; }
-  .cls canvas { width: 110px; height: 130px; }
-  .cls b { font-size: 13px; font-weight: 500; color: var(--gold); text-shadow: 0 1px 3px #000, 0 0 6px #000; white-space: nowrap; opacity: 0; transition: opacity .15s; }
-  .cls:hover b, .cls.on b { opacity: 1; }
-  .cls:hover { filter: brightness(1) saturate(1); }
-  .cls.on { filter: brightness(1.15) saturate(1.05) drop-shadow(0 0 10px rgba(255, 120, 30, .35)); transform: translate(-50%, -82%) scale(calc(var(--s) * 1.12)); }
-  @media (max-width: 760px) { .cls b { opacity: 1; } #camp { height: auto; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; } #fire { display: none; } .cls { position: static; transform: none; filter: none; } .cls.on { transform: none; } }
+  #camp .grp { position: relative; margin: 8px 0 6px; font-size: 14px; font-weight: 500; color: var(--dim); letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 1px 3px #000; }
+  #camp .grid { position: relative; display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+  .cls { display: flex; flex-direction: column; align-items: center; padding: 4px 2px 6px; background: rgba(0, 0, 0, .55); transition: border-color .15s, box-shadow .15s; }
+  .cls canvas { width: 100%; max-width: 110px; height: auto; }
+  .cls b { font-size: 13px; font-weight: 500; line-height: 1.15; color: var(--gold); text-shadow: 0 1px 3px #000; hyphens: auto; overflow-wrap: anywhere; }
+  .cls.on, .cls.on:hover { border-color: var(--gold); box-shadow: 0 0 12px rgba(255, 120, 30, .45), inset 0 0 18px rgba(255, 120, 30, .2); }
+  @media (max-width: 760px) { #fire { display: none; } }
   .info { min-height: 48px; margin: 4px auto 0; max-width: 700px; color: var(--white); }
   .info b { color: var(--gold); font-family: Cinzel, serif; }
   .big { font-size: 16px; padding: 10px 24px; }

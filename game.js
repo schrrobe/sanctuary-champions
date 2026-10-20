@@ -2055,8 +2055,10 @@ const sparks = [];
 function campfire(cnv, t) {
   const r = cnv.getBoundingClientRect();
   if (cnv.width !== Math.round(r.width) || cnv.height !== Math.round(r.height)) { cnv.width = Math.round(r.width); cnv.height = Math.round(r.height); }
-  const g = cnv.getContext('2d'), w = cnv.width, h = cnv.height, cx = w / 2, cy = h * 0.8, fl = 1 + Math.sin(t * 11) * 0.04 + Math.sin(t * 17.3) * 0.03;
+  const g = cnv.getContext('2d'), w = cnv.width, h = cnv.height, cx = w / 2, cy = h - 12, fl = 1 + Math.sin(t * 11) * 0.04 + Math.sin(t * 17.3) * 0.03;
+  if (!w || !h) return; // ausgeblendet (schmaler Bildschirm): drawImage mit leerer Fläche würde werfen und die Bildschleife beenden
   g.clearRect(0, 0, w, h); g.drawImage(campBackdrop(w, h), 0, 0);
+  g.save(); g.translate(cx, cy); g.scale(0.45, 0.45); g.translate(-cx, -cy); // kleines Feuer im Streifen unter dem Raster
   // vom Feuer beleuchteter Boden
   g.save(); g.translate(cx, cy); g.scale(1, 0.32);
   const gr = g.createRadialGradient(0, 0, 0, 0, 0, w * 0.55 * fl);
@@ -2085,7 +2087,7 @@ function campfire(cnv, t) {
     if (p.t > p.life) { sparks.splice(i, 1); continue; }
     g.fillStyle = `rgba(255,${160 + Math.random() * 80 | 0},60,${1 - p.t / p.life})`; g.fillRect(p.x, p.y, 2, 2);
   }
-  g.globalCompositeOperation = 'source-over';
+  g.restore();
 }
 
 function showSelect() {
@@ -2094,22 +2096,19 @@ function showSelect() {
   $('#hud').hidden = true; $('#panel').hidden = true; el.tip.hidden = true;
   const saved = loadSave(), sel = $('#select');
   sel.hidden = false;
-  // Helden im Halbkreis hinter dem Feuer: vorn die aus D2, dahinter versetzt die aus Champions
-  const ring = (list, rx, ry, a0, a1, sc) => list.map((c, i) => {
-    const a = a0 + (a1 - a0) * i / (list.length - 1), x = 50 + Math.cos(a) * rx, y = 76 - Math.sin(a) * ry;
-    return `<button class="cls" data-cls="${c.id}" style="left:${x}%;top:${y}%;--s:${sc};z-index:${Math.round(y)}"><canvas width="${Math.round(220 * sc)}" height="${Math.round(260 * sc)}" data-fx="${x < 50 ? 1 : -1}" data-face="${(Math.PI / 4 - (x - 50) / 50 * 1.2).toFixed(2)}"></canvas><b>${c.nm}</b></button>`;
-  }).join('');
+  // Helden im Raster vor der Lagerfeuer-Kulisse, je Spiel eine Gruppe
+  const grid = (title, list) => `<h3 class="grp">${title}</h3><div class="grid">${list.map(c => `<button class="cls" data-cls="${c.id}"><canvas width="220" height="260"></canvas><b>${c.nm}</b></button>`).join('')}</div>`;
   sel.innerHTML = `<h1>Sanctuary <span>&amp;</span> Norrath</h1>
     <p class="sub">Im Geiste von Diablo II: Lord of Destruction und Champions: Return to Arms</p>
     ${record() ? `<p class="sub">Rekord: Runde ${record().round} · ${esc(record().name)} (${CL[record().cls]?.nm || ''})</p>` : ''}
     <div id="camp"><canvas id="fire"></canvas>
-      ${ring(CLASSES.filter(c => c.g === 'CRtA'), 46, 34, 2.78, 0.36, 0.95)}
-      ${ring(['ama', 'asn', 'nec', 'bar', 'pal', 'sor', 'dru'].map(id => CL[id]), 43, 15, 3.0, 0.14, 1.45)}
+      ${grid('Diablo II: Lord of Destruction', ['ama', 'asn', 'nec', 'bar', 'pal', 'sor', 'dru'].map(id => CL[id]))}
+      ${grid('Champions: Return to Arms', CLASSES.filter(c => c.g === 'CRtA'))}
     </div>
     <div class="info" id="clsinfo">Wähle eine Klasse</div>
     ${saved ? `<button class="big" data-act="continue">Fortsetzen · ${esc(saved.name)}, Stufe ${saved.lvl} ${CL[saved.cls].nm} · Runde ${saved.depth}</button>` : ''}
     <div class="row"><input id="cname" maxlength="16" placeholder="Name des Helden"><button class="big" data-act="start" disabled>Abenteuer beginnen</button></div>
-    <p class="hint">Vorn die Helden aus Diablo II, dahinter die aus Champions: Return to Arms. Jede Klasse kann jede der ${SKILLS.length - 2} Fähigkeiten aus beiden Spielen lernen. Fähigkeiten der eigenen Klasse wirken 25 % stärker.</p>`;
+    <p class="hint">Jede Klasse kann jede der ${SKILLS.length - 2} Fähigkeiten aus beiden Spielen lernen. Fähigkeiten der eigenen Klasse wirken 25 % stärker.</p>`;
   sel.querySelectorAll('.cls').forEach(b => preview(b.querySelector('canvas'), b.dataset.cls, 0, false));
 }
 
