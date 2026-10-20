@@ -9,7 +9,7 @@ Kein Build: `index.html` öffnen oder per GitHub Pages spielen. Einzige Fremdbib
 - **14 Klassen**: die 7 Klassen aus Diablo II: LoD (Amazone, Assassine, Barbar, Druide, Totenbeschwörer, Paladin, Zauberin) und die 7 aus Champions: Return to Arms (Barbaren-Krieger, Erudit-Zauberer, Waldelfen-Waldläufer, Hochelfen-Kleriker, Dunkelelfen-Schattenritter, Vah-Shir-Berserker, Iksar-Schamane)
 - **Freier Skill-Baukasten**: Jede Klasse kann jede der 292 Fähigkeiten aus beiden Spielen lernen (alle 30 je Diablo-II-Klasse), ohne Stufensperre. Zum Start gibt es 30 Punkte, jeder Aufstieg bringt einen weiteren. Rechtsklick gibt einen Punkt zurück. Fähigkeiten der eigenen Klasse wirken 25 % stärker.
 - **Chaos-Sanktuarium**: Gegner kommen rundenweise aus den vier Armen der Halle, jede Runde wird schwerer, alle 5 Runden ein Boss (Andariel, Duriel, Mephisto, Innoruuk, Diablo, Baal). Champions und einzigartige Monster werden mit den Runden häufiger. Wer fällt, beginnt die Runde von vorn.
-- **Zweite Karte: Highway der Toten** (Kartenwahl auf dem Startbildschirm): eine moderne Wüste bei Tag, 20-mal so groß wie das Chaos-Sanktuarium, mit Highway, Tankstelle, Diner, Motel, Autowracks, Wohnwagenpark, Farm, Quarantänelager und verlassenem Dorf. Zombiehorden nach Dead Nation (PS3) kommen rundenweise aus Gebäuden, Bussen und Gullys knapp außerhalb des Bildes, bis zu 165 gleichzeitig. Derselbe Held spielt auf beiden Karten, jede Karte hat eigene Runden und einen eigenen Rekord. Planung und Stand: `docs/highway-der-toten.md`
+- **Zweite Karte: Highway der Toten** (Kartenwahl auf dem Startbildschirm): eine moderne Wüste bei Tag, 20-mal so groß wie das Chaos-Sanktuarium, mit Highway, Tankstelle, Diner, Motel, Autowracks, Wohnwagenpark, Farm, Quarantänelager und verlassenem Dorf. Zombiehorden nach Dead Nation (PS3) kommen rundenweise aus Gebäuden, Bussen und Gullys knapp außerhalb des Bildes, bis zu 165 gleichzeitig: Schlurfer, Uniformierte und die Spezial-Zombies Runner, Bombie, Mouth, Jumper, Cutter und Leech. Jede 5. Runde ein Endboss (Big Jumper, Big Leech, Big Cutter, Big Mouth) mit Gefolge. Alarm-Autos locken die Horde an, Benzinfässer und der Tanklaster explodieren in Kettenreaktionen, Leuchtfackeln vom Händler (L) lenken ab. Derselbe Held spielt auf beiden Karten, jede Karte hat eigene Runden und einen eigenen Rekord. Planung und Werte: `docs/highway-der-toten.md`
 - **Händler zwischen den Runden**: Ausrüstung und Tränke kaufen, kostenlos heilen, Urnen zerschlagen, Belohnungstruhe öffnen, jede dritte Runde ein Erneuerungsschrein
 - **Siegel und Wächter**: Fünf Siegel auf dem Pentagramm. In Runde 5, 10 und 15 jedes 20er-Zyklus erscheinen der Großwesir des Chaos, Lord De Seis und der Seelenverseucher und brechen die Siegel, in Runde 20 kommt Diablo. Ab dem zweiten Zyklus bringt jeder Wächter einen weiteren Boss mit. Rundenzähler mit verbleibenden Gegnern und Rekord (höchste geschaffte Runde)
 - **Händler**: Ausrüstung mit Vergleich zur angelegten, Glücksspiel, neues Angebot gegen Gold
@@ -44,6 +44,7 @@ Kein Build: `index.html` öffnen oder per GitHub Pages spielen. Einzige Fremdbib
 | Klick auf die Felder neben den Kugeln | Linke/rechte Fähigkeit wählen |
 | F1–F8 / Mausrad | Rechte Fähigkeit wechseln (Maus über Fähigkeit + F-Taste: belegen) |
 | 1–4 (oder Q/E) | Tränke aus dem Gürtel |
+| L | Leuchtfackel zum Mauszeiger werfen (nur Highway der Toten) |
 | C · I · T | Charakter · Inventar · Fähigkeiten |
 | H · N | Händler · nächste Runde starten (in der Pause) |
 | Tab | Automap |
@@ -65,7 +66,8 @@ Grafik-Messung: `http://localhost:8000/?bench` spielt feste Szenen ab und zeigt 
 - `models.js`: 3D-Figuren: Körperbau, Köpfe, Waffen, Animationen und der Bildspeicher für die vorgerenderten Ansichten
 - `vendor/three.min.js`: three.js r159 (MIT-Lizenz, siehe `vendor/three-LICENSE.txt`)
 - `audio.js`: Geräusche und Musik
-- `highway.js`: Highway der Toten: fester Kartenaufbau, Boden in Kacheln, Gebäude und Fahrzeuge, Zombie-Runden
+- `highway.js`: Highway der Toten: fester Kartenaufbau, Boden in Kacheln, Gebäude und Fahrzeuge, Zombie-Runden, Explosionen und die Erweiterungspunkte `HWH`
+- `zombies.js` · `bosses.js` · `umgebung.js`: Zombie-Arten, Endbosse sowie Alarm-Autos, Fässer, Tanklaster, Objekte, Leuchtfackeln und Blut des Highways
 - `game.js`: Engine (Arena, Runden, Kampf, KI, Darstellung, UI)
 - `index.html`: Layout und Stil
 - `bench.js`: Grafik-Messung (nur mit `?bench` geladen)

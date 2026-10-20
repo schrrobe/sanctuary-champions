@@ -127,7 +127,7 @@ function newChar(cid, name) {
   P = {
     cls: cid, name: name || 'Namenloser Held', lvl: 1, xp: 0, str: c.str, dex: c.dex, vit: c.vit, ene: c.ene, statPts: 0, skillPts: 30,
     ranks: { [a]: 1, [b]: 1 }, slots: [a, b], hot: [a, b, basic, null, null, null, null, null],
-    gold: 0, pots: { hp: 3, mp: 3 }, bag: [], depth: 1, map: 'sanct', rounds: {}, bests: {}, // depth und best gelten für die gewählte Karte
+    gold: 0, pots: { hp: 3, mp: 3 }, flares: 0, bag: [], depth: 1, map: 'sanct', rounds: {}, bests: {}, // depth und best gelten für die gewählte Karte
     eq: { weapon: { slot: 'weapon', base: wpn, nm: wpn, rar: 0, min: 2, max: 5, mods: {}, val: 5 } },
   };
 }
@@ -245,7 +245,7 @@ function startRound() {
   closePanel();
   const d = P.depth;
   let boss = null;
-  if (G.hw) G.queue = hwQueue(d);
+  if (G.hw) { G.queue = hwQueue(d); hwEach('round', d); boss = G.queue.find(q => q.kind === 'boss')?.t || null; }
   else {
     const pool = MONSTERS.filter(m => m.from <= P.depth);
     G.queue = [];
@@ -371,12 +371,12 @@ function bakeFloor() {
 }
 
 // ---------- Objekte: Fässer, Urnen, Truhen, Schreine ----------
-const PROP_NM = { barrel: 'Fass', urn: 'Urne', chest: 'Truhe', shrine: 'Erneuerungsschrein' };
+const PROP_NM = { barrel: 'Fass', urn: 'Urne', chest: 'Truhe', shrine: 'Erneuerungsschrein', trunk: 'Kofferraum', crate: 'Beutekiste', medkit: 'Medikit' };
 // Urnen in den Hallenecken, ab Runde 2 eine Belohnungstruhe auf dem Pentagramm, jede dritte Runde ein Schrein
 function placeProps() {
   const c = (AC + 0.5) * T, add = (x, y, k) => G.props.push({ x, y, k, seed: rnd(0, 100), open: false });
   G.props = [];
-  if (G.hw) return; // Kofferräume, Beutekiste und Medikit kommen in Etappe 4
+  if (G.hw) { hwEach('props'); return; }
   for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) for (let i = rint(1, 3); i > 0; i--) add(c + sx * 11 * T + rnd(-24, 24), c + sy * 11 * T + rnd(-24, 24), 'urn');
   if (P.depth > 1) add(c, c - 2 * T, 'chest');
   if (P.depth % 3 === 0) add(c, c + 7 * T, 'shrine');
@@ -387,21 +387,22 @@ function useProp(pr) {
   if (pr.open) return;
   pr.open = true;
   const p = G.player, put = l => G.loot.push({ x: pr.x + rnd(-22, 22), y: pr.y + rnd(-22, 22), ...l });
-  if (pr.k === 'shrine') {
+  if (pr.k === 'shrine' || pr.k === 'medkit') {
     p.hp = S.maxhp; p.mp = S.maxmp; SFX.play('shrine');
-    emit(pr.x, pr.y, 30, 'cold', 40, 16, { vz: rnd(80, 200), life: 1.2 });
-    return msg('Erneuerungsschrein: Leben und Mana aufgefüllt', '#7fd4ff');
+    emit(pr.x, pr.y, 30, 'cold', 40, 16, { vz: rnd(80, 200), life: 1.2, ...(pr.k === 'medkit' && { col: '#ff6060' }) });
+    return msg(`${PROP_NM[pr.k]}: Leben und Mana aufgefüllt`, pr.k === 'medkit' ? '#ff8080' : '#7fd4ff');
   }
-  if (pr.k === 'chest') {
+  if (pr.k === 'chest' || pr.k === 'crate') {
     SFX.play('chest');
     put({ k: 'gold', n: Math.round(rnd(4, 14) * gs()) });
     if (Math.random() < 0.6) put({ k: 'item', it: genItem(gs(), Math.random() < 0.25) });
     if (Math.random() < 0.3) put({ k: pick(['hp', 'mp']) });
     return;
   }
-  SFX.play('smash');
+  if (pr.k === 'trunk') SFX.play('chest'); // Kofferraum: aufklappen statt zerschlagen, Beute wie bei einer Urne
+  else SFX.play('smash');
   const col = pr.k === 'urn' ? ['#a0603a', '#7a4428', '#c08050'] : ['#6a4a2a', '#4a3018', '#8a6a3a'];
-  for (let i = 0; i < 16; i++) G.parts.push({ x: pr.x, y: pr.y, z: rnd(6, 24), vx: rnd(-90, 90), vy: rnd(-90, 90), vz: rnd(80, 200), g: 420, life: rnd(0.4, 0.7), t: 0, col: pick(col), s: rnd(2, 4) });
+  if (pr.k !== 'trunk') for (let i = 0; i < 16; i++) G.parts.push({ x: pr.x, y: pr.y, z: rnd(6, 24), vx: rnd(-90, 90), vy: rnd(-90, 90), vz: rnd(80, 200), g: 420, life: rnd(0.4, 0.7), t: 0, col: pick(col), s: rnd(2, 4) });
   const r = Math.random();
   if (r < 0.3) put({ k: 'gold', n: Math.round(rnd(1, 5) * gs()) });
   else if (r < 0.42) put({ k: pick(['hp', 'mp']) });
@@ -428,7 +429,9 @@ function spawnMon(t, x, y, kind) {
     nm: kind === 'champ' ? `${t.nm} (Champion)` : kind === 'unique' ? uniqueName() : t.nm,
     hp: t.hp * hm * k[0], d: t.d * dm * k[1], xp: Math.round(t.xp * 1.12 ** (d - 1) * k[2]), v: t.v * (kind === 'champ' ? 1.2 : 1), awake: false,
   };
-  e.maxhp = e.hp; G.ents.push(e); return e;
+  e.maxhp = e.hp; G.ents.push(e);
+  if (G.hw) hwEach('spawn', e);
+  return e;
 }
 
 // je zwei Fertigkeitspunkte eine Beschwörung mehr: Feuergolem auf Stufe 1–2 einer, auf 3–4 zwei, auf 5–6 drei
@@ -556,6 +559,7 @@ function wake(e) {
 
 function hit(src, t, dmg, el = 'phys', o = {}) {
   if (t.dead || t.noTarget) return;
+  if (G.hw) for (const f of HWH.hit) { const v = f(src, t, dmg, el, o); if (v === false) return; if (v !== undefined) dmg = v; }
   if (src?.cur?.weak > 0) dmg *= 0.67; // Schwächen
   if (t.player) {
     if (Math.random() < S.dodge) return;
@@ -660,10 +664,11 @@ function kill(e) {
   if (e.dead) return;
   e.dead = true;
   blood(e, 14);
+  if (G.hw) hwEach('kill', e);
   if (e.player) { G.dead = 3; P.gold = Math.floor(P.gold * 0.9); save(); return; }
   if (e.team !== 'e') return;
   SFX.play('die', 50);
-  if (!['wisp', 'hammer', 'trap'].includes(e.look.rig)) G.corpses.push({ x: e.x, y: e.y, r: e.r, look: e.look, face: e.face, h: figH(e), t: 40, tpl: e.kind === 'boss' || e.kind === 'unique' ? null : e.tpl });
+  if (!e.noCorpse && !['wisp', 'hammer', 'trap'].includes(e.look.rig)) G.corpses.push({ x: e.x, y: e.y, r: e.r, look: e.look, face: e.face, h: figH(e), t: 40, tpl: e.kind === 'boss' || e.kind === 'unique' ? null : e.tpl });
   if (G.hw && G.corpses.length > 150) G.corpses.shift(); // bei Horden bleiben nur die letzten 150 Leichen liegen
   gainXp(e.xp); drop(e);
   if (e === G.boss) { G.boss = null; msg(`${e.nm} wurde besiegt!`, '#c7b377'); }
@@ -857,7 +862,7 @@ function useSkill(s, r, tx, ty) {
       p.dash = { tx, ty, s, r, hit: new Set(), spinT: 0, t: s.spin ? 1.6 : 0.8 };
       return;
     case 'convert': {
-      const e = nearest({ x: tx, y: ty }, foes(p).filter(e => e.kind !== 'boss' && e.kind !== 'unique' && (s.id !== 'convert_undead' || e.undead) && Math.hypot(e.x - tx, e.y - ty) < 90 + e.r));
+      const e = nearest({ x: tx, y: ty }, foes(p).filter(e => e.team !== 'n' && e.kind !== 'boss' && e.kind !== 'unique' && (s.id !== 'convert_undead' || e.undead) && Math.hypot(e.x - tx, e.y - ty) < 90 + e.r));
       if (!e) { note('Kein passendes Ziel'); return false; }
       Object.assign(e, { team: 'p', minion: true, conv: true, life: s.dur * (1 + 0.1 * (r - 1)), sid: s.id, fear: 0 });
       fx({ k: 'appear', x: e.x, y: e.y, col: '#60ff60', life: 0.5 });
@@ -1065,7 +1070,7 @@ function areas(dt) {
     if (a.meteor && a.t > 0) { const k = a.t / a.delay; emit(a.x - k * 156, a.y + k * 6, k * 400, 'fire', 4, 20); }
     if ((a.t -= dt) > 0) return true;
     for (const e of G.ents) {
-      if (e.team !== 'e' || e.dead || dist(e, a) >= a.r + e.r) continue;
+      if ((e.team !== 'e' && e.team !== 'n') || e.dead || dist(e, a) >= a.r + e.r) continue; // n: Fässer, Alarm-Autos, Tanklaster
       if (a.dmg) hit(a.src, e, a.dmg, a.el);
       if (a.deb) curse(e, a.deb, a.sid, a.vis);
     }
@@ -1119,6 +1124,7 @@ function think(e, dt) {
     // Ziellisten einmal je Bild (G.tp: Held und Beschwörungen, G.ta: Angezogene), damit Horden nicht jeder gegen jeden suchen
     const lure = G.ta.length ? G.ta.find(o => o !== e && !o.dead && o.cur?.attract > 0 && dist(o, e) < 200) : null;
     tg = c.conf > 0 ? nearest(e, G.te.filter(o => o !== e && !o.dead)) : lure || (c.taunt > 0 ? p : nearest(e, G.tp));
+    if (G.hw) tg = hwChain('target', tg, e);
     if (c.dim > 0 && tg && dist(e, tg) > 120) return; // mit getrübter Sicht sieht er nur, was direkt vor ihm steht
   } else {
     minionAct(e, p, dt);
@@ -1128,6 +1134,7 @@ function think(e, dt) {
   }
   if (!tg) return;
   if (e.fear > 0) { const a = Math.atan2(e.y - p.y, e.x - p.x); e.face = a; move(e, Math.cos(a) * spd * dt, Math.sin(a) * spd * dt); return; }
+  if (G.hw && hwAny('act', e, tg, dt, spd)) return;
   const d = dist(e, tg);
   e.atkT -= dt * hf; // Heiliger Frost verlangsamt auch Angriffe
   if (e.nova && (e.novaT -= dt) <= 0 && d < e.nova.r) {
@@ -1228,7 +1235,7 @@ function potion(k) {
 function hoverEnt() {
   let best = null, bd = -1e9;
   for (const e of G.ents) {
-    if (e.team !== 'e' || e.dead) continue;
+    if ((e.team !== 'e' && e.team !== 'n') || e.dead) continue; // auch Fässer und Autos anvisieren
     const [sx, sy] = proj(e.x, e.y), h = figH(e), w = Math.max(16, h * 0.3);
     if (Math.abs(mouse.x - sx) < w && mouse.y < sy + 8 && mouse.y > sy - h) { const d = e.x + e.y; if (d > bd) { bd = d; best = e; } }
   }
@@ -1315,7 +1322,7 @@ function update(dt) {
     const x = tx + dx, y = ty + dy;
     if (x >= 0 && y >= 0 && x < MW && y < MH && dx * dx + dy * dy <= 81) G.seen[y * MW + x] = 1;
   }
-  if (G.hw) hwDust(dt);
+  if (G.hw) { hwDust(dt); hwEach('update', dt); }
   rounds(dt);
   if ((G.saveT -= dt) <= 0) { G.saveT = 15; save(); }
 }
@@ -1536,6 +1543,7 @@ function draw() {
   }
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
+  if (G.hw) hwEach('under');
   // Schlagschatten fallen vom Licht des Helden weg (auf dem Highway von der Nachmittagssonne), dazu ein dunkler Fleck unter den Füßen
   const sun = G.hw && Math.atan2(SUN[1], SUN[0]);
   for (const e of G.ents) if (!e.dead && !['wisp', 'hammer', 'bird'].includes(e.look.rig)) {
@@ -1572,9 +1580,11 @@ function draw() {
   }
   for (const e of G.ents) if (!e.dead && onScr(...proj(e.x, e.y))) list.push({ d: e.x + e.y, e });
   for (const pr of G.props) if (onScr(...proj(pr.x, pr.y))) list.push({ d: pr.x + pr.y, pr });
+  if (G.hw) hwEach('sort', list);
   list.sort((a, b) => a.d - b.d);
   for (const it of list) {
-    if (it.e) { drawEnt(it.e); continue; }
+    if (it.draw) { it.draw(); continue; }
+    if (it.e) { if (it.e.paint) it.e.paint(it.e); else drawEnt(it.e); continue; } // paint: eigene Darstellung, etwa für Fässer
     if (it.pr) { const [sx, sy] = proj(it.pr.x, it.pr.y); drawProp(ctx, it.pr, sx, sy, G.t, it.pr === G.hoverProp); continue; }
     const [wx, wy] = proj((it.tx + 0.5) * T, (it.ty + 0.5) * T), fade = it.d > pd + 10 ? clamp(0.2 + (Math.hypot((wx - ppx) / 190, (wy - ppy - 70) / 150) - 0.55) * 2, 0.2, 1) : 1;
     if (G.hw) hwObst(it.tx, it.ty, fade); else drawWall(it.tx, it.ty, fade);
@@ -1691,6 +1701,7 @@ function draw() {
   if (!G.hw) lamp(pcx, pcy, 420, 0.55);
   if (G.phase === 'fight' && !G.hw) for (const [tx, ty] of ARMS) { const [sx, sy] = proj((tx + 0.5) * T, (ty + 0.5) * T); lamp(sx, sy, 200, 0.5); }
   for (const pr of G.props) if ((pr.k === 'shrine' || pr.k === 'seal') && !pr.open) { const [sx, sy] = proj(pr.x, pr.y); lamp(sx, sy - 50, 130, 0.6); }
+  if (G.hw) hwEach('light', lamp);
   // Vignette: Bildränder bleiben auch im Licht dunkel
   lctx.globalCompositeOperation = 'source-over';
   const vg = lctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.42, W / 2, H * 0.45, Math.max(W, H) * 0.78);
@@ -1705,6 +1716,7 @@ function draw() {
   for (const l of G.lavaEdge) if (l.h % 4 === 0) { const [sx, sy] = proj(l.x, l.y); tint(sx, sy, 110, 'rgba(255,110,20,.12)'); }
   for (const q of G.projs) if (!q.arrow) { const [sx, sy] = proj(q.x, q.y); tint(sx, sy - 26, 110, EL[q.el][1] + '30'); }
   for (const a of G.areas) if (a.dmg) { const [sx, sy] = proj(a.x, a.y); tint(sx, sy, a.r * Z * 1.4, EL[a.el][1] + '28'); }
+  if (G.hw) hwEach('tint', tint);
 
   bloom();
 
@@ -1725,6 +1737,7 @@ function draw() {
   for (const t of G.texts) { const [sx, sy] = proj(t.x, t.y); ctx.globalAlpha = 1 - t.t / 1.2; ctx.fillStyle = t.col; ctx.fillText(t.s, sx, sy - t.h - 10 - t.t * 20); }
   ctx.globalAlpha = 1; ctx.textAlign = 'left';
 
+  if (G.hw) { scrT(); hwEach('over'); }
   if (mapOn) automap();
   if (G.dead > 0) {
     ctx.fillStyle = 'rgba(60,0,0,.5)'; ctx.fillRect(0, 0, W, H);
@@ -1754,6 +1767,7 @@ function automap() {
   ctx.stroke();
   }
   for (const e of G.ents) if (e.minion) { ctx.fillStyle = '#40d040'; ctx.fillRect(e.x - 8, e.y - 8, 16, 16); }
+  if (G.hw && G.phase === 'fight' && enemiesLeft() <= 5) for (const e of G.te) { ctx.fillStyle = '#ff2020'; ctx.fillRect(e.x - 60, e.y - 60, 120, 120); } // die letzten Zombies
   ctx.strokeStyle = '#ff3030'; ctx.lineWidth = 6 / zm; ctx.beginPath();
   ctx.moveTo(p.x - 40, p.y); ctx.lineTo(p.x + 40, p.y); ctx.moveTo(p.x, p.y - 40); ctx.lineTo(p.x, p.y + 40); ctx.stroke();
   scrT();
@@ -1782,12 +1796,13 @@ function hud() {
   setHTML(el.lifeTxt, `Leben: ${Math.max(0, Math.round(p.hp))} / ${Math.round(S.maxhp)}`);
   setHTML(el.manaTxt, `Mana: ${Math.round(p.mp)} / ${Math.round(S.maxmp)}`);
   el.xp.style.transform = `scaleX(${P.xp / xpNext(P.lvl)})`;
-  const k = [...P.slots, ...P.hot, P.pots.hp, P.pots.mp].join();
+  const k = [...P.slots, ...P.hot, P.pots.hp, P.pots.mp, G.hw && P.flares].join();
   if (k !== hudKey) {
     hudKey = k;
     [el.skL, el.skR, el.skA].forEach((b, i) => { const id = P.slots[i]; b.style.backgroundImage = id ? `url(${skillIcon(SK[id])})` : 'none'; b.dataset.skill = id || ''; });
     el.hot.innerHTML = P.hot.map((id, i) => `<div class="hk ${id && id === P.slots[1] ? 'on' : ''}" data-hk="${i}" ${id ? `data-skill="${id}" style="background-image:url(${skillIcon(SK[id])})"` : ''}><em>F${i + 1}</em></div>`).join('');
-    el.belt.innerHTML = [['hp', 1], ['hp', 2], ['mp', 1], ['mp', 2]].map(([t, n], i) => `<div class="bs" data-tip="${t === 'hp' ? 'Heiltrank' : 'Manatrank'} (${P.pots[t]})">${P.pots[t] >= n ? `<img src="${potionIcon(t)}" alt="">` : ''}${n === 1 && P.pots[t] ? `<b>${P.pots[t]}</b>` : ''}<em>${i + 1}</em></div>`).join('');
+    el.belt.innerHTML = [['hp', 1], ['hp', 2], ['mp', 1], ['mp', 2]].map(([t, n], i) => `<div class="bs" data-tip="${t === 'hp' ? 'Heiltrank' : 'Manatrank'} (${P.pots[t]})">${P.pots[t] >= n ? `<img src="${potionIcon(t)}" alt="">` : ''}${n === 1 && P.pots[t] ? `<b>${P.pots[t]}</b>` : ''}<em>${i + 1}</em></div>`).join('')
+      + (G.hw ? `<div class="bs" data-tip="Leuchtfackeln (${P.flares}/5): lockt Zombies an, L wirft zum Mauszeiger">${P.flares ? `<img src="${flareIcon()}" alt=""><b>${P.flares}</b>` : ''}<em>L</em></div>` : '');
   }
   el.skL.classList.toggle('oom', !!P.slots[0] && p.mp < costOf(P.slots[0]) && !infMana());
   el.skR.classList.toggle('oom', !!P.slots[1] && p.mp < costOf(P.slots[1]) && !infMana());
@@ -1795,9 +1810,9 @@ function hud() {
   setHTML(el.states, st);
   setHTML(el.area, `${G.area[0]}<small>Runde ${P.depth} · ${G.phase === 'fight' ? `noch ${enemiesLeft()} Gegner` : 'Pause'}</small><small>Rekord: Runde ${P.best || 0}</small>`);
   el.pause.hidden = G.phase !== 'pause' || !!panel;
-  setHTML(el.pauseTxt, `Runde ${P.depth} bereit`);
+  setHTML(el.pauseTxt, `Runde ${P.depth} bereit${G.hw ? hwFirst('pause') || '' : ''}`);
   el.newStats.hidden = !P.statPts; el.newSkill.hidden = !P.skillPts;
-  const h = G.hover || (G.boss && dist(G.boss, p) < 450 ? G.boss : null);
+  const h = G.hover || (G.boss && (G.hw || dist(G.boss, p) < 450) ? G.boss : null); // auf der großen Karte immer, auch für Fernkämpfer wie den Big Leech
   el.target.hidden = !h;
   if (h) {
     setHTML(el.target.firstChild, esc(h.nm) + (h.kind === 'champ' ? '<small>Champion</small>' : h.kind === 'unique' ? '<small>Einzigartig · Extrastark</small>' : h.undead ? '<small>Untot</small>' : ''));
@@ -1946,7 +1961,7 @@ function renderInv() {
 function renderMenu() {
   return `<header><h2>Menü</h2><button class="x" data-act="close">✕</button></header>
     <div class="menu"><button data-act="close">Spiel fortsetzen</button><button data-act="sound">Ton: ${SFX.on ? 'an' : 'aus'}</button><button data-act="pixel">Pixel-Look: ${PX < 1 ? 'an' : 'aus'}</button><button data-act="fig3d">3D-Figuren: ${SPR.on ? 'an' : 'aus'}</button><button data-act="gfx">Grafik: ${GFX_NM[GFX.name]}</button><button data-act="infmana">Unendlich Mana: ${infOn ? 'an' : 'aus'}</button><button data-act="menu">Speichern und zum Hauptmenü</button></div>
-    <table class="keys">${[['Linksklick', 'Laufen / mit linker Fähigkeit angreifen'], ['Umschalt + Linksklick', 'Angreifen ohne zu laufen'], ['Rechtsklick', 'Rechte Fähigkeit'], ['Ö / Ä', 'Linke / rechte Fähigkeit auf den Mauszeiger'], ['Drittes Feld', 'Aura oder Stärkung, bleibt ständig aktiv'], ['F1–F8 / Mausrad', 'Rechte Fähigkeit wechseln'], ['1–4 (Q/E)', 'Tränke aus dem Gürtel'], ['WASD', 'Alternativ laufen'], ['C · I · T', 'Charakter · Inventar · Fähigkeiten'], ['Tab', 'Automap']].map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>`;
+    <table class="keys">${[['Linksklick', 'Laufen / mit linker Fähigkeit angreifen'], ['Umschalt + Linksklick', 'Angreifen ohne zu laufen'], ['Rechtsklick', 'Rechte Fähigkeit'], ['Ö / Ä', 'Linke / rechte Fähigkeit auf den Mauszeiger'], ['Drittes Feld', 'Aura oder Stärkung, bleibt ständig aktiv'], ['F1–F8 / Mausrad', 'Rechte Fähigkeit wechseln'], ['1–4 (Q/E)', 'Tränke aus dem Gürtel'], ['L', 'Leuchtfackel werfen (Highway der Toten)'], ['WASD', 'Alternativ laufen'], ['C · I · T', 'Charakter · Inventar · Fähigkeiten'], ['Tab', 'Automap']].map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</table>`;
 }
 
 const wareCost = it => it.val * 4, gambleCost = () => 60 + gs() * 30, rerollCost = () => 15 + gs() * 10;
@@ -1955,9 +1970,9 @@ function renderShop() {
   return `<header><h2>Händler</h2><div class="pts">${P.gold} Gold</div><button class="x" data-act="close">✕</button></header>
     <div class="bag">${cells}</div>
     <div class="row"><button data-buy="hp">Heiltrank (${potCost()} Gold)</button><button data-buy="mp">Manatrank (${potCost()} Gold)</button><button data-act="heal">Heilen (kostenlos)</button></div>
-    <div class="row"><button data-act="gamble">Glücksspiel (${gambleCost()} Gold)</button><button data-act="reroll">Neues Angebot (${rerollCost()} Gold)</button></div>
+    <div class="row"><button data-act="gamble">Glücksspiel (${gambleCost()} Gold)</button><button data-act="reroll">Neues Angebot (${rerollCost()} Gold)</button>${G.hw ? `<button data-buy="flare">Leuchtfackel (${potCost() * 2} Gold)</button>` : ''}</div>
     <div class="row"><button data-act="next">Runde ${P.depth} starten</button></div>
-    <p class="hint">Glücksspiel: zufälliger Gegenstand, oft magisch oder selten · Klick: kaufen · Verkaufen im Inventar (I) per Rechtsklick · Tränke: ${P.pots.hp}/10 Heil, ${P.pots.mp}/10 Mana</p>`;
+    <p class="hint">Glücksspiel: zufälliger Gegenstand, oft magisch oder selten · Klick: kaufen · Verkaufen im Inventar (I) per Rechtsklick · Tränke: ${P.pots.hp}/10 Heil, ${P.pots.mp}/10 Mana${G.hw ? ` · Leuchtfackeln: ${P.flares}/5 (L wirft sie zum Mauszeiger und lockt die Zombies an)` : ''}</p>`;
 }
 const PANELS = { skills: renderSkills, char: renderChar, inv: renderInv, menu: renderMenu, shop: renderShop };
 const renderPanel = () => { const n = $('#panel'); n.className = 'pn-' + panel; n.innerHTML = PANELS[panel](); };
@@ -2036,6 +2051,7 @@ $('#panel').addEventListener('click', e => {
     P.eq[k] = it; if (old) P.bag.push(old);
   }
   else if (d.eqslot && P.eq[d.eqslot] && P.bag.length < 30) { P.bag.push(P.eq[d.eqslot]); delete P.eq[d.eqslot]; }
+  else if (d.buy === 'flare') { if (P.gold >= potCost() * 2 && P.flares < 5) { P.gold -= potCost() * 2; P.flares++; } }
   else if (d.buy && P.gold >= potCost() && P.pots[d.buy] < 10) { P.gold -= potCost(); P.pots[d.buy]++; }
   S = calc(); renderPanel();
 });
@@ -2069,7 +2085,7 @@ function loadSave() {
   try {
     const p = JSON.parse(localStorage.getItem(SAVE));
     if (!p || !CL[p.cls]) return null;
-    p.map ||= 'sanct'; p.rounds ||= {}; p.bests ||= {}; // Stände von vor dem Highway der Toten
+    p.map ||= 'sanct'; p.rounds ||= {}; p.bests ||= {}; p.flares ||= 0; // Stände von vor dem Highway der Toten
     if (!p.hot) { p.hot = [...p.slots.slice(2), null, null].slice(0, 8); p.slots = p.slots.slice(0, 2); }
     for (const id in p.ranks) if (!SK[id]) delete p.ranks[id];
     p.slots = p.slots.map(id => SK[id] ? id : null);
@@ -2210,7 +2226,7 @@ function startGame() {
 }
 
 $('#select').addEventListener('click', e => {
-  const b = e.target.closest('[data-cls],[data-act]');
+  const b = e.target.closest('[data-cls],[data-act],[data-map]');
   if (!b) return;
   if (b.dataset.cls) {
     chosen = b.dataset.cls;
@@ -2242,6 +2258,7 @@ addEventListener('keydown', e => {
   else if (k === 'i' || k === 'b') toggle('inv');
   else if (!panel && (k === '1' || k === '2' || k === 'q')) potion('hp');
   else if (!panel && (k === '3' || k === '4' || k === 'e')) potion('mp');
+  else if (!panel && k === 'l') throwFlare();
 });
 addEventListener('keyup', e => { keys[{ Semicolon: 'ö', Quote: 'ä' }[e.code] || e.key.toLowerCase()] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.l = mouse.r = false; });

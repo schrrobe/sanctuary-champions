@@ -193,6 +193,12 @@ const SPR = (() => {
     bear: { k: 1.45, tw: 1.45, td: 1.35, sw: 0.18, hunch: 0.32, ua: 0.19, fa: 0.18, hr: 0.064, th: 0.24 },
     bones: { k: 1, tw: 0.8 },
     demon: { k: 1.55, tw: 1.42, td: 1.3, sw: 0.175, digi: 1, hunch: 0.42, ua: 0.2, fa: 0.19, hr: 0.068, th: 0.25 },
+    // Zombies aus Dead Nation: Jumper gorillaartig mit langen Armen und kurzen Beinen, Cutter riesig mit kleinem Kopf,
+    // Mouth und Runner hager und lang, Leech kindsgroß mit riesigem Kopf
+    ape: { k: 1.55, tw: 1.5, td: 1.3, sw: 0.19, hunch: 0.55, ua: 0.22, fa: 0.21, hr: 0.052, th: 0.2, sh: 0.2 },
+    giant: { k: 1.4, tw: 1.35, td: 1.2, sw: 0.17, hunch: 0.12, ua: 0.18, fa: 0.18, hr: 0.046, th: 0.25, sh: 0.25 },
+    gaunt: { k: 0.78, tw: 0.82, td: 0.8, sw: 0.112, ua: 0.19, fa: 0.18, hr: 0.058, th: 0.27, sh: 0.27 },
+    imp: { k: 1.05, sw: 0.11, ua: 0.12, fa: 0.11, hr: 0.1, th: 0.15, sh: 0.15, ank: 0.04, sp: 0.08, ch: 0.13 },
   };
 
   function human(L) {
@@ -218,6 +224,7 @@ const SPR = (() => {
       if (armored) add(kn, SPH, legs, 'metal', [0.014, 0, 0], 0.036 * k);
       if (bones) bone(kn, shin); else add(kn, limbGeo(shin, 0.041 * k, 0.03 * k, 0.15), legs, legK);
       if (!bones && !B.digi) add(kn, limbGeo(shin * 0.5, 0.038 * k, 0.034 * k, 0), boots, bootK, [0, -shin * 0.5, 0]);
+      if (L.stripe) add(kn, RING, L.stripe, 'cloth', [0, -shin * 0.42, 0], [0.043 * k, 0.12, 0.043 * k]);
       const an = J.an[s] = joint(J, kn, 0, -shin, 0);
       if (B.digi) {
         add(an, limbGeo(mt, 0.03 * k, 0.022 * k), legs, legK);
@@ -245,6 +252,24 @@ const SPR = (() => {
         add(J.hips, RING, shade(body, -0.1), 'metal', [0, -0.03, 0], [0.068 * B.td, 0.18, 0.09 * B.tw]);
       }
       if (L.robe) { add(J.chest, BOX, L.trim || shade(body, 0.2), 'gold', [0.066 * B.td, 0.05, 0], [0.006, 0.2, 0.02]); add(J.chest, RING, L.trim || body, 'gold', [0, 0.158, 0], [0.05 * B.td, 0.12, 0.07 * B.tw]); }
+      // Bombie: riesiger, blasiger Bauch
+      if (L.belly) {
+        const R = 0.105 * L.belly, cx = 0.04 * B.td;
+        add(J.spine, SPH, skin, sk, [cx, 0.07, 0], [R * B.td, R * 0.95, R * B.tw]);
+        for (let i = 0; i < 11; i++) { const u = (i / 10 - 0.5) * 1.9, v = Math.sin(i * 2.3) * 0.65; add(J.spine, SPH, shade(skin, 0.12), sk, [cx + Math.cos(u) * Math.cos(v) * R * B.td, 0.07 + Math.sin(v) * R * 0.95, Math.sin(u) * Math.cos(v) * R * B.tw], R * 0.085); }
+        for (const [y, z] of [[0.1, 0.4], [0.02, -0.5], [0.13, -0.2]]) add(J.spine, SPH, '#6a2418', 'flesh', [cx + R * B.td * 0.97, y, z * R * B.tw], [0.004, R * 0.1, R * 0.16]);
+      }
+      // Mouth: der Brustkorb klafft senkrecht zu einem roten Maul auf, Zähne an beiden Rändern
+      if (L.maw) {
+        add(J.chest, SPH, '#5a080c', 'flesh', [0.068 * B.td, 0.07, 0], [0.04, 0.12, 0.048 * B.tw]);
+        for (const z of [-1, 1]) for (let i = 0; i < 6; i++) add(J.chest, horn(0.007, 0.032), '#efe6d0', 'horn', [0.09 * B.td, 0.155 - i * 0.034, z * 0.042 * B.tw], 1, [-z * Math.PI / 2, 0, 0]);
+      }
+      if (L.vest) { // Splitterweste mit Taschen
+        add(J.chest, lathe('vest', [[0.096, -0.045], [0.1, 0], [0.108, 0.06], [0.112, 0.1], [0.106, 0.13], [0.09, 0.15], [0.06, 0.164]]), L.vest, 'leather', [0, 0, 0], [0.7 * B.td, 1, B.tw * 1.06]);
+        for (const z of [-1, 0, 1]) add(J.chest, BOX, shade(L.vest, -0.1), 'leather', [0.076 * B.td, 0.035, z * 0.036 * B.tw], [0.02, 0.034, 0.026]);
+      }
+      if (L.stripe) add(J.chest, RING, L.stripe, 'cloth', [0, 0.02, 0], [0.084 * B.td, 0.12, 0.1 * B.tw]); // Leuchtstreifen der Feuerwehrjacke
+      if (L.raw) for (let i = 0; i < 3; i++) add(J.chest, SPH, L.raw, 'flesh', [0.062 * B.td, 0.04 + i * 0.04, (i % 2 ? 1 : -1) * (0.02 + i * 0.014) * B.tw], [0.006, 0.024, 0.03]); // rohe, rote Stellen, flach auf der Haut
     }
     if (L.belt || armored || L.robe) {
       add(J.hips, RING, L.belt || (L.robe ? L.trim || shade(body, -0.2) : shade(body, -0.25)), L.robe && !L.belt ? 'gold' : 'leather', [0, 0.05, 0], [0.056 * B.td, 0.07, 0.074 * B.tw]);
@@ -278,9 +303,18 @@ const SPR = (() => {
         add(el, lathe('sleeve', [[0.034, 0], [0.048, -0.07], [0.064, -0.13], [0.06, -0.135]], 12), body, 'cloth2', [0, -B.fa * 0.2, 0], [k, 1, k]);
         add(el, RING, L.trim || body, 'gold', [0, -B.fa * 0.2 - 0.13, 0], [0.062 * k, 0.09, 0.062 * k]);
       }
+      if (L.stripe) add(el, RING, L.stripe, 'cloth', [0, -B.fa * 0.6, 0], [0.04 * k, 0.12, 0.04 * k]);
       const hd = J.hd[s] = joint(J, el, 0, -B.fa, 0);
-      add(hd, SPH, bones ? skin : hand, bones ? 'bone' : handK, [0.006, -0.024, 0], [0.02 * k, 0.03 * k, 0.017 * k]);
-      if (!bones) add(hd, SPH, bones ? skin : hand, handK, [0.016 * k, -0.034 * k, s * 0.006], [0.008 * k, 0.016 * k, 0.008 * k]);
+      if (L.blades) { // Cutter: lange, blutverschmierte Machetenklinge statt der Hand
+        const bl = 0.3 * (L.bladeLen || 1);
+        // breit wie ein Hackmesser, die Breitseite zeigt nach vorn und hinten wie auf dem Konzeptbild
+        const rot = [0, Math.PI / 2, 0];
+        add(hd, flat(`mach${bl}`, m => { m.moveTo(-0.03, 0.02); m.lineTo(0.03, 0.02); m.lineTo(0.075, -bl * 0.78); m.lineTo(0.005, -bl); m.lineTo(-0.05, -bl * 0.7); m.closePath(); }, 0.012, 0.003), L.blades, 'gold', [0, 0, 0], k, rot); // glatter Stahl statt Kettengeflecht
+        add(hd, flat(`machb${bl}`, m => { m.moveTo(0.004, -bl * 0.45); m.lineTo(0.06, -bl * 0.7); m.lineTo(0.005, -bl); m.lineTo(-0.03, -bl * 0.72); m.closePath(); }, 0.016, 0), '#6a0a0a', 'flesh', [0, 0, 0], k, rot);
+      } else {
+        add(hd, SPH, bones ? skin : hand, bones ? 'bone' : handK, [0.006, -0.024, 0], [0.02 * k, 0.03 * k, 0.017 * k]);
+        if (!bones) add(hd, SPH, bones ? skin : hand, handK, [0.016 * k, -0.034 * k, s * 0.006], [0.008 * k, 0.016 * k, 0.008 * k]);
+      }
       if (L.weapon === 'talons') for (const z of [-1, 0, 1]) add(hd, horn(0.009 * k, 0.07 * k, 0.03 * k, 0), L.horn || '#e0d0b0', 'horn', [0.012, -0.05 * k, z * 0.014 * k], 1, [0, 0, 0.3]);
     }
     // Waffe in der rechten Hand: Griffachse +x, Winkel setzt die Haltung
@@ -314,7 +348,7 @@ const SPR = (() => {
       add(J.skirt, skirtGeo(len, 0.082, 0.17), body, 'cloth2', [0, 0, 0], [0.82 * B.td, 1, B.tw]);
       if (L.trim) add(J.skirt, RING, L.trim, 'gold', [0, -len + 0.014, 0], [0.165 * 0.82 * B.td, 0.06, 0.165 * B.tw]);
     }
-    if (!L.robe && !bones && !L.tentacles && !B.digi) {
+    if (!L.robe && !bones && !L.tentacles && !B.digi && !L.nude) { // nude: ohne Lendenschurz (nackte Zombies)
       const tun = armored ? shade(legs, 0.05) : L.top || (bare ? L.belt || '#5a3a20' : body);
       add(J.hips, skirtGeo(0.17, 0.08, 0.112), tun, armored ? 'metal' : bare ? 'fur' : 'cloth2', [0, 0.04, 0], [0.86 * B.td, 1, B.tw * 1.02]);
     }
@@ -358,6 +392,15 @@ const SPR = (() => {
       for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; J.tents.push([chain(J, joint(J, J.hips, Math.cos(a) * 0.04, -0.05, Math.sin(a) * 0.05), 5, 0.1, 0.042, 0.01, shade(L.tentacles, -0.06 * (i % 2)), 'flesh'), a]); }
     }
     if (L.spikes) for (let i = 0; i < 5; i++) add(J.chest, horn(0.02 * k, (0.08 - i * 0.008) * k, -0.03 * k, 0), L.spikes, 'horn', [-0.062 * B.td, 0.15 - i * 0.045, 0], 1, [0, 0, 0.95 + i * 0.12]);
+    // Stacheln überall (Big Mouth, Big Cutter): Rücken, Schultern, Unterarme, Kopf
+    if (L.thorns) {
+      for (let i = 0; i < 10; i++) { const z = i % 2 ? 1 : -1; add(J.chest, horn(0.024 * k, (0.13 - i * 0.007) * k, -0.04 * k, 0), L.thorns, 'horn', [-0.07 * B.td, 0.18 - i * 0.026, z * 0.035 * B.tw], 1, [z * 0.55, 0, 1.0 + i * 0.07]); }
+      for (const s of [1, -1]) {
+        for (let j = 0; j < 3; j++) add(J.sh[s], horn(0.018 * k, (0.1 - j * 0.015) * k), L.thorns, 'horn', [-0.01 * k, 0.03 * k, s * j * 0.016 * k], 1, [s * (0.3 + j * 0.35), 0, 0.5 - j * 0.2]);
+        for (let j = 0; j < 2; j++) add(J.el[s], horn(0.012 * k, 0.07 * k), L.thorns, 'horn', [-0.03 * k, -B.fa * (0.3 + j * 0.3), 0], 1, [0, 0, 1.9]);
+      }
+      for (let j = 0; j < 3; j++) add(J.head, horn(B.hr * 0.18, B.hr * 1.1, -B.hr * 0.5, 0), L.thorns, 'horn', [-B.hr * 0.3, B.hr * 0.7, (j - 1) * B.hr * 0.5], 1, [(j - 1) * 0.5, 0, 0.6]);
+    }
     return { root, J, marks: J.marks, caster: ['staff', 'none'].includes(L.weapon || 'none'), pose: (an, p) => poseHuman(J, an, p) };
   }
 
@@ -407,6 +450,22 @@ const SPR = (() => {
         for (let i = 0; i < 4; i++) add(h, horn(r * 0.14, r * (0.55 - i * 0.07), -r * 0.25), shade(s, -0.18), 'horn', [r * (0.25 - i * 0.38), r * (0.82 - i * 0.12), 0], 1, [0, 0, 0.5 + i * 0.3]);
         if (!L.eyes) for (const z of [-1, 1]) add(h, SPH, '#d8b830', 'horn', [r * 0.72, r * 0.15, z * r * 0.45], r * 0.14);
         else eyes(r * 0.72, r * 0.15, r * 0.45);
+        break;
+      case 'maw': // Mouth: Kopf zu einem roten Maul aufgeklappt, Zahnreihen an den Rändern, Fleischfäden hängen herab
+        add(h, SPH, '#4a060a', 'flesh', [r * 0.25, -r * 0.2, 0], [r * 0.75, r * 1.3, r * 0.55]);
+        for (const z of [-1, 1]) {
+          const f = mount(h, r * 0.1, r * 0.15, z * r * 0.3, z * 0.7, 0, 0);
+          add(f, SPH, s, sk, [0, 0, z * r * 0.25], [r * 0.95, r * 1.4, r * 0.42]);
+          add(f, SPH, '#8a1418', 'flesh', [r * 0.08, 0, -z * r * 0.02], [r * 0.8, r * 1.25, r * 0.22]);
+          for (let i = 0; i < 7; i++) add(f, horn(r * 0.08, r * 0.45), '#efe6d0', 'horn', [r * 0.62, r * (0.95 - i * 0.32), -z * r * 0.1], 1, [-z * Math.PI / 2, 0, 0]);
+        }
+        for (let i = 0; i < 4; i++) chain(J, mount(h, r * 0.55, -r * 1.0, (i - 1.5) * r * 0.32), 3, r * 0.55, r * 0.13, r * 0.04, '#9a2024', 'flesh');
+        break;
+      case 'leech': // Leech: fast nur Maul mit Reißzähnen, oben weiße Augenbeulen
+        add(h, SPH, s, sk, [0, r * 0.5, 0], [r * 1.8, r * 2.0, r * 1.75]);
+        add(h, SPH, '#2a0406', 'flesh', [r * 1.15, r * 0.25, 0], [r * 0.75, r * 1.25, r * 1.2]);
+        for (let i = 0; i < 14; i++) { const a = i / 14 * TAU; add(h, horn(r * 0.13, r * 0.55), '#f2ead8', 'horn', [r * 1.55, r * 0.25 + Math.cos(a) * r * 1.05, Math.sin(a) * r * 1.0], 1, [a + Math.PI, 0, 0]); }
+        for (let i = 0, n = L.bulbs || 5; i < n; i++) { const a = (i / (n - 1) - 0.5) * 2.4; add(h, SPH, '#e8ecee', 'bone', [r * 0.3 + Math.cos(a) * r * 0.55, r * 2.3, Math.sin(a) * r * 1.0], r * (0.3 + (i % 2) * 0.08)); }
         break;
       case 'demon':
         add(h, SPH, s, sk, [0, 0, 0], [r * 1.1, r * 0.95, r * 0.9]);
@@ -459,6 +518,21 @@ const SPR = (() => {
           add(h, CAP, L.helm, metal ? 'metal' : sk, [-r * 0.02, r * 0.12, 0], [r * 1.13, r * 1.05, r * 1.0], [0, 0, 0.15]);
           if (metal) add(h, BOX, L.helm, 'metal', [r * 1.02, -r * 0.05, 0], [r * 0.12, r * 0.55, r * 0.14]);
           hornPair(L.horn, 'horn', r * 1.4, r * 1.0);
+        }
+        if (t === 'hardhat') { // Schutzhelm des Soldaten; der Feuerwehrhelm (brim) hat hinten eine lange Krempe
+          add(h, CAP, L.helm, 'leather', [-r * 0.02, r * 0.22, 0], [r * 1.2, r * 1.0, r * 1.12]);
+          add(h, SPH, shade(L.helm, -0.1), 'leather', [L.brim ? -r * 0.32 : 0, r * 0.2, 0], [r * (L.brim ? 1.6 : 1.3), r * 0.09, r * 1.3]);
+        }
+        if (t === 'cap') { // Polizeimütze mit Schirm und Abzeichen
+          add(h, SPH, L.helm, 'cloth', [0, r * 0.78, 0], [r * 1.12, r * 0.42, r * 1.08]);
+          add(h, SPH, '#101010', 'leather', [r * 0.75, r * 0.52, 0], [r * 0.55, r * 0.07, r * 0.75]);
+          add(h, SPH, '#c8a848', 'gold', [r * 1.05, r * 0.8, 0], r * 0.14);
+        }
+        if (L.hat === 'santa') { // Zombie-Weihnachtsmann
+          const m = mount(h, -r * 0.1, r * 0.75, 0, 0, 0, 0.5);
+          add(m, horn(r * 0.85, r * 1.7, -r * 0.7, 0), '#b81818', 'cloth');
+          add(m, RING, '#f4f0e8', 'fur', [0, r * 0.05, 0], [r * 0.95, r * 0.9, r * 0.95]);
+          add(m, SPH, '#f4f0e8', 'fur', [-r * 0.7, r * 1.7, 0], r * 0.28);
         }
       }
     }

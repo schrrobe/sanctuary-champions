@@ -430,6 +430,20 @@ const ZOMBIES = [
   { nm: 'Schlurfer', lk: 'Dicker Schlurfer', hp: 16, d: 4, v: 40, r: 16, col: '#7a8a6a', xp: 4, from: 1, undead: 1, w: 1, n: [2, 4] },
   { nm: 'Schutzanzug', hp: 4, d: 1.8, v: 50, r: 13, col: '#d8c030', xp: 1, from: 1, undead: 1, w: 3, n: [5, 8] },
   { nm: 'Häutling', hp: 2, d: 1.6, v: 135, r: 12, col: '#a83a2a', xp: 1, from: 1, undead: 1, w: 2, n: [8, 14] },
+  // Uniformierte: etwas zäher, die Uniform zeigt die Stärke. fireproof: Feuer verlangsamt nur
+  { nm: 'Polizist', hp: 9, d: 3, v: 50, r: 13, col: '#2a3858', xp: 3, from: 2, undead: 1, w: 2, n: [3, 5] },
+  { nm: 'Häftling', hp: 6, d: 2.4, v: 78, r: 13, col: '#e07020', xp: 2, from: 2, undead: 1, w: 1.5, n: [4, 7] },
+  { nm: 'Feuerwehrmann', hp: 15, d: 3.5, v: 72, r: 14, col: '#8a7a50', xp: 5, from: 3, undead: 1, w: 1, n: [2, 4], fireproof: 1 },
+  { nm: 'Biker', hp: 26, d: 5, v: 44, r: 16, col: '#1e1a18', xp: 6, from: 4, undead: 1, w: 1, n: [2, 3] },
+  { nm: 'Soldat', hp: 30, d: 5, v: 48, r: 14, col: '#5a5e3a', xp: 8, from: 5, undead: 1, w: 1, n: [2, 4] },
+  // Spezial-Zombies aus Dead Nation, eine Minderheit in der Horde
+  { nm: 'Runner', hp: 5, d: 3, v: 150, r: 13, col: '#9aa4b0', xp: 4, from: 1, undead: 1, w: 1, n: [1, 3], special: 1 },
+  { nm: 'Bombie', hp: 8, d: 2, v: 42, r: 18, col: '#cdb89a', xp: 6, from: 2, undead: 1, w: 0.8, n: [1, 1], special: 1 },
+  { nm: 'Mouth', hp: 30, d: 6, v: 45, r: 15, col: '#c8a490', xp: 15, from: 3, undead: 1, w: 0.5, n: [1, 1], special: 1 },
+  { nm: 'Jumper', hp: 40, d: 8, v: 60, r: 18, col: '#c8b070', xp: 15, from: 4, undead: 1, w: 0.6, n: [1, 2], special: 1 },
+  { nm: 'Cutter', hp: 140, d: 14, v: 55, r: 20, col: '#2a2a2e', xp: 40, from: 6, undead: 1, w: 0.4, n: [1, 1], special: 1 },
+  { nm: 'Leech', hp: 5, d: 2, v: 32, r: 10, col: '#7a2228', xp: 3, from: 7, undead: 1, w: 0.8, n: [3, 5], special: 1 },
+  { nm: 'Zombie-Weihnachtsmann', hp: 20, d: 3, v: 46, r: 15, col: '#b81818', xp: 10, from: 1, undead: 1, w: 0.08, n: [1, 1] },
 ];
 
 // [Name, Boden, Wände, Dunkelheit]

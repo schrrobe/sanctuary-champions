@@ -55,7 +55,7 @@ const BAL = (() => {
   // Fähigkeiten ohne eigenen Schaden (Schwächen, Betäuben, Furcht, Bekehren) wirkt sie erst wieder, wenn die Wirkung abläuft
   const recast = s => !(s.d || s.wm || s.pct) && ['nova', 'area', 'convert'].includes(s.t) ? s.deb?.dur || s.fear || s.st || s.dur || 4 : 0;
   function pilot(s, basic, now, mem) {
-    const p = G.player, all = foes(p), id = s.id;
+    const p = G.player, all = foes(p).filter(e => e.team !== 'n'), id = s.id; // Fässer und Autos des Highways greift der Prüfling nicht gezielt an
     // Fernkampf: nächstes Ziel mit freier Sichtlinie, sonst bleibt die Figur an Säulenecken hängen
     let tg = nearest(p, all);
     if (s.t !== 'melee' || !tg) tg = nearest(p, all.filter(e => dist(p, e) < 400 && clearLine(p, e, 6))) || tg;
@@ -230,7 +230,9 @@ if (typeof require === 'function' && typeof module === 'object' && require.main 
     };
     ctx.window = ctx;
     vm.createContext(ctx);
-    for (const f of ['data.js', 'sprites.js', 'models.js', 'audio.js', 'game.js', 'balance.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, f), 'utf8'), ctx, { filename: f });
+    // Skripte in der Reihenfolge von index.html, ohne three.js (die 3D-Figuren fallen ohne WebGL ohnehin weg)
+    const files = [...fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8').matchAll(/^<script src="([^"]+)"/gm)].map(m => m[1]).filter(f => !f.startsWith('vendor/'));
+    for (const f of [...files, 'balance.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, f), 'utf8'), ctx, { filename: f });
     return ctx;
   };
   const ctx = load();

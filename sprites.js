@@ -179,6 +179,37 @@ const MON_LOOKS = {
   ],
   'Schutzanzug': { skin: '#9aa088', body: '#d8c030', legs: '#d0b828', sleeves: 1, head: 'mask', hair: '#d8c030', boots: '#1a1a1a', belt: '#2a2a2a', hunch: 0.4, arms: 1 },
   'Häutling': { skin: '#a8392a', body: '#a8392a', legs: '#952f22', head: 'bald', build: 'slim', ribs: 1, hunch: 0.3, arms: 1, boots: '#7a2018' },
+  // Uniformierte: dunkelblaue Polizei mit Mütze, Häftlinge im grell orangen Overall, Feuerwehr in Schutzkleidung mit
+  // Leuchtstreifen und Axt, Biker dick in Lederjacke, Soldaten mit Helm und Splitterweste
+  'Polizist': [
+    { skin: '#8f9a80', body: '#26324e', legs: '#1e2840', sleeves: 1, head: 'cap', helm: '#1e2840', belt: '#141414', hunch: 0.4, arms: 1, boots: '#101010' },
+    { skin: '#949c86', body: '#26324e', legs: '#1e2840', sleeves: 1, head: 'hair', hair: '#2a2018', belt: '#141414', build: 'big', hm: 1.04, hunch: 0.35, arms: 1, boots: '#101010' },
+  ],
+  'Häftling': [
+    { skin: '#949c86', body: '#e06a1c', legs: '#e06a1c', sleeves: 1, head: 'bald', hunch: 0.3, arms: 1, boots: '#e8e0d0' },
+    { skin: '#8a9478', body: '#e06a1c', legs: '#e06a1c', sleeves: 1, head: 'hair', hair: '#1a1410', hunch: 0.35, arms: 1, boots: '#e8e0d0' },
+  ],
+  'Feuerwehrmann': { skin: '#8f9a80', body: '#8a7a50', legs: '#7a6c46', sleeves: 1, stripe: '#e0d860', head: 'hardhat', helm: '#d8a818', brim: 1, weapon: 'axe', hunch: 0.25, boots: '#141414' },
+  'Biker': [
+    { skin: '#949c86', body: '#1e1a18', legs: '#34405a', sleeves: 1, head: 'bald', beard: '#4a3a2a', belt: '#5a4a3a', build: 'big', belly: 1.2, hm: 1.04, hunch: 0.35, arms: 1, boots: '#141010' },
+    { skin: '#8a9478', body: '#1e1a18', legs: '#34405a', top: '#5a5a5a', head: 'hair', hair: '#6a6a6a', long: 1, beard: '#6a6a6a', build: 'big', belly: 1.1, hm: 1.04, hunch: 0.35, arms: 1, boots: '#141010' },
+  ],
+  'Soldat': { skin: '#8f9a80', body: '#5a5e3a', legs: '#4e5232', sleeves: 1, vest: '#3e4228', head: 'hardhat', helm: '#4a4e30', belt: '#2a2a1a', hunch: 0.3, arms: 1, boots: '#141410' },
+  'Soldat ohne Helm': { skin: '#8f9a80', body: '#5a5e3a', legs: '#4e5232', sleeves: 1, vest: '#3e4228', head: 'bald', belt: '#2a2a1a', hunch: 0.3, arms: 1, boots: '#141410' },
+  'Zombie-Weihnachtsmann': { skin: '#a0a890', body: '#b81818', legs: '#b81818', sleeves: 1, belt: '#141010', head: 'hair', hair: '#f0ece4', beard: '#f0ece4', hat: 'santa', build: 'big', belly: 1.4, hunch: 0.35, arms: 1, boots: '#141010' },
+  // Spezial-Zombies nach den Konzeptbildern von Dead Nation
+  'Runner': { nude: 1, skin: '#9aa4b0', body: '#9aa4b0', legs: '#2a3448', head: 'bald', build: 'gaunt', ribs: 1, weapon: 'talons', horn: '#c8c0b0', hunch: 0.3, hm: 1.08, boots: '#c8c0b8' },
+  'Bombie': { nude: 1, skin: '#cdb89a', body: '#cdb89a', legs: '#8a6a58', head: 'bald', build: 'big', belly: 2.4, arms: 1, hunch: 0.05, boots: '#6a4a3a' },
+  'Mouth': { nude: 1, skin: '#c8a490', body: '#c8a490', legs: '#b08a78', head: 'maw', maw: 1, raw: '#9a2a24', build: 'gaunt', hm: 1.45, hunch: 0.15, weapon: 'talons', horn: '#d8ccb8', boots: '#9a7a68' },
+  'Jumper': { nude: 1, skin: '#c8b070', body: '#c8b070', legs: '#3a3028', head: 'bald', build: 'ape', raw: '#a8382a', weapon: 'talons', horn: '#d8c8a0', hunch: 0.1, boots: '#3a2e24' },
+  'Cutter': { nude: 1, skin: '#2a2a2e', body: '#2a2a2e', legs: '#24242a', head: 'bald', build: 'giant', blades: '#b8b8c0', bladeLen: 1.1, raw: '#6a1414', eyes: '#a8d8ff', hm: 2, boots: '#1a1a1e' },
+  'Leech': { nude: 1, skin: '#7a2228', body: '#7a2228', legs: '#6a1c22', head: 'leech', build: 'imp', hunch: 0.15, boots: '#5a161a' },
+  // Endbosse (Daten und Verhalten in bosses.js): Riesenformen der Spezial-Zombies, die Größe kommt über den Radius,
+  // beim Big Cutter und Big Mouth zusätzlich über hm, damit sie ihre gewöhnliche Form deutlich überragen
+  'Big Jumper': { nude: 1, skin: '#a8904e', body: '#a8904e', legs: '#2e2620', head: 'bald', build: 'ape', raw: '#b02a20', spikes: '#e8d8b0', weapon: 'talons', horn: '#e8dcc0', hunch: 0.1, eyes: '#ffd040', hm: 1, boots: '#2a2018' },
+  'Big Leech': { nude: 1, skin: '#5a1420', body: '#5a1420', legs: '#4a1018', head: 'leech', bulbs: 9, build: 'imp', belly: 1.8, thorns: '#c8b8a0', hunch: 0.1, hm: 1, boots: '#3a0c12' },
+  'Big Cutter': { nude: 1, skin: '#1e1e24', body: '#1e1e24', legs: '#18181e', head: 'bald', build: 'giant', blades: '#8a8a94', bladeLen: 1.4, thorns: '#3a3a42', raw: '#5a0e0e', eyes: '#ff4020', hm: 1.4, boots: '#121216' },
+  'Big Mouth': { nude: 1, skin: '#6a2848', body: '#6a2848', legs: '#5a1e3c', head: 'maw', maw: 1, raw: '#a83050', thorns: '#d070a8', build: 'giant', weapon: 'talons', horn: '#e0a0c8', hunch: 0.1, hm: 1.25, boots: '#4a1830' },
 };
 const MIN_LOOKS = {
   skel: MON_LOOKS['Skelett'],
@@ -356,6 +387,9 @@ function head(g, L, st) {
   }
   if (L.head === 'horns') hornPair(L.horn, false);
   if (L.head === 'goat') hornPair(L.horn, true);
+  // Zombies des Highways der Toten: Helm und Mütze als Kappe, Maul und Leech-Kopf als rotes Maul mit Zähnen
+  if (L.head === 'hardhat' || L.head === 'cap') { g.fillStyle = L.helm; g.beginPath(); g.arc(0, hy - 0.5, 6.8, Math.PI, Math.PI * 2); g.fill(); g.fillRect(L.brim ? -9 : -7, hy - 1.5, L.brim ? 16 : 14, 2); }
+  if (L.head === 'maw' || L.head === 'leech') { const k = L.head === 'leech' ? 1.6 : 1; disc(g, 1, hy + 1, 5 * k, '#5a080c'); g.strokeStyle = '#efe6d0'; g.lineWidth = 1.2; g.setLineDash([1.5, 1.5]); g.beginPath(); g.arc(1, hy + 1, 4.2 * k, 0, 7); g.stroke(); g.setLineDash([]); return; }
   if (!st.back) {
     const ec = L.eyes || '#1a1010';
     // von vorn beide Augen mittig, im Profil zur Blickseite verschoben
@@ -599,7 +633,7 @@ const seeded = h => { let s = h >>> 0 || 1; return () => (s = (Math.imul(s, 1103
 function drawProp(g, pr, sx, sy, t, hov) {
   g.save(); g.translate(sx, sy); g.lineCap = 'round';
   if (hov) g.filter = 'brightness(1.6)';
-  g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(2, 1, pr.k === 'shrine' ? 18 : 13, 6, 0, 0, 7); g.fill();
+  if (pr.k !== 'trunk') { g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(2, 1, pr.k === 'shrine' ? 18 : 13, 6, 0, 0, 7); g.fill(); }
   const cyl = (col, w) => { const lg = g.createLinearGradient(-w, 0, w, 0); lg.addColorStop(0, shade(col, -0.2)); lg.addColorStop(0.35, shade(col, 0.08)); lg.addColorStop(1, shade(col, -0.32)); return lg; };
   const r = seeded(pr.seed * 1000);
   if (pr.k === 'barrel') {
@@ -651,8 +685,71 @@ function drawProp(g, pr, sx, sy, t, hov) {
     const on = !pr.open, pulse = on ? 0.75 + Math.sin(t * 3) * 0.25 : 0;
     g.strokeStyle = on ? '#9fe0ff' : '#4a4844'; g.lineWidth = 1.8; g.beginPath(); g.arc(0, -36, 5, 0, 7); g.moveTo(0, -44); g.lineTo(0, -28); g.moveTo(-5, -36); g.lineTo(5, -36); g.stroke();
     if (on) { glowDot(g, 0, -36, 18 * pulse + 6, '#3a8ac0'); glowDot(g, 0, -60, 10, '#6ac0ff'); }
+  } else if (pr.k === 'trunk') {
+    // Kofferraum eines Wracks am Highway der Toten: ein blinkendes Licht am Heck, offen nur noch der hochgeklappte Deckel
+    if (pr.open) { limb(g, -9, -30, 9, -40, 2.5, 'rgba(30,30,30,.8)'); }
+    else { // im Tageslicht braucht das Licht einen dunklen Rand, sonst geht es im hellen Sand unter
+      const on = (t * 1.6 + pr.seed) % 1 < 0.55;
+      if (on) { g.strokeStyle = 'rgba(255,180,40,.7)'; g.lineWidth = 2; g.beginPath(); g.ellipse(0, 0, 22, 10, 0, 0, 7); g.stroke(); }
+      disc(g, 0, -32, 9, 'rgba(20,14,6,.8)'); disc(g, 0, -32, 6.5, on ? '#ffb020' : '#6a4410');
+      if (on) { glowDot(g, 0, -32, 44, 'rgba(255,170,40,.95)'); disc(g, 0, -32, 2.6, '#fffbe8'); }
+    }
+  } else if (pr.k === 'crate') {
+    // Beutekiste wie in Dead Nation: olivgrüne Holzkiste mit Schablonenschrift, der rote Rauch steigt aus umgebung.js auf
+    g.scale(1.6, 1.6);
+    g.fillStyle = '#2e3420'; g.beginPath(); g.moveTo(14, 0); g.lineTo(20, -5); g.lineTo(20, -20); g.lineTo(14, -15); g.fill();
+    g.fillStyle = cyl('#5c6a3a', 15); g.fillRect(-15, -15, 29, 15); g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 1; g.strokeRect(-15, -15, 29, 15);
+    g.fillStyle = pr.open ? '#1a1c12' : '#6c7a46'; g.beginPath(); g.moveTo(-15, -15); g.lineTo(14, -15); g.lineTo(20, -20); g.lineTo(-9, -20); g.closePath(); g.fill(); g.stroke();
+    for (const x of [-11, 10]) limb(g, x, -15, x, 0, 2, '#3a4226');
+    g.fillStyle = '#e8e0c0'; g.font = '700 6px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('U.S.', -1, -6);
+    if (pr.open) glowDot(g, 2, -18, 14, '#706030');
+  } else if (pr.k === 'medkit') {
+    // Medikit: weißer Koffer mit rotem Kreuz
+    g.scale(1.6, 1.6);
+    g.fillStyle = '#9a9a96'; g.beginPath(); g.moveTo(9, 0); g.lineTo(13, -3); g.lineTo(13, -12); g.lineTo(9, -9); g.fill();
+    g.fillStyle = cyl('#ecebe6', 10); g.fillRect(-10, -9, 19, 9); g.fillStyle = '#f6f6f2'; g.beginPath(); g.moveTo(-10, -9); g.lineTo(9, -9); g.lineTo(13, -12); g.lineTo(-6, -12); g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 1; g.strokeRect(-10, -9, 19, 9); limb(g, -3, -12, 3, -12, 2, '#5a5a5a');
+    g.fillStyle = '#d01818'; g.fillRect(-2, -8, 3, 7); g.fillRect(-4.5, -6, 8, 3);
+    if (!pr.open) glowDot(g, 0, -10, 12 + 3 * Math.sin(t * 3), 'rgba(255,90,90,.45)');
   }
   g.restore();
+}
+// Benzinfass: rotes Stahlfass mit Rippen und Warnaufkleber; kurz vor der Explosion glüht es auf
+function drawFuel(g, sx, sy, t, fuse) {
+  g.save(); g.translate(sx, sy);
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(2, 1, 12, 5.5, 0, 0, 7); g.fill();
+  const lg = g.createLinearGradient(-10, 0, 10, 0); lg.addColorStop(0, '#6a1410'); lg.addColorStop(0.35, '#d8382a'); lg.addColorStop(1, '#58100c');
+  g.fillStyle = lg; g.fillRect(-10, -32, 20, 32);
+  g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 1.6;
+  for (const y of [-8, -24]) { g.beginPath(); g.ellipse(0, y, 10, 3, 0, 0, Math.PI); g.stroke(); }
+  g.fillStyle = '#f0c020'; g.beginPath(); g.moveTo(0, -21); g.lineTo(5, -14); g.lineTo(0, -10); g.lineTo(-5, -14); g.closePath(); g.fill(); // Warnraute
+  g.fillStyle = '#1a1a1a'; g.beginPath(); g.moveTo(0, -18); g.quadraticCurveTo(2.5, -14, 0, -12); g.quadraticCurveTo(-2.5, -14, 0, -18); g.fill();
+  g.fillStyle = '#a82a20'; g.beginPath(); g.ellipse(0, -32, 10, 3.4, 0, 0, 7); g.fill(); g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 1; g.stroke();
+  disc(g, 4, -32.5, 1.6, '#3a3a3a');
+  if (fuse !== undefined) glowDot(g, 0, -18, 26 + 8 * Math.sin(t * 40), 'rgba(255,160,60,.9)');
+  g.restore();
+}
+// Leuchtfackel: roter Stab mit gleißender Spitze; z hebt sie im Wurf an, lit: sie brennt
+function drawFlare(g, sx, sy, t, z, lit, a) {
+  g.save(); g.translate(sx, sy - z);
+  if (!z) { g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(1, 1, 8, 3, 0, 0, 7); g.fill(); }
+  g.rotate(z ? t * 9 : a);
+  limb(g, -10, 0, 8, 0, 5, '#b81c14'); limb(g, -10, 0, -6, 0, 5, '#e8e0c8');
+  g.rotate(z ? -t * 9 : -a);
+  if (lit) {
+    const f = 0.8 + 0.2 * Math.sin(t * 37) + 0.1 * Math.sin(t * 23);
+    glowDot(g, 0, -4, 60 * f, 'rgba(255,30,20,.85)'); glowDot(g, 0, -3, 16 * f, '#ffffff');
+    for (let i = 0; i < 6; i++) { const b = t * 13 + i * 1.7; disc(g, Math.cos(b) * 12 * f, -5 - Math.abs(Math.sin(b * 1.3)) * 18, 1.6, '#ffe0c0'); }
+  } else glowDot(g, 0, -1, 9, 'rgba(255,90,60,.7)');
+  g.restore();
+}
+function flareIcon() {
+  if (ICONS.flare) return ICONS.flare;
+  const c = mkCanvas(40), g = c.getContext('2d');
+  g.translate(20, 22); g.rotate(-0.7);
+  limb(g, -12, 0, 8, 0, 6, '#b81c14'); limb(g, -12, 0, -7, 0, 6, '#e8e0c8');
+  g.setTransform(1, 0, 0, 1, 0, 0); glowDot(g, 27, 13, 12, 'rgba(255,60,40,.9)'); disc(g, 27, 13, 3, '#fff4e0');
+  return ICONS.flare = c.toDataURL();
 }
 
 // ---------- Symbole ----------

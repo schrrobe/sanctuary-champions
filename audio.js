@@ -38,6 +38,22 @@ const SFX = (() => {
     chest: () => { tone(0.45, 110, 170, 0.15, 'sawtooth'); noise(0.4, 300, 6, 0.2, 'bandpass', 600); noise(0.1, 200, 1, 0.4, 'lowpass', 0, 0.4); },
     shrine: () => [392, 494, 587, 784].forEach((f, i) => tone(1.4, f, f * 1.01, 0.07, 'sine', i * 0.08)),
     portal: () => { tone(0.9, 120, 480, 0.15, 'sine'); noise(0.9, 400, 2, 0.2, 'bandpass', 2000); },
+    // Highway der Toten
+    boom: () => { noise(1.3, 900, 0.5, 0.9, 'lowpass', 60); tone(1, 95, 28, 0.6, 'sine'); noise(0.3, 2600, 0.8, 0.45, 'bandpass', 500); },
+    alarm: () => { tone(0.42, 640, 1250, 0.09, 'square'); tone(0.42, 1250, 640, 0.09, 'square', 0.44); },
+    // k: Anteil der nahen Horde (0–1): mehr Stimmen und lauteres Schlurfen
+    horde: (k = 0.5) => {
+      noise(0.9, 240, 1.4, 0.08 + 0.18 * k, 'bandpass', 160);
+      for (let i = 0; i < 1 + Math.round(k * 3); i++) { const f = 80 + Math.random() * 70; tone(1.3 + Math.random(), f, f * 0.72, 0.03 + 0.05 * k, 'sawtooth', Math.random() * 0.8); }
+    },
+    mouth: () => { tone(1.3, 950, 380, 0.16, 'sawtooth'); tone(1.3, 1420, 560, 0.1, 'square', 0.02); noise(1.1, 2300, 1.5, 0.28, 'bandpass', 900); },
+    jumper: () => { tone(0.55, 260, 720, 0.18, 'sawtooth'); tone(0.45, 720, 230, 0.15, 'sawtooth', 0.5); noise(0.8, 700, 1, 0.22, 'bandpass', 300); },
+    bombie: () => { noise(1.5, 4200, 0.7, 0.24, 'highpass', 2400); tone(1.1, 70, 48, 0.12, 'sine'); },
+    spit: () => { noise(0.28, 1300, 2, 0.35, 'bandpass', 380); tone(0.16, 320, 110, 0.12, 'triangle'); },
+    charge: () => { tone(0.8, 130, 55, 0.26, 'sawtooth'); noise(0.6, 320, 0.8, 0.42, 'lowpass', 90); },
+    shot: () => { noise(0.14, 3200, 0.6, 0.7, 'highpass', 700); tone(0.09, 230, 55, 0.4, 'square'); },
+    boss: () => { tone(1.7, 82, 44, 0.34, 'sawtooth'); tone(1.7, 123, 58, 0.2, 'square', 0.05); noise(1.5, 420, 0.7, 0.36, 'lowpass', 110); },
+    flare: () => noise(0.9, 5200, 0.8, 0.22, 'highpass', 2800),
   };
 
   // Musik: dunkler Bordun und vereinzelte Zupftöne mit Echo
@@ -69,12 +85,12 @@ const SFX = (() => {
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       music();
     },
-    // gap: Mindestabstand in ms, damit viele gleichzeitige Treffer nicht übersteuern
-    play(name, gap = 60) {
+    // gap: Mindestabstand in ms, damit viele gleichzeitige Treffer nicht übersteuern; a geht an das Geräusch (etwa Lautstärke)
+    play(name, gap = 60, ...a) {
       if (!ac || !on || !SOUNDS[name]) return;
       const t = performance.now();
       if (t - (last[name] || 0) < gap) return;
-      last[name] = t; SOUNDS[name]();
+      last[name] = t; SOUNDS[name](...a);
     },
     get on() { return on; },
     toggle() {

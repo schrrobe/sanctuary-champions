@@ -40,6 +40,14 @@ _Vermeiden_: Tankwagen, Lkw
 Ein Wurfgegenstand vom Händler, der Zombies für kurze Zeit anlockt.
 _Vermeiden_: Fackel, Flare
 
+**Säurepfütze**:
+Eine Pfütze aus der Säure eines Leech oder des Big Leech, die Held und Beschwörungen verätzt, solange sie darin stehen.
+_Vermeiden_: Giftpfütze, Säurelache
+
+**Benzinlache**:
+Das brennende Benzin, das der explodierte Tanklaster für kurze Zeit hinterlässt.
+_Vermeiden_: Feuerpfütze, Ölfleck
+
 **Kofferraum**:
 Ein Behälter in einem Autowrack mit kleiner Beute, das Gegenstück zur Urne im Chaos-Sanktuarium.
 _Vermeiden_: Kiste, Truhe
@@ -100,8 +108,28 @@ Eine Gegnerart auf dem Highway der Toten mit eigenem Namen, Aussehen und Verhalt
 _Vermeiden_: Zombie-Typ, Zombie-Klasse
 
 **Spezial-Zombie**:
-Eine Zombie-Art mit besonderer Fähigkeit nach den Special Infected aus Dead Nation, etwa Runner, Bombie oder Mouth.
+Eine Zombie-Art mit besonderer Fähigkeit nach den Special Infected aus Dead Nation: Runner, Bombie, Mouth, Jumper, Cutter und Leech.
 _Vermeiden_: Special Infected, Sonder-Zombie, Elite
+
+**Uniformierter**:
+Ein gewöhnlicher Zombie in Dienstkleidung, etwa Polizist, Häftling, Feuerwehrmann, Biker oder Soldat, zäher als ein Schlurfer.
+_Vermeiden_: Personnel, Uniform-Zombie
+
+**Gerufener Zombie**:
+Ein Zombie, den ein Mouth oder ein Endboss während der Runde herbeiruft. Er kommt zu den Zombies der Runde dazu.
+_Vermeiden_: Verstärkung, Nachschub
+
+**Gefolge**:
+Die Zombies, die zusammen mit einem Endboss erscheinen.
+_Vermeiden_: Eskorte, Leibwache
+
+**Lauern**:
+Ein Runner wartet reglos an einer Wand oder einem Wrack, bis der Held nahe kommt.
+_Vermeiden_: Verstecken, Hinterhalt
+
+**Ansturm**:
+Der geradlinige Sturmangriff eines Cutters oder des Big Cutter, der alles im Weg umreißt.
+_Vermeiden_: Charge, Sturmlauf
 
 **Champion**:
 Ein verstärkter Gegner, zäher und schneller als die übrigen seiner Art.

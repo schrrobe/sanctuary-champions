@@ -12,6 +12,21 @@ let HW_MAP = null, HWT = null, HWP = null;
 const uhash = (x, y) => hash(x, y) >>> 1; // 31 Bit ohne Vorzeichen: Reste und Verschiebungen mit >> bleiben positiv
 const HW_CHUNKS = new Map(); // gebackene Bodenkacheln, bleiben über Tod und Rundenwechsel erhalten
 
+// ---------- Erweiterungspunkte ----------
+// Zombie-Arten (zombies.js), Endbosse (bosses.js) und Umgebung (umgebung.js) hängen sich hier ein, damit sie den Kern
+// nicht ändern müssen. Alle werden nur auf dem Highway der Toten aufgerufen (G.hw), das Chaos-Sanktuarium bleibt unberührt.
+// target(tg, e): Ziel eines Zombies ersetzen (Rückgabe: neues Ziel, sonst bleibt es) · act(e, tg, dt, spd): eigenes Verhalten,
+// true übernimmt den Zug (vor Fernkampf und Nahkampf, nach Betäubung und Furcht) · hit(src, t, dmg, el, o): neuer Schaden,
+// false hebt den Treffer auf · kill(e): direkt nach dem Tod (e.noCorpse verhindert die Leiche) · spawn(e): neuer Gegner ·
+// round(d): Rundenstart, G.queue ist gefüllt · props(): Objekte zur Pause · update(dt) · under(): Bodenschicht, ctx in
+// Weltkoordinaten (isoT) · sort(list): Einträge { d: x + y, draw() } für die Tiefensortierung · over(): über allem, Bildschirm ·
+// light(lamp) und tint(tint): Licht und Farbschein, Bildschirmkoordinaten · pause(): Zusatztext der Pausenleiste
+const HWH = { target: [], act: [], hit: [], kill: [], spawn: [], round: [], props: [], update: [], under: [], sort: [], over: [], light: [], tint: [], pause: [] };
+const hwEach = (k, ...a) => { for (const f of HWH[k]) f(...a); };
+const hwAny = (k, ...a) => HWH[k].some(f => f(...a));
+const hwFirst = (k, ...a) => { for (const f of HWH[k]) { const v = f(...a); if (v !== undefined) return v; } };
+const hwChain = (k, v, ...a) => { for (const f of HWH[k]) v = f(v, ...a) ?? v; return v; };
+
 // ---------- Kartenaufbau ----------
 function hwGen() {
   const N = HW_N, C = HW_C, A = N * N;
@@ -182,6 +197,15 @@ function hwGen() {
   for (let n = 0, tries = 0; n < 170 && tries < 2000; tries++) if (put('boulder', ri(8, N - 9), ri(8, N - 9), 1, 1, { z: ri(24, 44), free: true })) n++;
   for (let n = 0, tries = 0; n < 300 && tries < 3000; tries++) if (put('cactus', ri(8, N - 9), ri(8, N - 9), 1, 1, { z: ri(72, 128), free: true })) n++;
 
+  // Benzinfässer an Tankstelle, Farm, Straßensperren und im Quarantänelager; feste Felder ohne Zufall, damit die Karte gleich bleibt
+  const fuel = [];
+  for (const [x, y] of [
+    [C - 14, C - 21], [C - 14, C - 20], [C - 13, C - 21], [C - 25, C - 19], [C - 25, C - 18], [C - 24, C - 12], [C - 24, C - 10],
+    [FX + 21, FY + 5], [FX + 21, FY + 6], [FX + 20, FY + 5], [FX + 39, FY + 13], [FX + 43, FY + 13], [FX + 17, FY + 23],
+    [gate - 11, C - 5], [gate - 11, C - 4], [gate - 11, C + 3], [gate - 11, C + 4], [C - 5, C + 79], [C - 5, C + 80], [C + 4, C + 79], [C + 4, C + 80],
+    [QX + 8, QY + 37], [QX + 8, QY + 38], [QX + 13, QY + 36], [gate - 3, QY + 6], [gate + 8, QY + 6], [QX + 46, QY + 32], [QX + 47, QY + 32],
+  ]) { const i = I(x, y); if (map[i] && !fuel.includes(i)) fuel.push(i); }
+
   // Austrittspunkte: freie Felder an Gebäuden, Bussen, Lastern, Zelten und Wohnwagen, dazu die Gullys
   const exits = [...holes];
   for (let i = 0; i < A; i++) {
@@ -191,7 +215,7 @@ function hwGen() {
   // Umrisse für die Automap: Gebäude, Fahrzeuge, Felsen und Zäune, ohne Kakteen und kleine Steine
   const auto = new Uint8Array(A);
   for (let i = 0; i < A; i++) if (!map[i] && !['cactus', 'boulder', 'pump', 'sign', 'board'].includes(obs[ob[i]]?.k)) auto[i] = 1;
-  return { map, ob, obs, gr, hgt, draw, auto, marks, decals, holes, exits, cars, start: { x: (C + 0.5) * T, y: (C + 0.5) * T } };
+  return { map, ob, obs, gr, hgt, draw, auto, marks, decals, holes, exits, cars, fuel, start: { x: (C + 0.5) * T, y: (C + 0.5) * T } };
 }
 
 // Automap: ein Bildpunkt je Feld, Straßen grau, Plätze hell, Hindernisse als Umriss
@@ -579,6 +603,29 @@ function hwSprite(o) {
     ctx.fillStyle = '#6a5a46'; ctx.fillRect(sx - k, sy - 30, k * 2, 24); ctx.beginPath(); ctx.ellipse(sx, sy - 6, k, k / 2, 0, 0, Math.PI); ctx.fill();
     ctx.fillStyle = '#1a1612'; ctx.beginPath(); ctx.ellipse(sx, sy - 30, k * 0.8, k * 0.4, 0, 0, 7); ctx.fill();
     ctx.fillStyle = '#5a3a1e'; ctx.fillRect(sx - k * 0.8, sy - o.z - 10, 5, o.z - 20); ctx.fillRect(sx + k * 0.8 - 5, sy - o.z - 10, 5, o.z - 20); ctx.fillRect(sx - k * 0.8, sy - o.z - 12, k * 1.6, 6);
+  }
+}
+
+// ---------- Explosionen ----------
+// Trifft alle Figuren im Umkreis r (Zombies, Held, Beschwörungen) mit Abfall zum Rand auf 40 % und stößt sie weg (Held und
+// Endbosse nicht). dmg gilt für Gegnerstufe 1 und wächst wie das Leben (Zombies) bzw. der Schaden (Held, Beschwörungen) der Zombies.
+// o: src (Verursacher, wird nicht getroffen), el (Element, Standard Feuer), vis (false: ohne Feuerball, etwa für Schockwellen), kb (Wegstoßen in px)
+function hwBoom(x, y, r, dmg, o = {}) {
+  const d = gs(), el = o.el || 'fire';
+  if (o.vis !== false) {
+    boom(x, y, 20, el, r * 0.6, 0.5);
+    emit(x, y, 10, el, Math.min(60, r / 3), r * 0.5, { vz: rnd(80, 220) });
+    SFX.play('boom', 80);
+  }
+  fx({ k: 'ring', x, y, r0: 10, r1: r, col: o.vis === false ? '#d8c8a0' : '#ffb040', life: 0.35 });
+  for (const e of G.ents) {
+    if (e.dead || e.noTarget || e === o.src) continue;
+    const l = Math.hypot(e.x - x, e.y - y);
+    if (l > r + e.r) continue;
+    const k = 1 - 0.6 * clamp(l / r, 0, 1), kb = (o.kb ?? 50) * k;
+    if (kb > 0 && e.kind !== 'boss' && !e.player && e.team !== 'n') { const a = Math.atan2(e.y - y, e.x - x); for (let s = 0; s < kb; s += 10) move(e, Math.cos(a) * 10, Math.sin(a) * 10); }
+    // boom 2: Explosion (zerreißt Zombies, setzt sie in Brand, zündet Fässer), boom 1: Schockwelle
+    hit(o.src || null, e, dmg * k * (e.team === 'e' ? 1.14 : 1.11) ** (d - 1), el, { boom: o.vis === false ? 1 : 2 });
   }
 }
 

@@ -69,12 +69,39 @@ Alle Zombies sind Untote. Die Spezial-Zombies und Endbosse tragen ihre Originaln
 | selten | Zombie-Weihnachtsmann | lässt viel Gold fallen |
 
 - **Treffer unter Zombies:** Bombie-Explosion, Jumper-Landung, Cutter-Ansturm, Polizistenschüsse und alle Explosionen treffen auch Zombies.
-- **Lauernde Runner:** Sie springen los, sobald der Held nahe kommt, spätestens aber nach 20 Sekunden oder sobald höchstens 5 Zombies übrig sind.
+- **Lauernde Runner:** Sie springen los, sobald der Held nahe kommt, spätestens aber nach 20 Sekunden oder sobald höchstens 5 Zombies übrig sind. Auch eine Leuchtfackel, ein heulendes Alarm-Auto oder ein Treffer holt sie hervor.
 - **Gerufene Zombies:** Die Häutlinge des Mouth, der Häutlings-Ring des Big Mouth und die Leeches des Big Leech kommen zusätzlich zu den Zombies der Runde und müssen ebenfalls besiegt werden. Sie zählen aber gegen die Obergrenze: Leben schon 165 Zombies, wird niemand gerufen.
+- **Champions und Unique-Gegner unter den Spezial-Zombies:** Ihre Gruppen sind höchstens eins größer als die größte gewöhnliche Gruppe ihrer Art, damit nicht vier Cutter zugleich kommen. Die freien Plätze bekommt eine gewöhnliche Gruppe, die Rundengröße bleibt gleich.
+
+Werte für Gegnerstufe 1. Leben, Schaden und Erfahrung wachsen wie bei allen Gegnern mit der Gegnerstufe. Der Anteil bestimmt, wie oft eine Gruppe der Art gezogen wird. Spezial-Zombies machen etwa 7 bis 9 % der Horde aus.
+
+| Zombie-Art | Leben | Schaden | Tempo | Anteil | Gruppe | ab Runde |
+|---|---|---|---|---|---|---|
+| Schlurfer | 6 | 2,4 | 48 | 6 | 6–10 | 1 |
+| Dicker Schlurfer | 16 | 4 | 40 | 1 | 2–4 | 1 |
+| Schutzanzug | 4 | 1,8 | 50 | 3 | 5–8 | 1 |
+| Häutling | 2 | 1,6 | 135 | 2 | 8–14 | 1 |
+| Runner | 5 | 3 | 150 | 1 | 1–3 | 1 |
+| Polizist | 9 | 3 | 50 | 2 | 3–5 | 2 |
+| Häftling | 6 | 2,4 | 78 | 1,5 | 4–7 | 2 |
+| Bombie | 8 | 2 | 42 | 0,8 | 1 | 2 |
+| Feuerwehrmann | 15 | 3,5 | 72 | 1 | 2–4 | 3 |
+| Mouth | 30 | 6 | 45 | 0,5 | 1 | 3 |
+| Biker | 26 | 5 | 44 | 1 | 2–3 | 4 |
+| Jumper | 40 | 8 | 60 | 0,6 | 1–2 | 4 |
+| Soldat | 30 | 5 | 48 | 1 | 2–4 | 5 |
+| Cutter | 140 | 14 | 55 | 0,4 | 1 | 6 |
+| Leech | 5 | 2 | 32 | 0,8 | 3–5 | 7 |
+| Zombie-Weihnachtsmann | 20 | 3 | 46 | 0,08 | 1 | 1 |
+
+Dazu bei Gegnerstufe 1:
+- Bombie-Explosion: 26 Schaden im Radius 120
+- Jumper-Schockwelle: 12 im Radius 110
+- Polizistenschuss und Cutter-Ansturm: doppelter Schaden der Art
 
 ## Endbosse
 
-Jede 5. Runde erscheint ein Endboss, jede 20. Runde zum Abschluss des Zyklus der stärkste. Ab Runde 20 kommt in Endboss-Runden zusätzlich zufällig einer der drei anderen. Jeder Endboss bringt Gefolge mit.
+Jede 5. Runde erscheint ein Endboss, jede 20. Runde zum Abschluss des Zyklus der stärkste. Ab Runde 20 kommt in jeder Endboss-Runde zusätzlich zufällig ein zweiter dazu. Der zweite ist nie der Big Mouth, der bleibt wie Diablo im Chaos-Sanktuarium dem Abschluss vorbehalten. Jeder Endboss bringt Gefolge mit, und er kommt am Ende der Horde als Abschluss der Runde. Auf dem Highway der Toten ist sein Lebensbalken immer zu sehen, auch aus der Ferne.
 
 | Runde im Zyklus | Endboss | Verhalten |
 |---|---|---|
@@ -84,6 +111,22 @@ Jede 5. Runde erscheint ein Endboss, jede 20. Runde zum Abschluss des Zyklus der
 | 20 | Big Mouth | Sein Schrei lässt sich nicht unterbrechen. Um den Helden steigt ein Ring aus Häutlingen aus dem Boden. |
 
 Dead Nation selbst hat keine echten Endbosse. Belegt ist nur der Big Mouth aus dem DLC, die anderen drei sind nach seinem Muster abgeleitet.
+
+Werte für Gegnerstufe 1. Die Größe im Bild ergibt sich aus dem Radius, beim Big Cutter und Big Mouth zusätzlich aus der Gestalt. So überragen sie ihre gewöhnliche Form deutlich.
+
+| Endboss | Leben | Schaden | Tempo | Radius | Höhe (Held = 1) | Gefolge |
+|---|---|---|---|---|---|---|
+| Big Jumper | 340 | 14 | 72 | 32 | 2,3 | 2 Jumper, 6 Runner |
+| Big Leech | 440 | 11 | 46 | 34 | 2,4 | 6 Leech, 6 Schutzanzug |
+| Big Cutter | 520 | 20 | 80 | 36 | 3,6 | 5 Soldaten, 5 Polizisten |
+| Big Mouth | 880 | 24 | 66 | 40 | 3,6 | 12 Häutlinge, 4 Feuerwehrmänner |
+
+- **Big Jumper:** Er springt in Serien von 3 Sätzen dorthin, wo der Held stand. Ein roter Kreis am Boden zeigt die Landung an. Jede Landung löst eine Schockwelle mit Radius 170 aus, die auch Zombies trifft.
+- **Big Leech:** Er spuckt einzelne Säurebälle. Im Wechsel kommen eine Salve aus 7 Säurebällen mit großen Pfützen und eine Brut aus 3 bis 5 Leeches.
+- **Big Cutter:**
+  - Er holt 0,65 Sekunden lang mit roter Bahn als Warnung aus und stürmt dann mitten durch Wracks. Zombies im Weg mäht er nieder, Fässer bringt er zur Explosion.
+  - Ist der Held nah, wirbelt er im Wechsel mit dem Ansturm 1,3 Sekunden lang mit den Klingen.
+- **Big Mouth:** Sein Schrei dauert 1,8 Sekunden, Betäubung, Frost und Furcht wirken dabei nicht. Kurz vor dem Ende wölbt sich der Boden um den Helden. Dann steigen 10 + Gegnerstufe ÷ 4 Häutlinge auf, höchstens 18.
 
 ## Beute und Objekte
 
@@ -96,12 +139,15 @@ Dead Nation selbst hat keine echten Endbosse. Belegt ist nur der Big Mouth aus d
 
 ## Umgebung
 
-- **Alarm-Autos:** In jedem Bereich blinken ein paar Wracks rot.
-  - Ein Treffer löst den Alarm aus. Die Zombies im Umkreis stürmen hin und prügeln auf das Auto ein, bis es explodiert.
+- **Alarm-Autos:** In jedem Bereich blinken ein paar Wracks rot, insgesamt 21.
+  - Ein Treffer löst den Alarm aus. Die Zombies im Umkreis stürmen hin und prügeln auf das Auto ein, bis es nach 10 Schlägen explodiert. Eine Explosion jagt es sofort hoch.
+  - Kommt 20 Sekunden lang niemand, verstummt der Alarm und lässt sich erneut auslösen.
   - Zu jeder Runde sind die Alarm-Autos wieder scharf.
-- **Benzinfässer:** Rote Fässer stehen an der Tankstelle, auf der Farm, an den Straßensperren und im Quarantänelager.
+- **Benzinfässer:** 28 rote Fässer stehen an der Tankstelle, auf der Farm, an den Straßensperren und im Quarantänelager.
   - Sie explodieren bei einem Treffer des Helden oder seiner Beschwörungen.
-  - Auch andere Explosionen bringen sie hoch, so entstehen Kettenreaktionen.
+  - Auch andere Explosionen und die Endbosse bringen sie hoch. So entstehen Kettenreaktionen.
+  - Schläge und Schüsse gewöhnlicher Zombies zünden nichts.
+- **Anvisieren:** Fährt die Maus über ein Fass, ein Alarm-Auto oder den Tanklaster, wird es zum Ziel; ein Klick greift es an.
 - **Tanklaster:** Er hält 5 Treffer aus. Dann explodiert er mit dem dreifachen Radius eines Fasses und hinterlässt 8 Sekunden lang eine brennende Benzinlache.
 - **Wiederherstellung:** Benzinfässer und Tanklaster sind erst nach zwei Runden wieder heil. Was in Runde 4 explodiert, fehlt in Runde 5 und steht ab Runde 6 wieder.
 - **Explosionen:** Jede Explosion trifft Zombies, den Helden und seine Beschwörungen. Brennende Zombies taumeln umher.
@@ -110,7 +156,7 @@ Dead Nation selbst hat keine echten Endbosse. Belegt ist nur der Big Mouth aus d
 
 - **Kauf:** Der Händler verkauft sie nur auf dem Highway der Toten. Eine kostet doppelt so viel wie ein Trank.
 - **Tragen:** Der Held trägt höchstens 5 Leuchtfackeln, die Anzahl steht in der Anzeige neben den Tränken.
-- **Wurf:** L wirft eine Fackel zum Mauszeiger, höchstens etwa 10 Felder weit.
+- **Wurf:** L wirft eine Fackel zum Mauszeiger, höchstens etwa 10 Felder weit. Das geht nur während einer Runde, damit in der Pause keine verloren geht.
 - **Wirkung:**
   - Sie brennt 8 Sekunden mit rotem Licht und Rauch.
   - Alle Zombies im Umkreis von etwa einer Bildschirmbreite laufen hin, auch Runner. Endbosse lassen sich nicht ablenken.
@@ -134,21 +180,39 @@ In Feldern zu je etwa 2,3 m: Autos 2 × 1, Militärlaster 3 × 1, Gefangenenbus 
 ## Technik
 
 - **Boden:** Er wird in Kacheln vorgezeichnet. Ein einziges Bild für 313 × 313 Felder wäre 12.520 px breit und über 600 MB groß.
-- **Nachbarsuche:** Ein räumliches Raster ersetzt den heutigen Vergleich jeder Figur mit jeder. Das betrifft Zielsuche, Abstoßen, Geschosse und Flächen.
-- **Wegfindung:** Sie reicht weiter als heute 40 Schritte, damit ferne Zombies nicht an Hindernissen hängen bleiben.
-- **Leistung:** Ziel sind 60 FPS in Chrome auf dem Mac bei Grafikstufe Hoch. Gemessen wird mit `index.html?bench` in einer neuen Szene für Horden.
+- **Nachbarsuche:**
+  - Ein räumliches Raster aus 80er-Zellen begrenzt das gegenseitige Abstoßen auf Nachbarn.
+  - Die Ziellisten (Held und Beschwörungen, Zombies) entstehen einmal je Bild.
+  - Die Reihenfolge der Paare ist dieselbe wie zuvor, die Balance-Prüfung bleibt also gleich.
+- **Wegfindung:** Das Flussfeld reicht auf dem Highway 64 statt 40 Schritte, damit ferne Zombies nicht an Hindernissen hängen bleiben.
+- **Dateien:**
+  - `highway.js`: Karte, Boden, Hindernisse, Runden, Explosionen (`hwBoom`)
+  - `zombies.js`: Zombie-Arten
+  - `bosses.js`: Endbosse
+  - `umgebung.js`: Alarm-Autos, Fässer, Tanklaster, Objekte, Leuchtfackeln, Pfeile und Blut
+- **Erweiterungspunkte:** Die drei letzten Dateien hängen sich über die Erweiterungspunkte `HWH` in `highway.js` ein, statt den Kern zu ändern. Ziele, eigenes Verhalten, Treffer, Tod, Rundenstart, Objekte und die Zeichenschichten werden nur auf dem Highway der Toten aufgerufen.
+- **Gemeinsames:** Rufen, freie Plätze und Säure teilen Zombie-Arten und Endbosse (`zCall`, `zFree`, `zRing`, `zSpit`).
+- **Fässer, Alarm-Autos und Tanklaster:** Sie sind unsichtbare Figuren ohne Team. So treffen alle Fähigkeiten, Flächen und Explosionen sie von selbst.
+- **Leistung:** Ziel sind 60 FPS in Chrome auf dem Mac bei Grafikstufe Hoch. Gemessen wird mit `index.html?bench&scene=horde`.
 
 ## Stand der Umsetzung
 
 | Etappe | Inhalt | Stand |
 |---|---|---|
 | 1 | Karte, Kartenwahl, Rundenablauf, Gegnerstufe, Schlurfer, Schutzanzug, Häutling, Austrittspunkte, Obergrenze, Leistungsumbau | umgesetzt |
-| 2 | übrige Zombie-Arten | offen |
-| 3 | Endbosse | offen |
-| 4 | Alarm-Autos, Benzinfässer, Tanklaster, Kofferräume, Beutekiste, Medikit, Leuchtfackeln, Pfeile, Geräusche, Blut | offen |
+| 2 | übrige Zombie-Arten, Aussehen der Endbosse | umgesetzt |
+| 3 | Endbosse | umgesetzt |
+| 4 | Alarm-Autos, Benzinfässer, Tanklaster, Kofferräume, Beutekiste, Medikit, Leuchtfackeln, Pfeile, Geräusche, Blut | umgesetzt |
 
-Messungen nach Etappe 1, Apple M5, Chrome ohne Fenster:
+Die Etappen 2 bis 4 entstanden gleichzeitig in drei getrennten Arbeitskopien und wurden danach zusammengeführt.
 
-- **Leistung:** `?bench&scene=horde` bei 1280 × 720, Grafikstufe Hoch, 165 Zombies, die sterben und nachrücken. 60 FPS, Rechenzeit je Bild im Mittel 3,0 ms, P99 4,3 ms, längstes Bild 16,8 ms. Zum Vergleich: die Szene „dicht“ mit 60 Gegnern im Chaos-Sanktuarium liegt bei 2,7 ms.
-- **Schwierigkeit:** die Kampagne aus `balance.js` (zwölf Ausrichtungen, Runden bis zum Tod, höchstens 25) auf beiden Karten, noch ohne Endbosse des Highways. Im Median schaffen beide Karten 6 Runden. Ausrichtungen mit Flächenschaden kommen auf dem Highway weiter (Frostnova 16 statt 6 Runden), reine Einzelziel-Angriffe fallen früher (Heiliger Blitz 2 statt 5).
+Messungen nach Etappe 4, Apple M5, Chrome ohne Fenster:
+
+- **Leistung:** `?bench&scene=horde` bei 1280 × 720, Grafikstufe Hoch, 165 Zombies aller Arten zu gleichen Teilen, die sterben und nachrücken.
+  - 60 FPS, längstes Bild 16,8 ms.
+  - Rechenzeit je Bild im Mittel 5,2 ms, P99 7,5 ms; davon Zeichnen 4,6 ms.
+  - Nach Etappe 1, nur mit Schlurfern, Schutzanzügen und Häutlingen, waren es 3,0 ms. Die Szene „dicht“ mit 60 Gegnern im Chaos-Sanktuarium liegt bei 2,7 ms.
+  - Die Figurenbilder belegen 218 Mio. Bildpunkte, roh rund 870 MB, weil in der Messung alle 16 Arten mit allen Bewegungen gleichzeitig zu sehen sind. In echten Runden sind Spezial-Zombies seltener.
+- **Schwierigkeit:** die Kampagne aus `balance.js` auf beiden Karten (zwölf Ausrichtungen, Runden bis zum Tod, höchstens 25). Im Median schaffen beide Karten 6 Runden. Flächenschaden kommt auf dem Highway weiter, etwa Frostnova 9 statt 4 und Kettenblitz 9 statt 7 Runden. Reine Einzelziel-Angriffe fallen früher, etwa Heiliger Blitz 3 statt 5.
 - **Chaos-Sanktuarium unverändert:** Die Balance-Prüfung über alle 292 Fähigkeiten liefert dieselben Werte wie vor dem Highway.
+
