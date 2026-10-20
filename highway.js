@@ -4,7 +4,7 @@
 // Die Karte ist immer dieselbe (eigener Zufall mit festem Startwert). Der Boden wird in Kacheln gebacken, Hindernisse
 // werden feldweise als Quader gezeichnet und wie die Wände des Sanktuariums mit den Figuren nach Tiefe sortiert.
 
-const HW_N = 313, HW_C = HW_N >> 1, HW_CAP = 165, HW_CH = 16; // Kantenlänge und Mitte in Feldern, Zombies gleichzeitig, Kachel in Feldern
+const HW_N = 313, HW_C = HW_N >> 1, HW_CAP = 330, HW_CH = 16; // Kantenlänge und Mitte in Feldern, Zombies gleichzeitig, Kachel in Feldern
 const HG = { sand: 0, road: 1, conc: 2, mud: 3, field: 4, gravel: 5, dirt: 6 }, HGN = Object.keys(HG);
 const SUN = [0.75, -0.66]; // Schattenrichtung: das Licht der 3D-Figuren fällt von links vorn ein, Schatten fallen nach rechts
 const HW_SPR = ['cactus', 'boulder', 'pump', 'sign', 'board', 'tent', 'tower', 'well']; // als Bild gezeichnet, verdecken keine Seitenflächen
@@ -630,9 +630,9 @@ function hwBoom(x, y, r, dmg, o = {}) {
 }
 
 // ---------- Runden ----------
-// Gruppen bis zur Rundengröße (44 + 22 je Runde), Arten nach Anteil; Champions und Unique-Gegner so oft wie im Sanktuarium
+// Gruppen bis zur Rundengröße (88 + 44 je Runde), Arten nach Anteil; Champions und Unique-Gegner so oft wie im Sanktuarium
 function hwQueue(d) {
-  const pool = ZOMBIES.filter(z => z.from <= d), sum = pool.reduce((a, z) => a + z.w, 0), total = Math.round(44 + 22 * d), q = [];
+  const pool = ZOMBIES.filter(z => z.from <= d), sum = pool.reduce((a, z) => a + z.w, 0), total = Math.round(88 + 44 * d), q = [];
   const kind0 = () => { let w = Math.random() * sum; for (const z of pool) if ((w -= z.w) < 0) return z; return pool[0]; };
   let n = 0;
   for (let i = Math.min(12, 2 + Math.ceil(d * 0.7)); i > 0; i--) {
@@ -678,7 +678,7 @@ function hwRounds(dt) {
   if (!G.queue.length || (G.waveT -= dt) > 0) return;
   const alive = G.te.length;
   if (alive + G.queue[0].n > HW_CAP) return;
-  if (hwSpawn(G.queue[0])) { G.queue.shift(); G.waveT = alive < 30 ? 0.8 : 1.6; } else G.waveT = 0.5;
+  if (hwSpawn(G.queue[0])) { G.queue.shift(); G.waveT = alive < 60 ? 0.4 : 0.8; } else G.waveT = 0.5; // doppelte Horde, doppelt so schnell
 }
 
 // ---------- Tageslicht ----------

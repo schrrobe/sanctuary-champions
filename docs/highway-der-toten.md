@@ -30,14 +30,14 @@ Zweite Karte neben dem Chaos-Sanktuarium: eine moderne Wüste bei Tag, in der de
   2. N startet die Runde, die Zombies kommen gestaffelt.
   3. Sind alle besiegt, gibt es Gold, die nächste Runde, falls nötig einen neuen Rekord, und das Spiel wird gespeichert.
 - **Herkunft:** Die Zombies kommen dorthin, wo der Held steht. Sie treten aus den nächsten Austrittspunkten knapp außerhalb des Bildes, also aus Gebäuden, Bussen, Lkw, Zelten, Gullys und Löchern im Sand. Dazu kommen Nachzügler im Rücken.
-- **Anzahl:** Je Runde kommen 44 + 22 × Runde Zombies, gleichzeitig leben höchstens 165, der Rest rückt nach.
+- **Anzahl:** Je Runde kommen 88 + 44 × Runde Zombies, gleichzeitig leben höchstens 330, der Rest rückt nach. Eine neue Gruppe kommt alle 0,8 Sekunden, bei weniger als 60 lebenden Zombies alle 0,4 Sekunden.
 
   | Runde | Zombies |
   |---|---|
-  | 1 | 66 |
-  | 5 | 154 |
-  | 10 | 264 |
-  | 20 | 484 |
+  | 1 | 132 |
+  | 5 | 308 |
+  | 10 | 528 |
+  | 20 | 968 |
 - **Gegnerstufe:** Sie ist der höhere Wert aus Wüsten-Runde und Stufe ÷ 1,2. Der Faktor stammt aus der Balance-Prüfung: Stufe 6 ≈ Runde 5, Stufe 18 ≈ Runde 15.
   - Nach ihr richten sich Leben, Schaden, EP und Beute der Zombies, das Gold am Rundenende und die Händlerwaren samt Trankpreis.
   - Nach der Wüsten-Runde richten sich Anzahl, Zombie-Arten, Endbosse und die Häufigkeit von Champions und Unique-Gegnern.
@@ -70,7 +70,7 @@ Alle Zombies sind Untote. Die Spezial-Zombies und Endbosse tragen ihre Originaln
 
 - **Treffer unter Zombies:** Bombie-Explosion, Jumper-Landung, Cutter-Ansturm, Polizistenschüsse und alle Explosionen treffen auch Zombies.
 - **Lauernde Runner:** Sie springen los, sobald der Held nahe kommt, spätestens aber nach 20 Sekunden oder sobald höchstens 5 Zombies übrig sind. Auch eine Leuchtfackel, ein heulendes Alarm-Auto oder ein Treffer holt sie hervor.
-- **Gerufene Zombies:** Die Häutlinge des Mouth, der Häutlings-Ring des Big Mouth und die Leeches des Big Leech kommen zusätzlich zu den Zombies der Runde und müssen ebenfalls besiegt werden. Sie zählen aber gegen die Obergrenze: Leben schon 165 Zombies, wird niemand gerufen.
+- **Gerufene Zombies:** Die Häutlinge des Mouth, der Häutlings-Ring des Big Mouth und die Leeches des Big Leech kommen zusätzlich zu den Zombies der Runde und müssen ebenfalls besiegt werden. Sie zählen aber gegen die Obergrenze: Leben schon 330 Zombies, wird niemand gerufen.
 - **Champions und Unique-Gegner unter den Spezial-Zombies:** Ihre Gruppen sind höchstens eins größer als die größte gewöhnliche Gruppe ihrer Art, damit nicht vier Cutter zugleich kommen. Die freien Plätze bekommt eine gewöhnliche Gruppe, die Rundengröße bleibt gleich.
 
 Werte für Gegnerstufe 1. Leben, Schaden und Erfahrung wachsen wie bei allen Gegnern mit der Gegnerstufe. Der Anteil bestimmt, wie oft eine Gruppe der Art gezogen wird. Spezial-Zombies machen etwa 7 bis 9 % der Horde aus.
@@ -132,6 +132,7 @@ Werte für Gegnerstufe 1. Die Größe im Bild ergibt sich aus dem Radius, beim B
 
 - **Beute:** Insgesamt gibt es je Runde etwa so viel Beute wie im Chaos-Sanktuarium, nur verteilt auf viel mehr Zombies.
   - Gewöhnliche Zombies lassen selten etwas fallen, Spezial-Zombies öfter.
+  - Landet Gold neben einem anderen Goldhaufen, kommt es auf diesen Haufen. So hinterlassen die Horden keine Hunderte kleiner Haufen.
   - Endbosse lassen so viel fallen wie die Bosse im Chaos-Sanktuarium.
 - **Kofferräume:** An rund 40 Autowracks auf der ganzen Karte gibt es einen Kofferraum. Die Beute ist wie bei einer Urne. Zu jeder Runde füllen sich die Kofferräume neu.
 - **Beutekiste:** Ab Runde 2 erscheint sie am Rundenende neben dem Helden, markiert mit rotem Rauch. Sie enthält dasselbe wie die Truhe.
@@ -193,7 +194,8 @@ In Feldern zu je etwa 2,3 m: Autos 2 × 1, Militärlaster 3 × 1, Gefangenenbus 
 - **Erweiterungspunkte:** Die drei letzten Dateien hängen sich über die Erweiterungspunkte `HWH` in `highway.js` ein, statt den Kern zu ändern. Ziele, eigenes Verhalten, Treffer, Tod, Rundenstart, Objekte und die Zeichenschichten werden nur auf dem Highway der Toten aufgerufen.
 - **Gemeinsames:** Rufen, freie Plätze und Säure teilen Zombie-Arten und Endbosse (`zCall`, `zFree`, `zRing`, `zSpit`).
 - **Fässer, Alarm-Autos und Tanklaster:** Sie sind unsichtbare Figuren ohne Team. So treffen alle Fähigkeiten, Flächen und Explosionen sie von selbst.
-- **Leistung:** Ziel sind 60 FPS in Chrome auf dem Mac bei Grafikstufe Hoch. Gemessen wird mit `index.html?bench&scene=horde`.
+- **Beute:** Gezeichnet und beschriftet wird nur Beute im Bild.
+- **Leistung:** Ziel sind 60 FPS in Chrome auf dem Mac bei Grafikstufe Hoch. Gemessen wird mit `index.html?bench&scene=horde`. Die Messung lässt dabei höchstens 100 Beutestücke liegen, als hätte der Held den Rest eingesammelt.
 
 ## Stand der Umsetzung
 
@@ -206,7 +208,15 @@ In Feldern zu je etwa 2,3 m: Autos 2 × 1, Militärlaster 3 × 1, Gefangenenbus 
 
 Die Etappen 2 bis 4 entstanden gleichzeitig in drei getrennten Arbeitskopien und wurden danach zusammengeführt.
 
-Messungen nach Etappe 4, Apple M5, Chrome ohne Fenster:
+Messungen nach der Verdopplung der Horde (330 gleichzeitig), Apple M5, Chrome ohne Fenster:
+
+- **Leistung:** `?bench&scene=horde` bei 1280 × 720, Grafikstufe Hoch, 330 Zombies aller Arten zu gleichen Teilen, die sterben und nachrücken.
+  - 60 FPS, längstes Bild 16,8 ms.
+  - Rechenzeit je Bild im Mittel 4,1 ms, P99 5,2 ms; davon Zeichnen 3,2 ms.
+  - Ohne Obergrenze für die liegende Beute stapelten sich in der Messung über 1.000 Beutestücke im Bild. Das kostete bis zu 18 ms je Bild und ist im Spiel nicht zu erwarten, weil der Held einsammelt.
+- **Schwierigkeit:** Im Median schafft die Kampagne auf dem Highway 3 Runden, im Chaos-Sanktuarium 6. Mit halbem Schaden je Zombie wären es auf beiden Karten 6.
+
+Messungen nach Etappe 4 (165 gleichzeitig):
 
 - **Leistung:** `?bench&scene=horde` bei 1280 × 720, Grafikstufe Hoch, 165 Zombies aller Arten zu gleichen Teilen, die sterben und nachrücken.
   - 60 FPS, längstes Bild 16,8 ms.

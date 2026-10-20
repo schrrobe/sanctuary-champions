@@ -18,8 +18,8 @@ const BENCH = (() => {
     action: { cls: 'sor', at: [0, 0], mon: 30, pool: ALL, mortal: false, every: 0.18,
       skills: ['blizzard', 'meteor', 'frozen_orb', 'frost_nova', 'chain_lightning', 'fire_ball', 'static_field', 'fire_wall'] },
     lava: { cls: 'ama', at: [20, 2], mon: 12, pool: EARLY, mortal: true, skills: ['fire_arrow'], every: 0.4 },
-    // Highway der Toten: volle Horde (Obergrenze 165) um den Helden an der Kreuzung, Zombies sterben und rücken nach
-    horde: { cls: 'sor', map: 'hw', at: [0, 4], mon: 165, pool: ZOMBIES.map(z => z.lk || z.nm), mortal: true, skills: ['frost_nova', 'chain_lightning', 'fire_ball'], every: 0.35 },
+    // Highway der Toten: volle Horde (Obergrenze HW_CAP, 330) um den Helden an der Kreuzung, Zombies sterben und rücken nach
+    horde: { cls: 'sor', map: 'hw', at: [0, 4], mon: HW_CAP, pool: ZOMBIES.map(z => z.lk || z.nm), mortal: true, skills: ['frost_nova', 'chain_lightning', 'fire_ball'], every: 0.35 },
   };
   const names = Q.get('scene') ? [Q.get('scene')] : Object.keys(SCENES), results = [];
   // ohne Pixel-Look messen; die Einstellung des Spielers wird danach wiederhergestellt
@@ -74,6 +74,7 @@ const BENCH = (() => {
       P.slots[0] = id; p.atkT = 0; p.mp = 1e5; G.cds[id] = 0;
       cast(0, tg ? tg.x : p.x + 120, tg ? tg.y : p.y + 80);
     }
+    if (sc.map && G.loot.length > 100) G.loot.splice(0, G.loot.length - 100); // wie beim Spielen: der Held sammelt ein, etwa 100 Stücke bleiben liegen
     if (sc.mortal) while (G.ents.filter(e => e.team === 'e' && !e.dead).length < sc.mon) spawn(sc);
   }
 

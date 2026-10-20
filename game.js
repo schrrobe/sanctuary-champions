@@ -687,9 +687,14 @@ function gainXp(v) {
 
 function drop(e) {
   const b = e.kind === 'boss', u = e.kind === 'unique', c = e.kind === 'champ';
-  // gewöhnliche Zombies kommen gut sechsmal so zahlreich wie die Gegner einer Sanktuarium-Runde: je Runde gleich viel Beute
-  const z = G.hw && !b && !u && !c && !e.tpl?.special ? 0.15 : 1;
-  const put = l => G.loot.push({ x: e.x + rnd(-24, 24), y: e.y + rnd(-24, 24), ...l });
+  // gewöhnliche Zombies kommen gut zwölfmal so zahlreich wie die Gegner einer Sanktuarium-Runde: je Runde gleich viel Beute
+  const z = G.hw && !b && !u && !c && !e.tpl?.special ? 0.075 : 1;
+  const put = l => {
+    const x = e.x + rnd(-24, 24), y = e.y + rnd(-24, 24);
+    // auf dem Highway fällt Gold auf einen nahen Haufen, damit Horden nicht Hunderte kleiner Haufen hinterlassen
+    const g = G.hw && l.k === 'gold' && G.loot.find(o => o.k === 'gold' && Math.abs(o.x - x) < 60 && Math.abs(o.y - y) < 60);
+    if (g) g.n += l.n; else G.loot.push({ x, y, ...l });
+  };
   if (b || Math.random() < 0.35 * z) put({ k: 'gold', n: Math.round(rnd(2, 9) * gs() * (b ? 12 : u ? 4 : 1)) });
   if (Math.random() < 0.07 * z) put({ k: 'hp' });
   if (Math.random() < 0.06 * z) put({ k: 'mp' });
@@ -1565,6 +1570,7 @@ function draw() {
   for (const c of G.corpses) { const [sx, sy] = proj(c.x, c.y), f = clamp((40 - c.t) / 0.4, 0, 1); if (onScr(sx, sy)) drawFigure(ctx, sx, sy, c.look, { h: c.h, fx: Math.cos(c.face) - Math.sin(c.face) >= 0 ? 1 : -1, face: c.face, walk: 0, atk: 0, t: 0, lying: Math.max(0.01, f * f), alpha: Math.min(1, c.t / 5) }); }
   for (const l of G.loot) {
     const [sx, sy] = proj(l.x, l.y);
+    if (!onScr(sx, sy)) continue; // auf dem Highway liegt Beute über die ganze Karte verstreut
     if (l.k === 'gold') for (let i = 0; i < 5; i++) disc(ctx, sx + (i % 3) * 4 - 4, sy - (i > 2 ? 3 : 0), 3, i % 2 ? '#e8c040' : '#b08820');
     else { const img = icon(l.k === 'item' ? itemIcon(l.it) : potionIcon(l.k)); if (img.complete) ctx.drawImage(img, sx - 12, sy - 18, 24, 24); }
   }
@@ -1723,7 +1729,7 @@ function draw() {
   // Bodenbeschriftungen wie mit gedrückter Alt-Taste
   ctx.font = `600 ${Math.round(13 / (VS * PX))}px "Crimson Text", Georgia, serif`; ctx.textAlign = 'center';
   G.labels = [];
-  for (const l of [...G.loot].sort((a, b) => (a.x + a.y) - (b.x + b.y))) {
+  for (const l of G.loot.filter(l => onScr(...proj(l.x, l.y))).sort((a, b) => (a.x + a.y) - (b.x + b.y))) { // nur Beute im Bild
     const s = l.k === 'gold' ? `${l.n} Gold` : l.k === 'item' ? l.it.nm : l.k === 'hp' ? 'Heiltrank' : 'Manatrank';
     const [sx, sy] = proj(l.x, l.y), w = ctx.measureText(s).width + 10;
     let y = sy - 34;
