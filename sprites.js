@@ -1152,10 +1152,12 @@ function drawProjVis(g, vis, sx, gy, a, t, col, tail, k = 0) {
     case 'gust': { // Ebenenwind wie in Champions: eine breite, wogende lila Windwand, die beim Flug anschwillt
       const s = 0.9 + 1.2 * k, fx = Math.cos(a), fy = Math.sin(a), { w, px, py } = tail, n = Math.ceil(w / 9);
       g.translate(sx, y - 18 * s);
-      for (const row of [1, 0]) for (let i = -n; i <= n; i++) { // zwei Reihen Wolkenballen quer über die ganze Breite, außen dünner
-        const o = i / n * w, edge = 1 - Math.abs(i / n) * 0.4, b = t * 5 + i * 0.9 + row * 2, d = Math.cos(b) * 10 * s - (i & 3) * 5 * s - row * 16 * s;
-        const x = px * o + fx * d, yy = py * o + fy * d + Math.sin(b * 1.3) * 8 * s - row * 10 * s, r = (28 + (i % 3 + 3) % 3 * 10) * s * edge * (row ? 0.85 : 1);
-        const al = edge * (row ? 0.7 : 1), gr = g.createRadialGradient(x, yy, 0, x, yy, r);
+      // Wolkenballen quer über die ganze Breite, außen dünner: vorn die Front, dahinter die nachgezogene Wolke über fünf Reihen
+      // (viermal so lang wie früher mit einer), nach hinten größer, höher und blasser; ab der dritten Reihe jeder zweite Ballen
+      for (let row = 5; row >= 0; row--) for (let i = -n; i <= n; i += row > 1 ? 2 : 1) {
+        const back = row ? 16 + (row - 1) * 40 : 0, o = i / n * w, edge = 1 - Math.abs(i / n) * 0.4, b = t * 5 + i * 0.9 + row * 2, d = Math.cos(b) * 10 * s - (i & 3) * 5 * s - back * s;
+        const x = px * o + fx * d, yy = py * o + fy * d + Math.sin(b * 1.3) * 8 * s - (row ? 10 + (row - 1) * 5 : 0) * s, r = (28 + (i % 3 + 3) % 3 * 10) * s * edge * (row ? 0.85 + 0.15 * (row - 1) : 1);
+        const al = edge * (row ? 0.7 * 0.78 ** (row - 1) : 1), gr = g.createRadialGradient(x, yy, 0, x, yy, r);
         gr.addColorStop(0, `rgba(246,234,255,${0.6 * al})`); gr.addColorStop(0.5, `rgba(178,128,255,${0.4 * al})`); gr.addColorStop(1, 'rgba(110,60,220,0)');
         g.fillStyle = gr; g.beginPath(); g.arc(x, yy, r, 0, 7); g.fill();
       }

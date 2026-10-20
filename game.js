@@ -134,6 +134,9 @@ function newChar(cid, name) {
 
 const rank = id => SK[id].c === 'base' ? 1 : (P.ranks[id] || 0) && P.ranks[id] + (S?.allSkills || 0);
 
+// Riesenwuchs: je fünf Fertigkeitspunkte eine halbe Größe mehr (Stufe 1–4: +1, 5–9: +1,5, 10–14: +2 …)
+const sizeAt = (v, r) => v + 0.5 * Math.floor(r / 5);
+
 function calc() {
   const c = CL[P.cls];
   const s = { str: P.str, dex: P.dex, vit: P.vit, ene: P.ene, maxhp: 0, maxmp: 0, dmgPct: 0, spellPct: 0, crit: 0.05, dodge: 0, leech: 0, res: 0, speed: 0, atkSpd: 0, armor: 0, regen: 0, mregen: 0, thorns: 0, minionPct: 0, pierce: 0, lifePct: 0, manaPct: 0, allSkills: 0, size: 0, ae: [] };
@@ -143,7 +146,7 @@ function calc() {
   for (const id in P.ranks) { const sk = SK[id]; if (sk.t === 'passive') for (const k in sk.mods) add(k, sk.mods[k] * (P.ranks[id] + s.allSkills)); }
   for (const b of Object.values(G.buffs)) for (const k in b.s.mods || {}) {
     const v = b.s.mods[k], m = 1 + 0.15 * (b.r - 1);
-    add(k, k === 'ae' ? [v[0], v[1] * m] : k === 'size' || k === 'allSkills' ? v : v * m);
+    add(k, k === 'ae' ? [v[0], v[1] * m] : k === 'size' ? sizeAt(v, b.r) : k === 'allSkills' ? v : v * m);
   }
   s.maxhp = (30 + s.vit * 3 + P.lvl * 5 + s.maxhp) * (1 + s.lifePct);
   s.maxmp = (10 + s.ene * 2 + P.lvl * 2 + s.maxmp) * (1 + s.manaPct);
@@ -175,9 +178,9 @@ const free = (x, y, r) => { r *= 0.8; return walk(x - r, y - r) && walk(x + r, y
 const tileOf = e => ((e.y / T) | 0) * MW + ((e.x / T) | 0);
 const tileC = n => ({ x: (n % MW + 0.5) * T, y: (((n / MW) | 0) + 0.5) * T });
 function move(e, dx, dy) {
-  const ox = e.x, oy = e.y;
-  if (free(e.x + dx, e.y, e.r)) e.x += dx;
-  if (free(e.x, e.y + dy, e.r)) e.y += dy;
+  const ox = e.x, oy = e.y, r = e.player ? Math.min(e.r, 24) : e.r; // ein riesiger Held passt weiter durch Gassen von einem Feld Breite
+  if (free(e.x + dx, e.y, r)) e.x += dx;
+  if (free(e.x, e.y + dy, r)) e.y += dy;
   const d = Math.hypot(e.x - ox, e.y - oy);
   if (d > 0.01) { e.walk = (e.walk || 0) + d; e.movT = 0.12; }
   return d > 0.01;
@@ -815,13 +818,13 @@ function useSkill(s, r, tx, ty) {
         if (!c) { note('Keine Leiche in der Nähe'); return false; }
         G.corpses.splice(G.corpses.indexOf(c), 1);
         if (s.revive) revive(s, r, c); else spawnMinion(s, r, c.x, c.y);
-      } else for (let i = 0; i < n; i++) { // ein Wirken ruft gleich alle, die erlaubt sind
+      } else for (let i = 0; i < (s.one ? 1 : n); i++) { // ein Wirken ruft gleich alle, die erlaubt sind; Fallen mit one einzeln, zum gezielten Platzieren
         let x = p.x + rnd(-40, 40), y = p.y + rnd(-40, 40);
         if (s.wall) { // Knochenwand: Teilstücke quer zur Blickrichtung
           const o = (i - (n - 1) / 2) * 30; x = tx - Math.sin(a) * o; y = ty + Math.cos(a) * o;
           if (!free(x, y, m.r)) continue;
         } else {
-          if (!m.v && Math.hypot(tx - p.x, ty - p.y) < 400 && free(tx, ty, m.r)) { x = tx + rnd(-25, 25); y = ty + rnd(-25, 25); }
+          if (!m.v && Math.hypot(tx - p.x, ty - p.y) < 400 && free(tx, ty, m.r)) { x = s.one ? tx : tx + rnd(-25, 25); y = s.one ? ty : ty + rnd(-25, 25); }
           if (!free(x, y, m.r)) { x = p.x; y = p.y; }
           // D2: Skelette entsteigen den Leichen in Zielnähe
           const c = s.grave && nearest({ x: tx, y: ty }, G.corpses.filter(c => Math.hypot(c.x - tx, c.y - ty) < 200));
@@ -1007,7 +1010,7 @@ function projectiles(dt) {
     q.life -= dt;
     const ox = q.x, oy = q.y;
     if (q.spiral) {
-      q.ang += 4.5 * dt; q.rad += 75 * dt;
+      q.ang += Math.PI * 1.5 * dt; q.rad += 75 * dt; // Gesegneter Hammer: 4,5 Runden in 6 s, dabei 75 px je Sekunde weiter nach außen
       q.x = q.ox + Math.cos(q.ang) * q.rad; q.y = q.oy + Math.sin(q.ang) * q.rad;
     } else {
       if (q.hm) {
@@ -1830,7 +1833,7 @@ function hud() {
 // ---------- Tooltips ----------
 function modTxt(k, v) {
   if (k === 'ae') return `+${Math.round(v[1])} ${EL[v[0]][0]}schaden auf Waffenangriffe`;
-  return `${v > 0 ? '+' : ''}${FLAT.includes(k) ? Math.round(v * 10) / 10 : Math.round(v * 100) + '%'} ${MODN[k]}`;
+  return `${v > 0 ? '+' : ''}${FLAT.includes(k) ? String(Math.round(v * 10) / 10).replace('.', ',') : Math.round(v * 100) + '%'} ${MODN[k]}`; // Komma wie im Deutschen
 }
 function desc(s, r) {
   const R = Math.max(1, r), eln = EL[s.el || 'phys'][0], o = [];
@@ -1870,8 +1873,8 @@ function desc(s, r) {
       ['tap', 'Treffer heilen dich'], ['lres', '+40% Elementarschaden gegen die Ziele'], ['conf', 'Gegner greifen einander an'], ['attract', 'zieht die anderen Gegner auf sich'],
       ['taunt', 'das Ziel greift nur noch dich an']].forEach(([k, t]) => d[k] && o.push(t));
   }
-  if (s.t === 'summon') o.push(`${s.revive ? 'wiederbelebter Gegner' : MINIONS[s.m].nm} ×${summonMax(s, R)} gleichzeitig (+1 je 2 Punkte)${s.dur ? `, ${s.dur} s` : ''}`);
-  if (s.mods) o.push(...Object.entries(s.mods).map(([k, v]) => modTxt(k, k === 'ae' ? [v[0], v[1] * (1 + 0.15 * (R - 1))] : s.t === 'passive' ? v * R : k === 'size' ? v : v * (1 + 0.15 * (R - 1)))));
+  if (s.t === 'summon') o.push(`${s.revive ? 'wiederbelebter Gegner' : MINIONS[s.m].nm} ×${summonMax(s, R)} gleichzeitig (+1 je 2 Punkte)${s.dur ? `, ${s.dur} s` : ''}${s.one ? ', je Wirken einer an der Zielstelle, der älteste weicht' : ''}`);
+  if (s.mods) o.push(...Object.entries(s.mods).map(([k, v]) => modTxt(k, k === 'ae' ? [v[0], v[1] * (1 + 0.15 * (R - 1))] : s.t === 'passive' ? v * R : k === 'size' ? sizeAt(v, R) : v * (1 + 0.15 * (R - 1)))));
   if (s.pulse) {
     const p = s.pulse;
     o.push(p.heal ? `heilt alle ${p.iv} s ${Math.round(p.heal * 100 * (1 + 0.2 * (R - 1)))}% Leben` : p.amp ? 'Gegner in der Nähe erleiden mehr Schaden'
