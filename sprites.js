@@ -881,7 +881,7 @@ const ICON_SPEC = {
   shadow_step: 'moon speed:4,6,.45',
   throwing: 'axe speed:-8,8,.4', summon_axe: 'axe*3:0,0,.7', battle_cry: 'mouth chevron:0,-10,.4', roar: 'cat wave:8,0,.5', berserker_rage: 'eye flame:0,-8,.45',
   blood_lust: 'fang drop:8,-8,.45', axe_bandolier: 'axe axe:0,0,1,1.571',
-  poison_bolt: 'drop:0,0,.9 comet:-8,8,.45', drowsy: 'moon cloud:4,8,.45', summon_badger: 'paw', spirit_shield: 'shield ghost:0,0,.45', planar_wind: 'wind',
+  poison_bolt: 'drop:0,0,.9 comet:-8,8,.45', drowsy: 'moon cloud:4,8,.45', summon_badger: 'paw', spirit_shield: 'shield ghost:0,0,.45', planar_wind: 'wind', death_wind: 'wind skull:8,8,.45',
   poison_weapons: 'dagger drop:8,8,.45', tagars_insects: 'bug*3:0,0,.6', pus_storm: 'rain drop:6,-8,.45', giant_growth: 'figure:0,4,1.15 chevron:9,-9,.35',
   // Diablo II: ergänzte Fähigkeiten
   exploding_arrow: 'arrow explode:9,-9,.5',
@@ -1065,7 +1065,7 @@ const PROJ_VIS = {
   bone_spear: 'bone', bone_spirit: 'skull', teeth: 'fang', blessed_hammer: 'hammer', psychic_hammer: 'phammer', tornado: 'tornado', twister: 'twister',
   molten_boulder: 'boulder', throwing: 'axe', summon_axe: 'axe', poison_javelin: 'javelin', lightning_fury: 'javelin', ice_bolt: 'shard', shock_of_frost: 'shard',
   charged_bolt: 'spark', bolt_of_shock: 'spark', lightning: 'bolt', wizard_beam: 'beam', holy_bolt: 'cross', hc_holy_bolt: 'cross', wake_of_fire: 'flame',
-  firestorm: 'flame', arctic_blast: 'mist', cone_of_frost: 'mist', drowsy: 'mist', cone_of_fire: 'fwave', tagars_insects: 'insects', planar_wind: 'gust',
+  firestorm: 'flame', arctic_blast: 'mist', cone_of_frost: 'mist', drowsy: 'mist', cone_of_fire: 'fwave', tagars_insects: 'insects', planar_wind: 'gust', death_wind: 'dgust',
   life_tap: 'drain', disease_bolt: 'goo', poison_bolt: 'goo', fire_bolt: 'firebolt', shock_of_fire: 'firebolt', fire_flares: 'firebolt', fire_ball: 'fireball',
   fire_blast: 'bomb', frozen_orb: 'forb', magic_arrow: 'magic', fire_arrow: 'farrow', wr_fire_arrow: 'farrow', explode_arrow: 'farrow', exploding_arrow: 'farrow', immolation_arrow: 'farrow', ice_arrow: 'carrow',
   lightning_bolt: 'bolt', plague_javelin: 'javelin', inferno: 'fwave', telekinesis: 'tk', ice_blast: 'iceblast', glacial_spike: 'spike', double_throw: 'axe',
@@ -1149,23 +1149,27 @@ function drawProjVis(g, vis, sx, gy, a, t, col, tail, k = 0) {
     case 'shard': g.translate(sx, y); g.rotate(a); glowDot(g, 0, 0, 20, '#60b0ff'); g.fillStyle = '#e8f8ff'; g.beginPath(); g.moveTo(13, 0); g.lineTo(0, -4); g.lineTo(-12, 0); g.lineTo(0, 4); g.fill(); break;
     case 'spark': g.translate(sx, y); g.globalCompositeOperation = 'lighter'; glowDot(g, 0, 0, 24, '#5070ff'); glowDot(g, 0, 0, 12, col); g.strokeStyle = '#fffbe0'; g.lineWidth = 1.6; for (let i = 0; i < 4; i++) { const b = t * 30 + i * 1.6; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(b) * 6, Math.sin(b) * 6); g.lineTo(Math.cos(b + 0.6) * 11, Math.sin(b + 0.6) * 11); g.stroke(); } break;
     case 'beam': g.globalCompositeOperation = 'lighter'; for (const [w, c] of [[12, col + '55'], [5, col], [2, '#ffffff']]) { g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.moveTo(tail[0], tail[1] - 26); g.lineTo(sx, y); g.stroke(); } break;
-    case 'gust': { // Ebenenwind wie in Champions: eine breite, wogende lila Windwand, die beim Flug anschwillt
-      const s = 0.9 + 1.2 * k, fx = Math.cos(a), fy = Math.sin(a), { w, px, py } = tail, n = Math.ceil(w / 9);
+    case 'gust': case 'dgust': { // Ebenenwind wie in Champions: eine breite, wogende lila Windwand, die beim Flug anschwillt;
+      // Todeswind (dgust) derselbe Wind in Giftgrün mit schwarzen Rauchschwaden
+      const s = 0.9 + 1.2 * k, fx = Math.cos(a), fy = Math.sin(a), { w, px, py } = tail, n = Math.ceil(w / 9), dg = vis === 'dgust';
+      const [c0, c1, c2] = dg ? ['224,255,200', '96,214,58', '20,80,10'] : ['246,234,255', '178,128,255', '110,60,220'];
       g.translate(sx, y - 18 * s);
       // Wolkenballen quer über die ganze Breite, außen dünner: vorn die Front, dahinter die nachgezogene Wolke über fünf Reihen
       // (viermal so lang wie früher mit einer), nach hinten größer, höher und blasser; ab der dritten Reihe jeder zweite Ballen
+      const dark = []; // Todeswind: schwarze Schwaden, über der grünen Wolke gezeichnet, damit sie nicht untergehen
       for (let row = 5; row >= 0; row--) for (let i = -n; i <= n; i += row > 1 ? 2 : 1) {
         const back = row ? 16 + (row - 1) * 40 : 0, o = i / n * w, edge = 1 - Math.abs(i / n) * 0.4, b = t * 5 + i * 0.9 + row * 2, d = Math.cos(b) * 10 * s - (i & 3) * 5 * s - back * s;
         const x = px * o + fx * d, yy = py * o + fy * d + Math.sin(b * 1.3) * 8 * s - (row ? 10 + (row - 1) * 5 : 0) * s, r = (28 + (i % 3 + 3) % 3 * 10) * s * edge * (row ? 0.85 + 0.15 * (row - 1) : 1);
-        const al = edge * (row ? 0.7 * 0.78 ** (row - 1) : 1), gr = g.createRadialGradient(x, yy, 0, x, yy, r);
-        gr.addColorStop(0, `rgba(246,234,255,${0.6 * al})`); gr.addColorStop(0.5, `rgba(178,128,255,${0.4 * al})`); gr.addColorStop(1, 'rgba(110,60,220,0)');
+        const al = edge * (row ? 0.7 * 0.78 ** (row - 1) : 1);
+        if (dg && (i + row * 2) % 3 === 0) { dark.push([x, yy, r * 0.7, al]); continue; }
+        const gr = g.createRadialGradient(x, yy, 0, x, yy, r);
+        gr.addColorStop(0, `rgba(${c0},${0.6 * al})`); gr.addColorStop(0.5, `rgba(${c1},${0.4 * al})`); gr.addColorStop(1, `rgba(${c2},0)`);
         g.fillStyle = gr; g.beginPath(); g.arc(x, yy, r, 0, 7); g.fill();
       }
-      g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
-      for (let j = 0; j < 3; j++) { // Sichelböen wie auf dem Originalsymbol, als gewölbte Front über die Breite
-        g.strokeStyle = `rgba(214,180,255,${0.6 - j * 0.15})`; g.lineWidth = (4 - j) * s; g.beginPath();
-        for (let i = -n; i <= n; i++) { const o = i / n, bulge = (1 - o * o) * (18 - j * 9) * s + Math.sin(t * 8 + i + j) * 2; const x = px * o * w + fx * bulge, yy = py * o * w + fy * bulge; i === -n ? g.moveTo(x, yy) : g.lineTo(x, yy); }
-        g.stroke();
+      for (const [x, yy, r, al] of dark) {
+        const gr = g.createRadialGradient(x, yy, 0, x, yy, r);
+        gr.addColorStop(0, `rgba(4,8,2,${0.85 * al})`); gr.addColorStop(0.55, `rgba(10,20,6,${0.55 * al})`); gr.addColorStop(1, 'rgba(10,20,6,0)');
+        g.fillStyle = gr; g.beginPath(); g.arc(x, yy, r, 0, 7); g.fill();
       }
       break;
     }

@@ -136,6 +136,8 @@ const rank = id => SK[id].c === 'base' ? 1 : (P.ranks[id] || 0) && P.ranks[id] +
 
 // Riesenwuchs: je fünf Fertigkeitspunkte eine halbe Größe mehr (Stufe 1–4: +1, 5–9: +1,5, 10–14: +2 …)
 const sizeAt = (v, r) => v + 0.5 * Math.floor(r / 5);
+// Flächenzauber: alle vier Fertigkeitsstufen 10 % mehr Radius (Stufe 1–3: 1,0-fach, 4–7: 1,1-fach, 8–11: 1,2-fach …)
+const areaK = r => 1 + 0.1 * Math.floor(r / 4);
 
 function calc() {
   const c = CL[P.cls];
@@ -663,10 +665,25 @@ function corpseBlast(at, src) {
   G.areas.push({ x: c.x, y: c.y, r: 90, el: 'fire', dmg: src.d * 2.5, t: 0, delay: 0, ticks: 1, iv: 0, src, boom: true, seed: rnd(0, 6) });
 }
 
+// Todeswind: der Getroffene stirbt mit q.doom Chance nach 3–5 s (nicht Bosse, jeder nur einmal)
+function doom(e, q) {
+  if (e.dead || e.team !== 'e' || e.kind === 'boss' || e.doomT > 0 || Math.random() >= q.doom) return;
+  e.doomT = rnd(3, 5); e.doomR = q.doomR;
+}
+// ... und explodiert bei seinem Tod wie eine Leiche in D2, auch wenn ihn vorher etwas anderes tötet: 60–100 % seines Lebens
+// als Schaden ringsum, halb Feuer, halb körperlich. Ohne Quelle: keine kritischen Treffer und kein Lebensraub
+function doomBlast(e) {
+  const v = e.maxhp * rnd(0.6, 1);
+  e.noCorpse = true;
+  emit(e.x, e.y, 10, 'phys', 30, 120, { vz: rnd(80, 220), g: 420, add: false, col: '#7a0808', life: 0.8 });
+  for (const el of ['fire', 'phys']) G.areas.push({ x: e.x, y: e.y, r: e.doomR, el, dmg: v / 2, t: 0, delay: 0, ticks: 1, iv: 0, src: null, boom: true, seed: rnd(0, 6) });
+}
+
 function kill(e) {
   if (e.dead) return;
   e.dead = true;
   blood(e, 14);
+  if (e.doomR) doomBlast(e);
   if (G.hw) hwEach('kill', e);
   if (e.player) { G.dead = 3; P.gold = Math.floor(P.gold * 0.9); save(); return; }
   if (e.team !== 'e') return;
@@ -755,11 +772,12 @@ function useSkill(s, r, tx, ty) {
       const k = s.k || 1, tg = nearest({ x: tx, y: ty }, foes(p).filter(e => Math.hypot(e.x - tx, e.y - ty) < e.r + 24));
       let aim = a;
       if (tg && !s.spiral) { const ft = dist(p, tg) / (s.v || 500); aim = Math.atan2(tg.y + (tg.vy || 0) * ft - p.y, tg.x + (tg.vx || 0) * ft - p.x); }
-      const far = clamp(Math.hypot(tx - p.x, ty - p.y), 120, 380);
+      const far = clamp(Math.hypot(tx - p.x, ty - p.y), 120, 380), gk = 1 + (s.grow || 0) * (r - 1); // grow: Breite und Reichweite je Stufe (Todeswind)
       const fire = ang => shoot(p, ang, {
         dmg: dmg(), el, v: s.v || 500, pr: (s.pr || 0) + (s.wm ? S.pierce : 0), ex: s.ex, hm: s.hm, kb: s.kb, st: s.st,
-        life: s.life, sz: s.sz, spiral: s.spiral, shards: s.shards, leech: s.leech, ae: s.wm ? S.ae : null, vis: PROJ_VIS[s.id], arrow: s.wm && !PROJ_VIS[s.id] ? 1 : 0,
-        er: s.er, fury: s.fury, cloud: s.cloud, pool: s.pool, rebound: s.rebound, wide: s.wide, endX: p.x + Math.cos(ang) * far, endY: p.y + Math.sin(ang) * far,
+        life: s.life && s.life * gk, sz: s.sz, spiral: s.spiral, shards: s.shards, leech: s.leech, ae: s.wm ? S.ae : null, vis: PROJ_VIS[s.id], arrow: s.wm && !PROJ_VIS[s.id] ? 1 : 0,
+        er: s.er, fury: s.fury, cloud: s.cloud, pool: s.pool, rebound: s.rebound, wide: s.wide && s.wide * gk, endX: p.x + Math.cos(ang) * far, endY: p.y + Math.sin(ang) * far,
+        doom: s.doom && s.doom + 0.01 * (r - 1), doomR: s.doom && SK.corpse_explosion.r * areaK(r), // Todeswind: Chance je Stufe, Explosion wie Leichenexplosion
       });
       // Streufeuer: je ein Pfeil auf die nächsten Gegner
       const near = s.strafe ? foes(p).filter(e => dist(p, e) < 460).sort((x, y) => dist(p, x) - dist(p, y)).slice(0, s.strafe) : [];
@@ -796,12 +814,12 @@ function useSkill(s, r, tx, ty) {
         return;
       }
       // Feuerwand: Teilstücke quer zur Blickrichtung
-      const vis = AREA_VIS[s.id], segs = s.wall || 1, v = s.d ? dmg() : 0;
+      const vis = AREA_VIS[s.id], segs = s.wall || 1, v = s.d ? dmg() : 0, ar = s.r * areaK(r);
       for (let i = 0; i < segs; i++) {
-        const o = (i - (segs - 1) / 2) * s.r * 1.8, cx = x - Math.sin(a) * o, cy = y + Math.cos(a) * o;
-        G.areas.push({ x: cx, y: cy, r: s.r, el, dmg: v, deb: s.deb, t: s.delay || 0, delay: s.delay || 0, ticks: s.ticks || 1, iv: s.iv || 0, burn: s.burn, src: p, meteor: s.id === 'meteor', vis, sid: s.id,
+        const o = (i - (segs - 1) / 2) * ar * 1.8, cx = x - Math.sin(a) * o, cy = y + Math.cos(a) * o;
+        G.areas.push({ x: cx, y: cy, r: ar, el, dmg: v, deb: s.deb, t: s.delay || 0, delay: s.delay || 0, ticks: s.ticks || 1, iv: s.iv || 0, burn: s.burn, src: p, meteor: s.id === 'meteor', vis, sid: s.id,
           bolts: s.bolts, boom: !!(s.delay || s.corpse), seed: rnd(0, 6),
-          cracks: vis === 'lava' || vis === 'volcano' ? Array.from({ length: 7 }, () => { const a = rnd(0, 6.283), l = rnd(0.4, 1) * s.r; return [[cx, cy], [cx + Math.cos(a + 0.3) * l * 0.5, cy + Math.sin(a + 0.3) * l * 0.5], [cx + Math.cos(a) * l, cy + Math.sin(a) * l]]; }) : null });
+          cracks: vis === 'lava' || vis === 'volcano' ? Array.from({ length: 7 }, () => { const a = rnd(0, 6.283), l = rnd(0.4, 1) * ar; return [[cx, cy], [cx + Math.cos(a + 0.3) * l * 0.5, cy + Math.sin(a + 0.3) * l * 0.5], [cx + Math.cos(a) * l, cy + Math.sin(a) * l]]; }) : null });
       }
       return;
     }
@@ -1033,9 +1051,12 @@ function projectiles(dt) {
     // Wand erst nach den Treffern prüfen, sonst gehen Schüsse auf Gegner an einer Wand verloren
     const wall = !q.spiral && !walk(q.x, q.y);
     const crash = () => { if (q.ex) explode(q); if (q.shards) burst(q); q.dead = true; };
-    if ((!q.arrow || q.el !== 'phys') && !['tornado', 'twister', 'axe', 'insects', 'wind', 'gust', 'bone', 'fang', 'blade'].includes(q.vis)) emit(q.x, q.y, 26, q.vis === 'farrow' ? 'fire' : q.el === 'phys' ? 'mag' : q.el, q.el === 'fire' ? 2 : 1, 8, { life: 0.35 });
+    if ((!q.arrow || q.el !== 'phys') && !['tornado', 'twister', 'axe', 'insects', 'wind', 'gust', 'dgust', 'bone', 'fang', 'blade'].includes(q.vis)) emit(q.x, q.y, 26, q.vis === 'farrow' ? 'fire' : q.el === 'phys' ? 'mag' : q.el, q.el === 'fire' ? 2 : 1, 8, { life: 0.35 });
     if ((q.vis === 'flame' || q.vis === 'boulder') && Math.random() < 0.5) emit(q.x, q.y, 0, 'fire', 1, 6, { vx: 0, vy: 0, vz: 0, life: rnd(0.8, 1.3), s: rnd(4, 7), flame: 1 });
-    if (q.vis === 'gust') for (let i = 0; i < (q.wide ? 4 : 1); i++) if (Math.random() < 0.7) { const w = q.wide || q.sz, o = rnd(-w, w), sp = Math.hypot(q.vx, q.vy) || 1; G.parts.push({ x: q.x - q.vy / sp * o, y: q.y + q.vx / sp * o, z: rnd(6, 50), vx: q.vx * 0.6, vy: q.vy * 0.6, vz: rnd(-10, 30), life: 0.5, t: 0, col: pick(['#e0c8ff', '#b08cff', '#ffffff']), s: 2, add: true }); }
+    if (q.vis === 'gust' || q.vis === 'dgust') for (let i = 0; i < (q.wide ? 4 : 1); i++) if (Math.random() < 0.7) {
+      const w = q.wide || q.sz, o = rnd(-w, w), sp = Math.hypot(q.vx, q.vy) || 1, dark = q.vis === 'dgust' && i === 3; // Todeswind: grün, dazu schwarze Fetzen (nicht additiv, sonst unsichtbar)
+      G.parts.push({ x: q.x - q.vy / sp * o, y: q.y + q.vx / sp * o, z: rnd(6, 50), vx: q.vx * 0.6, vy: q.vy * 0.6, vz: rnd(-10, 30), life: 0.5, t: 0, col: dark ? '#0c100a' : pick(q.vis === 'dgust' ? ['#c8ffa8', '#6ad840', '#ffffff'] : ['#e0c8ff', '#b08cff', '#ffffff']), s: dark ? 3 : 2, add: !dark });
+    }
     // Giftwurfspeer hinterlässt eine Spur aus Giftwolken
     if (q.cloud && (q.cT = (q.cT || 0) - dt) <= 0) { q.cT = 0.08; G.areas.push({ x: q.x, y: q.y, r: 30, el: 'pois', dmg: q.dmg * q.cloud, t: 0, delay: 0, ticks: 4, iv: 0.4, src: q.src, vis: 'cloud', seed: rnd(0, 6) }); }
     if (q.shards) {
@@ -1048,10 +1069,11 @@ function projectiles(dt) {
       if (e.team === q.team || e === q.src || e.dead || e.noTarget || q.hitSet.has(e) || !touches(q, e, ox, oy)) continue;
       q.hitSet.add(e);
       if (q.ex) { explode(q); q.dead = true; break; }
-      hit(q.src, e, q.dmg, q.el, { kb: q.kb, st: q.st, leech: q.leech, ranged: 1 });
+      hit(q.src, e, q.dmg, q.el, { kb: q.kb, st: q.st, leech: q.leech, ranged: 1, direct: q.doom && 1 }); // direct: ohne Schaden kein Gift, das ein bestehendes halbiert
       q.ae?.forEach(([el, d]) => hit(q.src, e, d * S.lvlMult, el));
       if (q.el !== 'phys') { emit(q.x, q.y, 26, q.el, 6, 30); boom(q.x, q.y, 26, q.el, 12 + q.sz, 0.28); }
       if (q.fury) fury(q, e);
+      if (q.doom) doom(e, q);
       if (--q.pr < 0) { q.dead = true; break; }
     }
     if (wall && !q.dead) { crash(); continue; }
@@ -1110,6 +1132,7 @@ function status(e, dt) {
   e.slow -= dt; e.fear -= dt; e.st -= dt; e.movT -= dt; e.flash = (e.flash || 0) - dt; e.root = (e.root || 0) - dt; e.dark = (e.dark || 0) - dt;
   e.chill = (e.chill || 0) - dt; e.frz = (e.frz || 0) - dt; e.hfT = (e.hfT || 0) - dt; e.prison = (e.prison || 0) - dt; e.curseT = (e.curseT || 0) - dt;
   if (e.cur) for (const k in e.cur) e.cur[k] -= dt;
+  if (e.doomT > 0 && (e.doomT -= dt) <= 0) kill(e); // Todeswind: die Zeit ist um, kill() lässt ihn explodieren
   e.atkA = Math.max(0, (e.atkA || 0) - dt * 3.5);
   if ((e.ampT -= dt) <= 0) e.amp = 1;
 }
@@ -1481,6 +1504,11 @@ function drawEnt(e) {
   if (e.conv) { ctx.globalCompositeOperation = 'lighter'; glowDot(ctx, sx, sy - h * 0.5, h * 0.4, '#105a10'); ctx.globalCompositeOperation = 'source-over'; }
   if (e.player && G.shield > 0) drawShield(ctx, G.shieldVis || 'bubble', sx, sy, h, G.t);
   if (e.amp > 1) { const cy = sy - h - 10; ctx.globalCompositeOperation = 'lighter'; glowDot(ctx, sx, cy, 12, '#a01010'); ctx.globalCompositeOperation = 'source-over'; disc(ctx, sx, cy, 5, '#e04030'); ctx.fillRect(sx - 3, cy + 2, 6, 4); disc(ctx, sx - 2, cy - 0.5, 1.3, '#200'); disc(ctx, sx + 2, cy - 0.5, 1.3, '#200'); }
+  if (e.doomT > 0) { // Todeswind: grüner Schädel über dem Kopf, er pulsiert umso schneller, je näher der Tod rückt
+    ctx.globalAlpha = 0.65 + 0.35 * Math.sin(G.t * (5 + 20 / Math.max(0.4, e.doomT)));
+    ctx.globalCompositeOperation = 'lighter'; glowDot(ctx, sx, sy - h - 36, 22, '#2a6a10'); ctx.globalCompositeOperation = 'source-over';
+    glyphAt(ctx, 'skull', sx, sy - h - 36, 0.85, '#7dff5a'); ctx.globalAlpha = 1;
+  }
   if (e.dark > 0) for (let i = 0; i < 4; i++) disc(ctx, sx + Math.cos(G.t * 2 + i * 1.6) * 10, sy - h - 2 + Math.sin(G.t * 3 + i) * 3, 9, 'rgba(10,0,20,.55)');
   if (e.st > 0 && !frz) for (let i = 0; i < 3; i++) { const a = G.t * 5 + i * 2.1; disc(ctx, sx + Math.cos(a) * 10, sy - h - 4 + Math.sin(a) * 3, 2.2, '#ffe040'); }
 }
@@ -1885,6 +1913,9 @@ function desc(s, r) {
     if (p.frz) o.push(`friert mit einer Chance von 1 zu ${Math.round(1 / p.frz)} je Puls ${de(p.frzT)} s ein`);
     if (p.rm) o.push(`Radius ${de(p.rm + p.rmUp * (R - 1))} Meter`);
   }
+  if (s.doom) o.push(`Getroffene sterben mit ${Math.round((s.doom + 0.01 * (R - 1)) * 100)} % Chance nach 3–5 s und explodieren wie eine Leiche: 60–100 % ihres Lebens als Schaden im Umkreis (halb Feuer, halb körperlich); nicht bei Bossen`);
+  if (s.grow && R > 1) o.push(`Breite und Reichweite +${String(Math.round(s.grow * (R - 1) * 1000) / 10).replace('.', ',')} % (je Stufe +${String(Math.round(s.grow * 1000) / 10).replace('.', ',')} %)`);
+  if (s.t === 'area' && R >= 4) o.push(`Radius ${String(areaK(R).toFixed(1)).replace('.', ',')}-fach (alle 4 Stufen +0,1)`);
   if (s.dur && s.t === 'buff') o.push(`Dauer ${s.dur} s`);
   if (s.amt) o.push(s.t === 'heal' ? `heilt ${Math.round(s.amt * (1 + 0.15 * (R - 1)) * 100)}% Leben` : `absorbiert ${Math.round(s.amt * (1 + 0.3 * (R - 1)))} Schaden`);
   if (s.rng) o.push(`Reichweite ${s.rng}`);
