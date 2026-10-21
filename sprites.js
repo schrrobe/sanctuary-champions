@@ -906,7 +906,7 @@ const ICON_SPEC = {
   fire_wall: 'flame*3:0,0,.7',
   enchant: 'sword flame:8,-8,.5',
   telekinesis: 'hand ring:6,-6,.5',
-  nova: 'ring bolt*2:0,0,.5',
+  nova: 'ring bolt*2:0,0,.5', word_of_power: 'ring burst:0,0,.6',
   thunder_storm: 'cloud bolt:0,8,.6',
   ice_blast: 'shard*3:0,0,.7',
   shiver_armor: 'shield shard:6,-6,.5',
@@ -1015,7 +1015,7 @@ function drawSpec(g, spec, col) {
 
 function skillIcon(s) {
   if (ICONS[s.id]) return ICONS[s.id];
-  const c = mkCanvas(56), g = c.getContext('2d'), col = EL[s.el || s.mods?.ae?.[0] || s.pulse?.el || 'phys'][1];
+  const c = mkCanvas(56), g = c.getContext('2d'), col = s.icol || EL[s.el || s.mods?.ae?.[0] || s.pulse?.el || 'phys'][1]; // icol: eigene Farbe, etwa Wort der Macht in Blau
   const bg = g.createRadialGradient(28, 24, 4, 28, 28, 42);
   bg.addColorStop(0, mix(col, '#000000', 0.6)); bg.addColorStop(1, '#090705');
   g.fillStyle = bg; g.fillRect(0, 0, 56, 56);

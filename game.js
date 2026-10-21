@@ -231,7 +231,7 @@ function genSanct(map, old, keep) {
 // Held (und seine Beschwörungen) am Startpunkt der Karte, dann Pause
 function genPlayer(old, keep, at) {
   const p = old?.player || { r: 14, team: 'p', player: true, hp: 1, mp: 1, atkT: 0, face: 0.8, seed: 0, st: 0, slow: 0, fear: 0, amp: 1, ampT: 0, pois: 0, poisT: 0, look: LOOKS[P.cls] };
-  Object.assign(p, { x: at.x, y: at.y, dash: null, dead: false, order: null, path: null, pathT: -1 });
+  Object.assign(p, { x: at.x, y: at.y, dash: null, wop: null, dead: false, order: null, path: null, pathT: -1 });
   G.player = p; G.ents.push(p);
   keep.forEach(m => { m.x = p.x + rnd(-30, 30); m.y = p.y + rnd(-30, 30); G.ents.push(m); });
   S = calc();
@@ -786,6 +786,7 @@ function useSkill(s, r, tx, ty) {
       return;
     }
     case 'nova': {
+      if (s.windup) { p.wop = { s, t: s.windup, t0: s.windup, v: dmg() }; SFX.play('portal'); return; } // Wort der Macht: erst aufladen (wordOfPower)
       fx({ k: 'ring', x: p.x, y: p.y, r0: 10, r1: s.r, col: EL[el][1], life: 0.4 });
       novaFx(s, p);
       for (let i = 0; i < 48; i++) { const an = i / 48 * 6.283; G.parts.push({ x: p.x, y: p.y, z: 12, vx: Math.cos(an) * s.r * 2.2, vy: Math.sin(an) * s.r * 2.2, vz: 0, life: 0.45, t: 0, col: el === 'fire' ? pick(FIRE) : EL[el][1], s: 3, add: true }); }
@@ -1325,7 +1326,7 @@ function update(dt) {
   status(p, dt);
   if (p.dead) return;
   p.atkT -= dt;
-  if (p.dash) dashStep(p, dt); else control(p, dt);
+  if (p.dash) dashStep(p, dt); else if (p.wop) wordOfPower(p, dt); else control(p, dt);
   G.tp = G.ents.filter(o => o.team === 'p' && !o.dead && !o.noTarget);
   G.te = G.ents.filter(o => o.team === 'e' && !o.dead);
   G.ta = G.te.filter(o => o.cur?.attract > 0);
@@ -1689,6 +1690,11 @@ function draw() {
       const pts = [[sx, sy]]; for (let i = 1; i < 8; i++) pts.push([sx + rnd(-18, 18), sy - i * 70]);
       for (const [w, c] of [[10, '#fff27a55'], [4, '#fff27a'], [1.5, '#ffffff']]) { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); }
       glowDot(ctx, sx, sy, 90, '#fff8c0');
+    } else if (f.k === 'flash') { // Wort der Macht: blendender weiß-blauer Lichtblitz über die ganze Fläche der Druckwelle
+      const rx = f.r * Z * 1.414 * (0.7 + 0.5 * k), g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+      g.addColorStop(0, '#ffffff'); g.addColorStop(0.35, '#bcdcff'); g.addColorStop(0.75, '#59a8ff80'); g.addColorStop(1, 'transparent');
+      ctx.save(); ctx.translate(sx, sy); ctx.scale(1, 0.5); ctx.globalAlpha = (1 - k) ** 0.7; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.fill(); ctx.restore();
+      ctx.globalAlpha = 1 - k; glowDot(ctx, sx, sy - 50, rx * 0.45, '#9cc8ff');
     } else if (f.k === 'pillar') {
       ctx.globalAlpha = Math.sin(k * Math.PI); const w = f.r * Z * 0.8, g = ctx.createLinearGradient(sx - w, 0, sx + w, 0);
       g.addColorStop(0, 'transparent'); g.addColorStop(0.5, '#fff0b0'); g.addColorStop(1, 'transparent'); ctx.fillStyle = g; ctx.fillRect(sx - w, sy - 700, w * 2, 700);
@@ -1733,7 +1739,7 @@ function draw() {
   for (const t of G.torches) { const [sx, sy] = proj(t.x, t.y); lamp(sx, sy - 60, 210 + Math.sin(G.t * 13 + t.tx) * 12, 0.85); }
   for (const q of G.projs) { const [sx, sy] = proj(q.x, q.y); if (!q.arrow) lamp(sx, sy - 26, q.el === 'fire' ? 150 : 90, 0.7); }
   for (const a of G.areas) if (a.dmg && a.el !== 'pois') { const [sx, sy] = proj(a.x, a.y); lamp(sx, sy, a.r * Z * 1.6, 0.6); }
-  for (const f of G.fx) if (f.k === 'boom' || f.k === 'nova' || f.k === 'tele') { const [sx, sy] = proj(f.x, f.y); lamp(sx, sy - (f.z || 20), Math.min(400, Math.max(90, (f.r || 30) * Z * 2.6)), 0.75 * (1 - f.t / f.life)); }
+  for (const f of G.fx) if (f.k === 'boom' || f.k === 'nova' || f.k === 'tele' || f.k === 'flash') { const [sx, sy] = proj(f.x, f.y); lamp(sx, sy - (f.z || 20), Math.min(400, Math.max(90, (f.r || 30) * Z * 2.6)), 0.75 * (1 - f.t / f.life)); }
   for (const f of G.fx) if (f.k === 'bolt') { const [sx, sy] = proj(f.b.x, f.b.y); lamp(sx, sy - 30, 220, 0.8 * (1 - f.t / f.life)); }
   if (!G.hw) lamp(pcx, pcy, 420, 0.55);
   if (G.phase === 'fight' && !G.hw) for (const [tx, ty] of ARMS) { const [sx, sy] = proj((tx + 0.5) * T, (ty + 0.5) * T); lamp(sx, sy, 200, 0.5); }
@@ -1885,7 +1891,7 @@ function desc(s, r) {
   if (s.shape) o.push(`verwandelt dich in einen ${s.shape === 'wolf' ? 'Werwolf' : 'Werbären'}`);
   if (s.trail) o.push(`hinterlässt eine Feuerspur (${Math.round(s.trail.d * (1 + 0.3 * (R - 1)))} Schaden)`);
   if (s.retal) o.push(s.retal.on === 'melee' ? 'friert Nahkampfangreifer ein' : 'schießt Eisblitze auf Fernkämpfer');
-  if (s.st) o.push(s.el === 'cold' ? `friert ${s.st} s ein` : `betäubt ${s.st} s`);
+  if (s.st) { const st = String(s.st).replace('.', ','); o.push(s.el === 'cold' ? `friert ${st} s ein` : `betäubt ${st} s`); }
   if (s.fear) o.push(`Furcht ${s.fear} s`);
   if (s.leech) o.push(`${s.leech * 100}% Lebensentzug`);
   if (s.self) o.push(`kostet ${s.self * 100}% Leben`);
@@ -1920,12 +1926,13 @@ function desc(s, r) {
   if (s.amt) o.push(s.t === 'heal' ? `heilt ${Math.round(s.amt * (1 + 0.15 * (R - 1)) * 100)}% Leben` : `absorbiert ${Math.round(s.amt * (1 + 0.3 * (R - 1)))} Schaden`);
   if (s.rng) o.push(`Reichweite ${s.rng}`);
   if (s.t === 'convert') o.push(s.id === 'convert_undead' ? 'macht einen Untoten zum Verbündeten' : 'macht einen Gegner zum Verbündeten');
+  if (s.windup) o.push(`lädt ${String(s.windup).replace('.', ',')} s auf, dann eine Druckwelle: voller Schaden bis ${Math.round(s.r * 2 / 3 / METER)} Meter, ${s.rim * 100} % bis ${Math.round(s.r / METER)} Meter, Rückstoß bis ${Math.round(s.kbR / METER)} Meter`);
   if (s.cd) o.push(`Abklingzeit ${s.cd} s`);
   return o;
 }
 function skillTip(id) {
   const s = SK[id], r = rank(id), own = s.c === P.cls;
-  return `<b class="w">${s.nm}</b><div class="g">${s.g === 'D2' ? 'Diablo II' : s.g === 'CRtA' ? 'Champions' : 'Basis'} · ${clsName(s.c)}${own ? ' · Klassenbonus +25 %' : ''}</div>
+  return `<b class="w">${s.nm}</b><div class="g">${s.g === 'D2' ? 'Diablo II' : s.g === 'CRtA' ? 'Champions' : s.g === 'SuM' ? 'Schlacht um Mittelerde II' : 'Basis'} · ${clsName(s.c)}${own ? ' · Klassenbonus +25 %' : ''}</div>
     <div>${TYPES[s.t]}</div>
     ${r ? `<div class="w">Aktueller Rang: ${r}</div>${desc(s, r).map(x => `<div>${x}</div>`).join('')}` : ''}
     ${s.c !== 'base' && (P.ranks[s.id] || 0) < (s.max || 20) ? `<div class="w">${r ? 'Nächster Rang' : 'Rang 1'}</div>${desc(s, r + 1).map(x => `<div>${x}</div>`).join('')}` : ''}
@@ -2242,7 +2249,7 @@ function showSelect() {
     <div class="info" id="clsinfo">Wähle eine Klasse</div>
     ${saved ? `<button class="big" data-act="continue"></button>` : ''}
     <div class="row"><input id="cname" maxlength="16" placeholder="Name des Helden"><button class="big" data-act="start" disabled>Abenteuer beginnen</button></div>
-    <p class="hint">Jede Klasse kann jede der ${SKILLS.length - 2} Fähigkeiten aus beiden Spielen lernen. Fähigkeiten der eigenen Klasse wirken 25 % stärker.</p>`;
+    <p class="hint">Jede Klasse kann jede der ${SKILLS.length - 2} Fähigkeiten lernen. Fähigkeiten der eigenen Klasse wirken 25 % stärker.</p>`;
   sel.querySelectorAll('.cls').forEach(b => preview(b.querySelector('canvas'), b.dataset.cls, 0, false));
   showMap(saved);
 }
@@ -2350,6 +2357,27 @@ showSelect();
 requestAnimationFrame(frame);
 
 // Zusatzeffekte für Novas
+// Wort der Macht: die Zauberin sammelt die Kraft wie Gandalf in SuM II, dunkelblaue Ringe ziehen sich auf sie zusammen und helle
+// Funken werden vom Rand eingesaugt; dann bricht die Druckwelle los. Schaden im Radius (im äußeren Drittel rim-fach), Rückstoß und Niederwerfen bis kbR
+// (außerhalb des Radius ohne Schaden, schwächer); Fässer und Alarm-Autos des Highways werden nur getroffen, nicht verschoben
+function wordOfPower(p, dt) {
+  const w = p.wop, s = w.s;
+  p.atkA = 1; p.atkCast = true;
+  if (Math.random() < dt * 12) fx({ k: 'ring', x: p.x, y: p.y, r0: s.r * 1.5, r1: 20, col: '#5a7cff', life: 0.5 });
+  for (let i = 0; i < 5; i++) { const a = rnd(0, 6.283), d = s.r * rnd(0.85, 1.05); G.parts.push({ x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d, z: rnd(4, 40), vx: -Math.cos(a) * d / 0.45, vy: -Math.sin(a) * d / 0.45, vz: rnd(0, 30), life: 0.45, t: 0, col: '#88acff', s: 2.5, add: true }); }
+  if ((w.t -= dt) > 0) return;
+  p.wop = null;
+  fx({ k: 'flash', x: p.x, y: p.y, r: s.r, life: 0.4 });
+  for (let i = 0; i < 3; i++) fx({ k: 'ring', x: p.x, y: p.y, r0: 20, r1: s.kbR, col: i ? '#88acff' : '#ffffff', life: 0.55 + i * 0.15, delay: i * 0.07 });
+  for (let i = 0; i < 70; i++) { const a = rnd(0, 6.283), v = rnd(120, 300); G.parts.push({ x: p.x + Math.cos(a) * 30, y: p.y + Math.sin(a) * 30, z: rnd(5, 40), vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: rnd(5, 40), life: rnd(1.1, 1.8), t: 0, col: 'rgba(181,190,196,.5)', s: rnd(6, 11), add: false, soft: true }); } // graublauer Staub
+  SFX.play('boom');
+  for (const e of foes(p)) {
+    const d = dist(p, e), push = e.team === 'e';
+    if (d < s.r + e.r) hit(p, e, w.v * (d < s.r * 2 / 3 + e.r ? 1 : s.rim), s.el, { kb: push ? s.kb : 0, st: s.st });
+    else if (push && d < s.kbR + e.r) hit(p, e, 0, s.el, { kb: s.kb * 0.75, st: s.st * 0.5 });
+  }
+}
+
 function novaFx(s, p) {
   const id = s.id;
   // Ring aus Eis, Gift, Flammen oder Blitzen wie bei den D2-Novas
@@ -2370,6 +2398,7 @@ function bodyFx(e, sx, sy, h, fxs) {
   if (B.berserker_rage || B.might) glowDot(ctx, sx, sy - h * 0.5, h * 0.55, '#601008');
   if (B.giant_growth) glowDot(ctx, sx, sy - h * 0.5, h * 0.6, '#204a10');
   if (B.battle_mage) glowDot(ctx, sx, sy - h * 0.5, h * 0.5, '#301860');
+  if (e.wop) { const k = 1 - e.wop.t / e.wop.t0; glowDot(ctx, sx, sy - h * 0.55, h * (0.3 + 0.7 * k), '#59a8ff'); glowDot(ctx, sx, sy - h * 0.55, h * 0.15 * (1 + k), '#ffffff'); } // Wort der Macht: wachsende Lichtkugel
   // Geister des Druiden schweben neben ihm: Eichenweiser grün, Vielfraß rot, Stacheln braun
   [['oak_sage', '#40a030'], ['heart_of_wolverine', '#c03020'], ['spirit_of_barbs', '#a08040']].forEach(([id, c], i) => {
     if (!B[id]) return;

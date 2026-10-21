@@ -81,6 +81,10 @@ const SKILLS = [
   { id: 'blizzard', nm: 'Blizzard', g: 'D2', c: 'sor', t: 'area', q: 24, mp: 20, cd: 1.5, d: 0.9, el: 'cold', r: 130, ticks: 8, iv: 0.35 },
   { id: 'meteor', nm: 'Meteor', g: 'D2', c: 'sor', t: 'area', q: 24, mp: 18, d: 6.0, el: 'fire', r: 110, delay: 0.9, burn: 3 },
   { id: 'frozen_orb', nm: 'Frostkugel', g: 'D2', c: 'sor', t: 'proj', q: 30, mp: 25, cd: 1, d: 30.3, el: 'cold', v: 220, shards: 1, life: 1.6 },
+  // aus Die Schlacht um Mittelerde II, Gandalfs Fähigkeit auf Stufe 10: nach kurzem Aufladen (windup) eine Druckwelle mit Schaden
+  // im Radius r (im äußeren Drittel nur das rim-Fache) und Rückstoß bis kbR, dem doppelten Radius wie im Original; Getroffene liegen
+  // kurz am Boden. icol: Farbe des Symbols
+  { id: 'word_of_power', nm: 'Wort der Macht', g: 'SuM', c: 'sor', t: 'nova', q: 30, mp: 35, cd: 30, d: 60, rim: 0.5, el: 'mag', r: 250, kb: 160, kbR: 500, st: 1.2, windup: 0.8, icol: '#59a8ff' },
   { id: 'hydra', nm: 'Hydra', g: 'D2', c: 'sor', t: 'summon', q: 30, mp: 22, m: 'hydra', k: 2, dur: 10, pw: 0.619 },
   { id: 'warmth', nm: 'Wärme', g: 'D2', c: 'sor', t: 'passive', q: 1, mods: { mregen: 0.3 } },
   { id: 'fire_mastery', nm: 'Feuer-Beherrschung', g: 'D2', c: 'sor', t: 'passive', q: 30, mods: { fire: 0.1 } },
