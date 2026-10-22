@@ -116,12 +116,13 @@ const BAL = (() => {
     ['frost_nova', 'energy_shield'], ['blizzard', 'frozen_armor'], ['chain_lightning', 'energy_shield'], ['raise_skeleton', 'bone_armor'],
     ['fissure', 'oak_sage'], ['holy_bolt', 'might'], ['poison_arrow', 'regeneration'], ['bw_charge', 'strong_stance'],
   ];
-  function campaign([main, sup], maxRound = 40, seed = 3) {
+  // map: Karte wie in setMap, die Ferne Oase immer mit demselben Startwert (node balance.js --kampagne oase)
+  function campaign([main, sup], maxRound = 40, seed = 3, map = 'sanct') {
     const real = Math.random; Math.random = seeded(seed);
     try {
       const s = SK[main], own = CL[s.c] ? s.c : 'bar', c = CL[own], basic = c.ranged ? 'shoot' : 'attack';
       const stat = s.wm || !(s.d || s.pct) ? (c.ranged ? 'dex' : 'str') : 'ene';
-      G = null; newChar(own, 'Kampagne');
+      G = null; newChar(own, 'Kampagne'); P.oaSeed = 1; setMap(map);
       const spend = () => {
         while (P.skillPts > 0) { const r0 = P.skillPts; learn(main); if (P.skillPts === r0) learn(sup); if (P.skillPts === r0) break; }
         while (P.statPts >= 5) { P[stat] += 3; P.vit += 2; P.statPts -= 5; }
@@ -238,17 +239,17 @@ if (typeof require === 'function' && typeof module === 'object' && require.main 
   const ctx = load();
   if (process.env.BAL_CAMP) {
     vm.runInContext(`(async () => { save = () => {}; emit = () => {}; return BAL.campaign(${process.env.BAL_CAMP}); })()`, ctx).then(r => process.send(r, () => process.exit(0)));
-  } else if (process.argv[2] === '--kampagne') {
-    const builds = vm.runInContext('BAL.BUILDS', ctx), t0 = Date.now();
+  } else if (process.argv[2] === '--kampagne') { // node balance.js --kampagne [sanct|hw|oase]
+    const builds = vm.runInContext('BAL.BUILDS', ctx), t0 = Date.now(), map = process.argv[3] || 'sanct';
     Promise.all(builds.map(b => new Promise((ok, fail) => {
-      const c = fork(__filename, [], { env: { ...process.env, BAL_CAMP: JSON.stringify(b) } });
+      const c = fork(__filename, [], { env: { ...process.env, BAL_CAMP: `${JSON.stringify(b)}, 40, 3, ${JSON.stringify(map)}` } });
       c.on('message', ok); c.on('exit', code => code && fail(new Error(`${b[0]} abgebrochen`)));
     }))).then(rs => {
       const avg = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : '-';
       console.log('Ausrichtung'.padEnd(18) + 'Runden  Stufe  Ende      Ø Zeit R1–5  R6–15  R16+');
       for (const r of rs) console.log(r.build.padEnd(18) + String(r.rounds).padStart(6) + String(r.lvl).padStart(7) + '  ' + (r.died ? 'gefallen' : r.rounds >= 40 ? 'Ziel' : 'zu lang').padEnd(9) + String(avg(r.times.slice(0, 5))).padStart(12) + String(avg(r.times.slice(5, 15))).padStart(7) + String(avg(r.times.slice(15))).padStart(6));
       const sorted = rs.map(r => r.rounds).sort((a, b) => a - b);
-      console.log(`\nMedian ${sorted[sorted.length >> 1]} Runden · ${Math.round((Date.now() - t0) / 1000)} s`);
+      console.log(`\nMedian ${sorted[sorted.length >> 1]} Runden · Karte ${map} · ${Math.round((Date.now() - t0) / 1000)} s`);
     });
   } else if (process.env.BAL_PART) {
     vm.runInContext(`BAL.all(${process.env.BAL_PART}, null, ${process.env.BAL_BASE === '1'})`, ctx).then(res => process.send(res, () => process.exit(0)));

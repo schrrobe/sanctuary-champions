@@ -46,7 +46,7 @@ const FILTER_OK = (() => {
 })();
 function bloom() {
   if (!GFX.bloom || !FILTER_OK) return;
-  const bk = G?.hw ? 0.35 : 1; // im hellen Tageslicht würde der Sand überstrahlen
+  const bk = G?.hw || G?.oase ? 0.35 : 1; // im hellen Tageslicht würde der Sand überstrahlen
   const w = Math.ceil(cv.width / 4), h = Math.ceil(cv.height / 4), ga = bloomA.getContext('2d');
   if (bloomA.width !== w || bloomA.height !== h) { bloomA.width = w; bloomA.height = h; }
   ga.globalCompositeOperation = 'copy'; ga.filter = 'brightness(.7) contrast(5) blur(2px)'; ga.drawImage(cv, 0, 0, w, h); ga.filter = 'none';
@@ -99,9 +99,9 @@ const DIRS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const DIRS8 = [...DIRS4, [1, 1], [1, -1], [-1, 1], [-1, -1]];
 const xpNext = l => Math.round(120 * l * 1.1 ** (l - 1));
 const clsName = id => CL[id]?.nm || GROUPS[id];
-// Gegnerstufe: danach wachsen Leben, Schaden, Erfahrung und Beute. Im Sanktuarium die Runde, auf dem Highway der Toten
-// mindestens die zur Heldenstufe passende Sanktuarium-Runde (Balance-Prüfung: Stufe 6 ≈ Runde 5, Stufe 18 ≈ Runde 15)
-const gs = () => P.map === 'hw' ? Math.max(P.depth, Math.round(P.lvl / 1.2)) : P.depth;
+// Gegnerstufe: danach wachsen Leben, Schaden, Erfahrung und Beute. Im Sanktuarium die Runde, auf dem Highway der Toten und der
+// Fernen Oase mindestens die zur Heldenstufe passende Sanktuarium-Runde (Balance-Prüfung: Stufe 6 ≈ Runde 5, Stufe 18 ≈ Runde 15)
+const gs = () => P.map === 'hw' || P.map === 'oase' ? Math.max(P.depth, Math.round(P.lvl / 1.2)) : P.depth;
 const potCost = () => 10 + gs() * 2;
 
 let P = null, G = null, S = null, panel = null, popup = null, filter = 'all', search = '', chosen = null, mapOn = false;
@@ -128,6 +128,7 @@ function newChar(cid, name) {
     cls: cid, name: name || 'Namenloser Held', lvl: 1, xp: 0, str: c.str, dex: c.dex, vit: c.vit, ene: c.ene, statPts: 0, skillPts: 30,
     ranks: { [a]: 1, [b]: 1 }, slots: [a, b], hot: [a, b, basic, null, null, null, null, null],
     gold: 0, pots: { hp: 3, mp: 3 }, flares: 0, bag: [], depth: 1, map: 'sanct', rounds: {}, bests: {}, // depth und best gelten für die gewählte Karte
+    oaSeed: oaSeedNew(), // eigene Ferne Oase je Held
     eq: { weapon: { slot: 'weapon', base: wpn, nm: wpn, rar: 0, min: 2, max: 5, mods: {}, val: 5 } },
   };
 }
@@ -158,6 +159,7 @@ function calc() {
   s.crit = Math.min(0.6, s.crit + s.dex / 500);
   s.dodge = Math.min(0.5, s.dodge);
   s.res = Math.min(0.75, s.res);
+  s.armor *= 1 + (s.armorPct || 0); // armorPct: Schrein der Rüstung der Fernen Oase, folgt jedem Wechsel der Ausrüstung
   s.dr = clamp(s.armor / (Math.max(0, s.armor) + 40 + 8 * gs()), 0, 0.7);
   s.lvlMult = 1 + 0.08 * (P.lvl - 1);
   s.regen += s.maxhp * 0.004;
@@ -201,16 +203,16 @@ function genArena() {
 
 // Baut die gewählte Karte neu auf; danach ist Pause vor Runde P.depth
 function genLevel() {
-  const hw = P.map === 'hw';
-  MW = MH = hw ? HW_N : 70;
-  const L = hw ? (HW_MAP ||= hwGen()) : null, map = hw ? L.map.slice() : genArena(), old = G, keep = old ? old.ents.filter(e => e.minion && !e.dead && !e.conv) : [];
+  const hw = P.map === 'hw', oase = P.map === 'oase';
+  MW = MH = hw ? HW_N : oase ? OA_N : 70;
+  const L = hw ? (HW_MAP ||= hwGen()) : oase ? oaMap() : null, map = L ? L.map.slice() : genArena(), old = G, keep = old ? old.ents.filter(e => e.minion && !e.dead && !e.conv) : [];
   G = {
-    map, seen: new Uint8Array(MW * MH).fill(1), edge: new Uint8Array(MW * MH), wall: hw ? L.draw : new Uint8Array(MW * MH), lavaEdge: [], area: hw ? HIGHWAY : ARENA, props: [],
+    map, seen: new Uint8Array(MW * MH).fill(1), edge: new Uint8Array(MW * MH), wall: L ? L.draw : new Uint8Array(MW * MH), lavaEdge: [], area: hw ? HIGHWAY : oase ? OASE : ARENA, props: [],
     ents: [], projs: [], fx: [], areas: [], parts: [], texts: [], loot: [], corpses: [], labels: [], torches: [], buffs: old?.buffs || {}, cds: {},
     shield: old?.shield || 0, shieldVis: old?.shieldVis, t: 0, flowT: 0, flow: new Int16Array(MW * MH), saveT: 15, dead: 0, hover: null,
-    boss: null, phase: 'pause', queue: [], waveT: 0, wares: [], hw, L, tp: [], te: [], lures: [],
+    boss: null, phase: 'pause', queue: [], waveT: 0, wares: [], hw, oase, L, tp: [], te: [], lures: [],
   };
-  if (hw) genPlayer(old, keep, L.start);
+  if (L) genPlayer(old, keep, L.start); // auf der Fernen Oase immer an der Startoase, auch nach dem Tod
   else genSanct(map, old, keep);
 }
 function genSanct(map, old, keep) {
@@ -251,6 +253,7 @@ function startRound() {
   const d = P.depth;
   let boss = null;
   if (G.hw) { G.queue = hwQueue(d); hwEach('round', d); boss = G.queue.find(q => q.kind === 'boss')?.t || null; }
+  else if (G.oase) { G.queue = oaQueue(d); oaEach('round', d); boss = G.queue.find(q => q.kind === 'boss')?.t || null; }
   else {
     const pool = MONSTERS.filter(m => m.from <= P.depth);
     G.queue = [];
@@ -283,12 +286,13 @@ function spawnGroup({ t, kind, n }) {
   }
 }
 // Rekord je Karte: höchste überstandene Runde mit Name und Klasse des Helden
-const RECORD = 'sanctuary-champions-record', RECORD_HW = 'sanctuary-champions-record-hw';
-const record = (map = P?.map) => { try { return JSON.parse(localStorage.getItem(map === 'hw' ? RECORD_HW : RECORD)); } catch { return null; } };
+const RECORD = { sanct: 'sanctuary-champions-record', hw: 'sanctuary-champions-record-hw', oase: 'sanctuary-champions-record-oase' };
+const record = (map = P?.map) => { try { return JSON.parse(localStorage.getItem(RECORD[map])); } catch { return null; } };
 const enemiesLeft = () => G.ents.filter(e => e.team === 'e' && !e.dead).length + G.queue.reduce((a, q) => a + q.n, 0);
 function rounds(dt) {
   if (G.phase !== 'fight') return;
   if (G.hw) hwRounds(dt);
+  else if (G.oase) oaRounds(dt);
   else if (G.queue.length && (G.waveT -= dt) <= 0) { G.waveT = 3; spawnGroup(G.queue.shift()); }
   if (!G.queue.length && !G.ents.some(e => e.team === 'e' && !e.dead)) {
     const gold = Math.round(15 * gs() * (1 + gs() * 0.1));
@@ -297,7 +301,7 @@ function rounds(dt) {
     P.depth++;
     P.best = Math.max(P.best || 0, P.depth - 1);
     if (P.best > (record()?.round || 0)) {
-      try { localStorage.setItem(P.map === 'hw' ? RECORD_HW : RECORD, JSON.stringify({ round: P.best, name: P.name, cls: P.cls })); } catch { /* privater Modus */ }
+      try { localStorage.setItem(RECORD[P.map], JSON.stringify({ round: P.best, name: P.name, cls: P.cls })); } catch { /* privater Modus */ }
       note(`Neuer Rekord: Runde ${P.best}`);
     }
     placeProps(); pause(); save();
@@ -376,12 +380,16 @@ function bakeFloor() {
 }
 
 // ---------- Objekte: Fässer, Urnen, Truhen, Schreine ----------
-const PROP_NM = { barrel: 'Fass', urn: 'Urne', chest: 'Truhe', shrine: 'Erneuerungsschrein', trunk: 'Kofferraum', crate: 'Beutekiste', medkit: 'Medikit' };
+const PROP_NM = { barrel: 'Fass', urn: 'Urne', chest: 'Truhe', shrine: 'Erneuerungsschrein', trunk: 'Kofferraum', crate: 'Beutekiste', medkit: 'Medikit',
+  // Ferne Oase (oase-objekte.js)
+  coffer: 'Truhe', jar: 'Krug', guard: 'Toter Wächter', well: 'Brunnen', wp: 'Wegpunkt',
+  shrine_combat: 'Schrein des Kampfes', shrine_armor: 'Schrein der Rüstung', shrine_exp: 'Schrein der Erfahrung' };
 // Urnen in den Hallenecken, ab Runde 2 eine Belohnungstruhe auf dem Pentagramm, jede dritte Runde ein Schrein
 function placeProps() {
   const c = (AC + 0.5) * T, add = (x, y, k) => G.props.push({ x, y, k, seed: rnd(0, 100), open: false });
   G.props = [];
   if (G.hw) { hwEach('props'); return; }
+  if (G.oase) { oaEach('props'); return; }
   for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) for (let i = rint(1, 3); i > 0; i--) add(c + sx * 11 * T + rnd(-24, 24), c + sy * 11 * T + rnd(-24, 24), 'urn');
   if (P.depth > 1) add(c, c - 2 * T, 'chest');
   if (P.depth % 3 === 0) add(c, c + 7 * T, 'shrine');
@@ -390,6 +398,7 @@ function placeProps() {
 }
 function useProp(pr) {
   if (pr.open) return;
+  if (G.oase && oaUse(pr)) return; // Ferne Oase: Brunnen, Schreine und Wegpunkte in oase-objekte.js, ihre Truhen, Krüge und Toten Wächter weiter unten
   pr.open = true;
   const p = G.player, put = l => G.loot.push({ x: pr.x + rnd(-22, 22), y: pr.y + rnd(-22, 22), ...l });
   if (pr.k === 'shrine' || pr.k === 'medkit') {
@@ -397,17 +406,17 @@ function useProp(pr) {
     emit(pr.x, pr.y, 30, 'cold', 40, 16, { vz: rnd(80, 200), life: 1.2, ...(pr.k === 'medkit' && { col: '#ff6060' }) });
     return msg(`${PROP_NM[pr.k]}: Leben und Mana aufgefüllt`, pr.k === 'medkit' ? '#ff8080' : '#7fd4ff');
   }
-  if (pr.k === 'chest' || pr.k === 'crate') {
+  if (pr.k === 'chest' || pr.k === 'crate' || pr.k === 'coffer') {
     SFX.play('chest');
     put({ k: 'gold', n: Math.round(rnd(4, 14) * gs()) });
     if (Math.random() < 0.6) put({ k: 'item', it: genItem(gs(), Math.random() < 0.25) });
     if (Math.random() < 0.3) put({ k: pick(['hp', 'mp']) });
     return;
   }
-  if (pr.k === 'trunk') SFX.play('chest'); // Kofferraum: aufklappen statt zerschlagen, Beute wie bei einer Urne
-  else SFX.play('smash');
-  const col = pr.k === 'urn' ? ['#a0603a', '#7a4428', '#c08050'] : ['#6a4a2a', '#4a3018', '#8a6a3a'];
-  if (pr.k !== 'trunk') for (let i = 0; i < 16; i++) G.parts.push({ x: pr.x, y: pr.y, z: rnd(6, 24), vx: rnd(-90, 90), vy: rnd(-90, 90), vz: rnd(80, 200), g: 420, life: rnd(0.4, 0.7), t: 0, col: pick(col), s: rnd(2, 4) });
+  const open = pr.k === 'trunk' || pr.k === 'guard'; // Kofferraum aufklappen, Toten Wächter durchsuchen statt zerschlagen, Beute wie bei einer Urne
+  SFX.play(pr.k === 'guard' ? 'item' : open ? 'chest' : 'smash');
+  const col = pr.k === 'urn' || pr.k === 'jar' ? ['#a0603a', '#7a4428', '#c08050'] : ['#6a4a2a', '#4a3018', '#8a6a3a'];
+  if (!open) for (let i = 0; i < 16; i++) G.parts.push({ x: pr.x, y: pr.y, z: rnd(6, 24), vx: rnd(-90, 90), vy: rnd(-90, 90), vz: rnd(80, 200), g: 420, life: rnd(0.4, 0.7), t: 0, col: pick(col), s: rnd(2, 4) });
   const r = Math.random();
   if (r < 0.3) put({ k: 'gold', n: Math.round(rnd(1, 5) * gs()) });
   else if (r < 0.42) put({ k: pick(['hp', 'mp']) });
@@ -436,6 +445,7 @@ function spawnMon(t, x, y, kind) {
   };
   e.maxhp = e.hp; G.ents.push(e);
   if (G.hw) hwEach('spawn', e);
+  else if (G.oase) oaEach('spawn', e);
   return e;
 }
 
@@ -470,7 +480,7 @@ function revive(s, r, c) {
 function updateFlow() {
   const f = G.flow, s = tileOf(G.player), q = [s];
   f.fill(-1); f[s] = 0;
-  const R = G.hw ? 64 : 40; // auf dem Highway weiter, damit zurückfallende Zombies um Wracks und Häuser finden
+  const R = G.hw || G.oase ? 64 : 40; // auf den großen Karten weiter, damit zurückfallende Gegner um Wracks, Häuser und Felsen finden
   for (let i = 0; i < q.length; i++) {
     const c = q[i], cd = f[c];
     if (cd > R) continue;
@@ -565,6 +575,7 @@ function wake(e) {
 function hit(src, t, dmg, el = 'phys', o = {}) {
   if (t.dead || t.noTarget) return;
   if (G.hw) for (const f of HWH.hit) { const v = f(src, t, dmg, el, o); if (v === false) return; if (v !== undefined) dmg = v; }
+  else if (G.oase) for (const f of OAH.hit) { const v = f(src, t, dmg, el, o); if (v === false) return; if (v !== undefined) dmg = v; }
   if (src?.cur?.weak > 0) dmg *= 0.67; // Schwächen
   if (t.player) {
     if (Math.random() < S.dodge) return;
@@ -685,17 +696,18 @@ function kill(e) {
   blood(e, 14);
   if (e.doomR) doomBlast(e);
   if (G.hw) hwEach('kill', e);
+  else if (G.oase) oaEach('kill', e);
   if (e.player) { G.dead = 3; P.gold = Math.floor(P.gold * 0.9); save(); return; }
   if (e.team !== 'e') return;
   SFX.play('die', 50);
   if (!e.noCorpse && !['wisp', 'hammer', 'trap'].includes(e.look.rig)) G.corpses.push({ x: e.x, y: e.y, r: e.r, look: e.look, face: e.face, h: figH(e), t: 40, tpl: e.kind === 'boss' || e.kind === 'unique' ? null : e.tpl });
-  if (G.hw && G.corpses.length > 150) G.corpses.shift(); // bei Horden bleiben nur die letzten 150 Leichen liegen
+  if ((G.hw || G.oase) && G.corpses.length > 150) G.corpses.shift(); // bei Horden bleiben nur die letzten 150 Leichen liegen
   gainXp(e.xp); drop(e);
   if (e === G.boss) { G.boss = null; msg(`${e.nm} wurde besiegt!`, '#c7b377'); }
 }
 
 function gainXp(v) {
-  P.xp += v;
+  P.xp += v * (1 + (S.xpPct || 0)); // xpPct: Schrein der Erfahrung der Fernen Oase
   while (P.xp >= xpNext(P.lvl)) {
     P.xp -= xpNext(P.lvl); P.lvl++; P.statPts += 5; P.skillPts++;
     S = calc(); G.player.hp = S.maxhp; G.player.mp = S.maxmp;
@@ -707,12 +719,14 @@ function gainXp(v) {
 
 function drop(e) {
   const b = e.kind === 'boss', u = e.kind === 'unique', c = e.kind === 'champ';
-  // gewöhnliche Zombies kommen gut zwölfmal so zahlreich wie die Gegner einer Sanktuarium-Runde: je Runde gleich viel Beute
-  const z = G.hw && !b && !u && !c && !e.tpl?.special ? 0.075 : 1;
+  if (G.oase && e.tpl?.brood) return; // Brut der Fernen Oase lässt nichts fallen
+  // gewöhnliche Zombies kommen gut zwölfmal so zahlreich wie die Gegner einer Sanktuarium-Runde: je Runde gleich viel Beute;
+  // auf der Fernen Oase etwa viermal so zahlreich
+  const z = G.hw && !b && !u && !c && !e.tpl?.special ? 0.075 : G.oase && !b && !u && !c ? 0.25 : 1;
   const put = l => {
     const x = e.x + rnd(-24, 24), y = e.y + rnd(-24, 24);
-    // auf dem Highway fällt Gold auf einen nahen Haufen, damit Horden nicht Hunderte kleiner Haufen hinterlassen
-    const g = G.hw && l.k === 'gold' && G.loot.find(o => o.k === 'gold' && Math.abs(o.x - x) < 60 && Math.abs(o.y - y) < 60);
+    // auf den großen Karten fällt Gold auf einen nahen Haufen, damit Horden nicht Hunderte kleiner Haufen hinterlassen
+    const g = (G.hw || G.oase) && l.k === 'gold' && G.loot.find(o => o.k === 'gold' && Math.abs(o.x - x) < 60 && Math.abs(o.y - y) < 60);
     if (g) g.n += l.n; else G.loot.push({ x, y, ...l });
   };
   if (b || Math.random() < 0.35 * z) put({ k: 'gold', n: Math.round(rnd(2, 9) * gs() * (b ? 12 : u ? 4 : 1)) });
@@ -1155,18 +1169,20 @@ function think(e, dt) {
     // Flüche: Verwirrte greifen ihresgleichen an, Angezogene ziehen die anderen auf sich, Verspottete wollen nur zum Helden.
     // Ziellisten einmal je Bild (G.tp: Held und Beschwörungen, G.ta: Angezogene), damit Horden nicht jeder gegen jeden suchen
     const lure = G.ta.length ? G.ta.find(o => o !== e && !o.dead && o.cur?.attract > 0 && dist(o, e) < 200) : null;
-    tg = c.conf > 0 ? nearest(e, G.te.filter(o => o !== e && !o.dead)) : lure || (c.taunt > 0 ? p : nearest(e, G.tp));
+    tg = c.conf > 0 ? nearest(e, G.te.filter(o => o !== e && !o.dead && !o.noTarget)) : lure || (c.taunt > 0 ? p : nearest(e, G.tp));
     if (G.hw) tg = hwChain('target', tg, e);
+    else if (G.oase) tg = oaChain('target', tg, e);
     if (c.dim > 0 && tg && dist(e, tg) > 120) return; // mit getrübter Sicht sieht er nur, was direkt vor ihm steht
   } else {
     minionAct(e, p, dt);
     if (e.bait || !e.d) return; // Köder, Wände, Ranken und die Grauenswacht kämpfen nicht selbst
-    tg = nearest(e, G.te.filter(o => !o.dead && dist(o, p) < 450));
+    tg = nearest(e, G.te.filter(o => !o.dead && !o.noTarget && dist(o, p) < 450)); // nicht zu Eingegrabenen und hoch Fliegenden
     if (!tg || (spd && dist(e, p) > 500)) { if (spd && dist(e, p) > 90) seek(e, p, spd * 1.2, dt); return; }
   }
   if (!tg) return;
   if (e.fear > 0) { const a = Math.atan2(e.y - p.y, e.x - p.x); e.face = a; move(e, Math.cos(a) * spd * dt, Math.sin(a) * spd * dt); return; }
   if (G.hw && hwAny('act', e, tg, dt, spd)) return;
+  if (G.oase && oaAny('act', e, tg, dt, spd)) return;
   const d = dist(e, tg);
   e.atkT -= dt * hf; // Heiliger Frost verlangsamt auch Angriffe
   if (e.nova && (e.novaT -= dt) <= 0 && d < e.nova.r) {
@@ -1267,8 +1283,8 @@ function potion(k) {
 function hoverEnt() {
   let best = null, bd = -1e9;
   for (const e of G.ents) {
-    if ((e.team !== 'e' && e.team !== 'n') || e.dead) continue; // auch Fässer und Autos anvisieren
-    const [sx, sy] = proj(e.x, e.y), h = figH(e), w = Math.max(16, h * 0.3);
+    if ((e.team !== 'e' && e.team !== 'n') || e.dead || e.noTarget) continue; // auch Fässer und Autos anvisieren
+    const [sx, sy0] = proj(e.x, e.y), sy = sy0 - (e.z || 0), h = figH(e), w = Math.max(16, h * 0.3); // Fliegende stehen um ihre Höhe höher
     if (Math.abs(mouse.x - sx) < w && mouse.y < sy + 8 && mouse.y > sy - h) { const d = e.x + e.y; if (d > bd) { bd = d; best = e; } }
   }
   return best;
@@ -1355,6 +1371,7 @@ function update(dt) {
     if (x >= 0 && y >= 0 && x < MW && y < MH && dx * dx + dy * dy <= 81) G.seen[y * MW + x] = 1;
   }
   if (G.hw) { hwDust(dt); hwEach('update', dt); }
+  else if (G.oase) oaEach('update', dt); // darin auch Aufdecken der Automap und Wind (oase.js)
   rounds(dt);
   if ((G.saveT -= dt) <= 0) { G.saveT = 15; save(); }
 }
@@ -1517,8 +1534,8 @@ function drawEnt(e) {
 function draw() {
   const p = G.player, amb = G.area[3];
   updateCam();
-  scrT(); ctx.fillStyle = G.hw ? '#7a5034' : '#000'; ctx.fillRect(0, 0, W, H);
-  isoT(); if (G.hw) hwFloor(); else ctx.drawImage(G.floor, 0, 0);
+  scrT(); ctx.fillStyle = G.hw ? '#7a5034' : G.oase ? '#4e4438' : '#000'; ctx.fillRect(0, 0, W, H);
+  isoT(); if (G.hw) hwFloor(); else if (G.oase) oaFloor(); else ctx.drawImage(G.floor, 0, 0);
   // Bodeneffekte
   ctx.globalCompositeOperation = 'lighter';
   for (const l of G.lavaEdge || []) if (l.h % 4 === 0) {
@@ -1581,10 +1598,12 @@ function draw() {
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
   if (G.hw) hwEach('under');
-  // Schlagschatten fallen vom Licht des Helden weg (auf dem Highway von der Nachmittagssonne), dazu ein dunkler Fleck unter den Füßen
-  const sun = G.hw && Math.atan2(SUN[1], SUN[0]);
+  else if (G.oase) oaEach('under');
+  // Schlagschatten fallen vom Licht des Helden weg (auf dem Highway von der Nachmittagssonne, auf der Fernen Oase kurz von der
+  // Mittagssonne), dazu ein dunkler Fleck unter den Füßen
+  const sun = (G.hw || G.oase) && Math.atan2(SUN[1], SUN[0]);
   for (const e of G.ents) if (!e.dead && !['wisp', 'hammer', 'bird'].includes(e.look.rig)) {
-    const dx = e.x - p.x, dy = e.y - p.y, l = Math.hypot(dx, dy), k = sun ? 2.2 : e.player || l < 1 ? 1 : clamp(l / 160, 0.6, 2.4);
+    const dx = e.x - p.x, dy = e.y - p.y, l = Math.hypot(dx, dy), k = sun ? (G.oase ? 1.2 : 2.2) : e.player || l < 1 ? 1 : clamp(l / 160, 0.6, 2.4);
     if (sun && !onScr(...proj(e.x, e.y))) continue;
     const an = sun || (e.player || l < 1 ? 0.35 : Math.atan2(dy, dx));
     ctx.fillStyle = 'rgba(0,0,0,.32)'; ctx.beginPath(); ctx.ellipse(e.x + Math.cos(an) * e.r * k * 0.9, e.y + Math.sin(an) * e.r * k * 0.9, e.r * (1 + k * 0.6), e.r * 0.7, an, 0, 7); ctx.fill();
@@ -1592,8 +1611,8 @@ function draw() {
   }
   scrT();
   // Pentagramm glüht, während Gegner kommen
-  const [pcx, pcy] = proj((AC + 0.5) * T, (AC + 0.5) * T);
-  if (!G.hw) {
+  const [pcx, pcy] = proj((AC + 0.5) * T, (AC + 0.5) * T), arena = G.area === ARENA;
+  if (arena) {
     ctx.globalCompositeOperation = 'lighter';
     glowDot(ctx, pcx, pcy, 260, G.phase === 'fight' ? `rgba(160,20,0,${0.25 + Math.sin(G.t * 3) * 0.08})` : 'rgba(90,10,0,.18)');
     ctx.globalCompositeOperation = 'source-over';
@@ -1607,25 +1626,27 @@ function draw() {
     else { const img = icon(l.k === 'item' ? itemIcon(l.it) : potionIcon(l.k)); if (img.complete) ctx.drawImage(img, sx - 12, sy - 18, 24, 24); }
   }
   // Wände und Figuren nach Tiefe sortiert
-  const cs = [unproj(-120, -220), unproj(W + 120, -220), unproj(-120, H + (G.hw ? 380 : 160)), unproj(W + 120, H + (G.hw ? 380 : 160))]; // hohe Objekte des Highways ragen weiter ins Bild
+  const cs = [unproj(-120, -220), unproj(W + 120, -220), unproj(-120, H + (arena ? 160 : 380)), unproj(W + 120, H + (arena ? 160 : 380))]; // hohe Objekte der großen Karten ragen weiter ins Bild
   const tx0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c.x)) / T)), tx1 = Math.min(MW - 1, Math.ceil(Math.max(...cs.map(c => c.x)) / T));
   const ty0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c.y)) / T)), ty1 = Math.min(MH - 1, Math.ceil(Math.max(...cs.map(c => c.y)) / T));
   const list = [], [ppx, ppy] = proj(p.x, p.y), pd = p.x + p.y;
   G.winLamps = [];
   for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) if (G.wall[ty * MW + tx]) {
-    const o = G.hw && G.L.obs[G.L.ob[ty * MW + tx]];
+    const o = G.L && G.L.obs[G.L.ob[ty * MW + tx]];
     list.push({ d: o?.spr ? o.d : (tx + ty + 1) * T, tx, ty });
   }
-  for (const e of G.ents) if (!e.dead && onScr(...proj(e.x, e.y))) list.push({ d: e.x + e.y, e });
+  // sehr große Figuren etwas weiter hinten einsortieren: ihr Bild reicht weit über die Füße hinaus, Mauern daneben sollen sie verdecken
+  for (const e of G.ents) if (!e.dead && onScr(...proj(e.x, e.y))) list.push({ d: e.x + e.y - Math.max(0, e.r - 16), e });
   for (const pr of G.props) if (onScr(...proj(pr.x, pr.y))) list.push({ d: pr.x + pr.y, pr });
   if (G.hw) hwEach('sort', list);
+  else if (G.oase) oaEach('sort', list);
   list.sort((a, b) => a.d - b.d);
   for (const it of list) {
     if (it.draw) { it.draw(); continue; }
     if (it.e) { if (it.e.paint) it.e.paint(it.e); else drawEnt(it.e); continue; } // paint: eigene Darstellung, etwa für Fässer
     if (it.pr) { const [sx, sy] = proj(it.pr.x, it.pr.y); drawProp(ctx, it.pr, sx, sy, G.t, it.pr === G.hoverProp); continue; }
     const [wx, wy] = proj((it.tx + 0.5) * T, (it.ty + 0.5) * T), fade = it.d > pd + 10 ? clamp(0.2 + (Math.hypot((wx - ppx) / 190, (wy - ppy - 70) / 150) - 0.55) * 2, 0.2, 1) : 1;
-    if (G.hw) hwObst(it.tx, it.ty, fade); else drawWall(it.tx, it.ty, fade);
+    if (G.hw) hwObst(it.tx, it.ty, fade); else if (G.oase) oaObst(it.tx, it.ty, fade); else drawWall(it.tx, it.ty, fade);
   }
   // Geschosse, Partikel, Blitze
   ctx.globalCompositeOperation = 'lighter';
@@ -1741,25 +1762,27 @@ function draw() {
   for (const a of G.areas) if (a.dmg && a.el !== 'pois') { const [sx, sy] = proj(a.x, a.y); lamp(sx, sy, a.r * Z * 1.6, 0.6); }
   for (const f of G.fx) if (f.k === 'boom' || f.k === 'nova' || f.k === 'tele' || f.k === 'flash') { const [sx, sy] = proj(f.x, f.y); lamp(sx, sy - (f.z || 20), Math.min(400, Math.max(90, (f.r || 30) * Z * 2.6)), 0.75 * (1 - f.t / f.life)); }
   for (const f of G.fx) if (f.k === 'bolt') { const [sx, sy] = proj(f.b.x, f.b.y); lamp(sx, sy - 30, 220, 0.8 * (1 - f.t / f.life)); }
-  if (!G.hw) lamp(pcx, pcy, 420, 0.55);
-  if (G.phase === 'fight' && !G.hw) for (const [tx, ty] of ARMS) { const [sx, sy] = proj((tx + 0.5) * T, (ty + 0.5) * T); lamp(sx, sy, 200, 0.5); }
+  if (arena) lamp(pcx, pcy, 420, 0.55);
+  if (G.phase === 'fight' && arena) for (const [tx, ty] of ARMS) { const [sx, sy] = proj((tx + 0.5) * T, (ty + 0.5) * T); lamp(sx, sy, 200, 0.5); }
   for (const pr of G.props) if ((pr.k === 'shrine' || pr.k === 'seal') && !pr.open) { const [sx, sy] = proj(pr.x, pr.y); lamp(sx, sy - 50, 130, 0.6); }
   if (G.hw) hwEach('light', lamp);
+  else if (G.oase) oaEach('light', lamp);
   // Vignette: Bildränder bleiben auch im Licht dunkel
   lctx.globalCompositeOperation = 'source-over';
   const vg = lctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.42, W / 2, H * 0.45, Math.max(W, H) * 0.78);
-  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, G.hw ? 'rgba(40,16,0,.28)' : 'rgba(0,0,0,.45)');
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, arena ? 'rgba(0,0,0,.45)' : 'rgba(40,16,0,.28)');
   lctx.fillStyle = vg; lctx.fillRect(0, 0, W, H);
   ctx.drawImage(light, 0, 0, W, H);
-  if (G.hw) hwGrade();
+  if (G.hw) hwGrade(); else if (G.oase) oaGrade();
   // farbiges Licht: Fackeln orange, Pentagramm rot, Zauber in ihrer Elementfarbe
   const tint = (x, y, r, c) => { if (x > -r && y > -r && x < W + r && y < H + r) glowDot(ctx, x, y, r, c); };
   for (const t of G.torches) { const [sx, sy] = proj(t.x, t.y); tint(sx, sy - 60, 170, 'rgba(255,120,30,.16)'); }
-  if (!G.hw) tint(pcx, pcy, 380, G.phase === 'fight' ? 'rgba(255,30,0,.14)' : 'rgba(200,30,0,.07)');
+  if (arena) tint(pcx, pcy, 380, G.phase === 'fight' ? 'rgba(255,30,0,.14)' : 'rgba(200,30,0,.07)');
   for (const l of G.lavaEdge) if (l.h % 4 === 0) { const [sx, sy] = proj(l.x, l.y); tint(sx, sy, 110, 'rgba(255,110,20,.12)'); }
   for (const q of G.projs) if (!q.arrow) { const [sx, sy] = proj(q.x, q.y); tint(sx, sy - 26, 110, EL[q.el][1] + '30'); }
   for (const a of G.areas) if (a.dmg) { const [sx, sy] = proj(a.x, a.y); tint(sx, sy, a.r * Z * 1.4, EL[a.el][1] + '28'); }
   if (G.hw) hwEach('tint', tint);
+  else if (G.oase) oaEach('tint', tint);
 
   bloom();
 
@@ -1781,6 +1804,7 @@ function draw() {
   ctx.globalAlpha = 1; ctx.textAlign = 'left';
 
   if (G.hw) { scrT(); hwEach('over'); }
+  else if (G.oase) { scrT(); oaEach('over'); }
   if (mapOn) automap();
   if (G.dead > 0) {
     ctx.fillStyle = 'rgba(60,0,0,.5)'; ctx.fillRect(0, 0, W, H);
@@ -1793,11 +1817,12 @@ const IMG = {};
 function icon(src) { if (!IMG[src]) { IMG[src] = new Image(); IMG[src].src = src; } return IMG[src]; }
 
 function automap() {
-  const p = G.player, zm = G.hw ? 0.16 : 0.32, ox = W / 2 - (p.x - p.y) * zm, oy = H * 0.45 - (p.x + p.y) * zm / 2;
+  const p = G.player, zm = G.hw || G.oase ? 0.16 : 0.32, ox = W / 2 - (p.x - p.y) * zm, oy = H * 0.45 - (p.x + p.y) * zm / 2;
   tf(zm, zm / 2, -zm, zm / 2, ox, oy);
   if (G.hw) { // die große Karte einmal als Bild: Straßen, Plätze und Umrisse der Hindernisse
     ctx.globalAlpha = 0.8; ctx.imageSmoothingEnabled = false; ctx.drawImage(G.L.mini ||= hwMini(), 0, 0, MW * T, MH * T); ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 1;
-  } else {
+  } else if (G.oase) oaAutomap(); // wie in D2 nur, wo der Held schon war
+  else {
   ctx.strokeStyle = 'rgba(210,190,150,.75)'; ctx.lineWidth = 1.6 / zm; ctx.beginPath();
   for (let i = 0; i < MW * MH; i++) {
     if (!G.seen[i] || !G.map[i]) continue;
@@ -1810,7 +1835,7 @@ function automap() {
   ctx.stroke();
   }
   for (const e of G.ents) if (e.minion) { ctx.fillStyle = '#40d040'; ctx.fillRect(e.x - 8, e.y - 8, 16, 16); }
-  if (G.hw && G.phase === 'fight' && enemiesLeft() <= 5) for (const e of G.te) { ctx.fillStyle = '#ff2020'; ctx.fillRect(e.x - 60, e.y - 60, 120, 120); } // die letzten Zombies
+  if ((G.hw || G.oase) && G.phase === 'fight' && enemiesLeft() <= 5) for (const e of G.te) { ctx.fillStyle = '#ff2020'; ctx.fillRect(e.x - 60, e.y - 60, 120, 120); } // die letzten Gegner
   ctx.strokeStyle = '#ff3030'; ctx.lineWidth = 6 / zm; ctx.beginPath();
   ctx.moveTo(p.x - 40, p.y); ctx.lineTo(p.x + 40, p.y); ctx.moveTo(p.x, p.y - 40); ctx.lineTo(p.x, p.y + 40); ctx.stroke();
   scrT();
@@ -1853,9 +1878,9 @@ function hud() {
   setHTML(el.states, st);
   setHTML(el.area, `${G.area[0]}<small>Runde ${P.depth} · ${G.phase === 'fight' ? `noch ${enemiesLeft()} Gegner` : 'Pause'}</small><small>Rekord: Runde ${P.best || 0}</small>`);
   el.pause.hidden = G.phase !== 'pause' || !!panel;
-  setHTML(el.pauseTxt, `Runde ${P.depth} bereit${G.hw ? hwFirst('pause') || '' : ''}`);
+  setHTML(el.pauseTxt, `Runde ${P.depth} bereit${G.hw ? hwFirst('pause') || '' : G.oase ? oaFirst('pause') || '' : ''}`);
   el.newStats.hidden = !P.statPts; el.newSkill.hidden = !P.skillPts;
-  const h = G.hover || (G.boss && (G.hw || dist(G.boss, p) < 450) ? G.boss : null); // auf der großen Karte immer, auch für Fernkämpfer wie den Big Leech
+  const h = G.hover || (G.boss && (G.hw || G.oase || dist(G.boss, p) < 450) ? G.boss : null); // auf den großen Karten immer, auch für Fernkämpfer wie den Big Leech
   el.target.hidden = !h;
   if (h) {
     setHTML(el.target.firstChild, esc(h.nm) + (h.kind === 'champ' ? '<small>Champion</small>' : h.kind === 'unique' ? '<small>Einzigartig · Extrastark</small>' : h.undead ? '<small>Untot</small>' : ''));
@@ -2133,6 +2158,7 @@ function loadSave() {
     const p = JSON.parse(localStorage.getItem(SAVE));
     if (!p || !CL[p.cls]) return null;
     p.map ||= 'sanct'; p.rounds ||= {}; p.bests ||= {}; p.flares ||= 0; // Stände von vor dem Highway der Toten
+    p.oaSeed ||= oaSeedNew(); // Stände von vor der Fernen Oase
     if (!p.hot) { p.hot = [...p.slots.slice(2), null, null].slice(0, 8); p.slots = p.slots.slice(0, 2); }
     for (const id in p.ranks) if (!SK[id]) delete p.ranks[id];
     p.slots = p.slots.map(id => SK[id] ? id : null);
@@ -2235,7 +2261,7 @@ function showSelect() {
   $('#hud').hidden = true; $('#panel').hidden = true; el.tip.hidden = true;
   const saved = loadSave(), sel = $('#select');
   sel.hidden = false;
-  selMap = (() => { try { return localStorage.getItem(MAPKEY) === 'hw' ? 'hw' : 'sanct'; } catch { return 'sanct'; } })();
+  selMap = (() => { try { const m = localStorage.getItem(MAPKEY); return MAPS[m] ? m : 'sanct'; } catch { return 'sanct'; } })();
   // Helden im Raster vor der Lagerfeuer-Kulisse, je Spiel eine Gruppe
   const grid = (title, list) => `<h3 class="grp">${title}</h3><div class="grid">${list.map(c => `<button class="cls" data-cls="${c.id}"><canvas width="220" height="260"></canvas><b>${c.nm}</b></button>`).join('')}</div>`;
   sel.innerHTML = `<h1>Sanctuary <span>&amp;</span> Norrath</h1>
@@ -2254,7 +2280,7 @@ function showSelect() {
   showMap(saved);
 }
 // Kartenwahl: Rekord der Karte und Runde, in der der gespeicherte Held dort weitermacht
-const MAPKEY = 'sanctuary-map', MAPS = { sanct: 'Chaos-Sanktuarium', hw: 'Highway der Toten' };
+const MAPKEY = 'sanctuary-map', MAPS = { sanct: 'Chaos-Sanktuarium', hw: 'Highway der Toten', oase: 'Ferne Oase' };
 let selMap = 'sanct';
 function showMap(saved = loadSave()) {
   const r = record(selMap), c = $('[data-act="continue"]');

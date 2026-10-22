@@ -18,7 +18,7 @@ function zFree(x, y, r) {
 const zRing = (x, y, n, r0, r1) => Array.from({ length: n }, (_, i) => { const a = i / n * 6.283 + rnd(-0.2, 0.2), d = rnd(r0, r1); return { x: x + Math.cos(a) * d, y: y + Math.sin(a) * d }; });
 // gerufene Zombies (Mouth, Endbosse und ihr Gefolge) kommen zur Runde dazu, aber nie über die Obergrenze; rise: steigen aus dem Boden
 function zCall(t, pts, kind = null, rise = true) {
-  let room = HW_CAP - G.ents.filter(o => o.team === 'e' && !o.dead).length; // G.te kennt die in diesem Bild Erschienenen noch nicht
+  let room = (G.oase ? OA_CAP : HW_CAP) - G.ents.filter(o => o.team === 'e' && !o.dead).length; // G.te kennt die in diesem Bild Erschienenen noch nicht
   for (const q of pts) {
     if (room <= 0) return;
     const at = zFree(q.x, q.y, t.r);

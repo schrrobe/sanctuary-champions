@@ -772,6 +772,186 @@ const SPR = (() => {
     return { root, J, marks: J.marks, caster: false, pose: (an, p) => { const fl = Math.sin(TAU * p * 2); J.body.position.y = 0.62 + Math.sin(TAU * p) * 0.02 - (an === 'death' ? smooth(p) * 0.58 : 0); for (const [w, s] of J.wings) w.rotation.x = s * (an === 'death' ? -0.3 : fl * 0.7); } };
   }
 
+  // ---------- Ferne Oase (Look-Werte in oase-gegner.js) ----------
+  // Käfer (Todeskäfer, Skarabäus, Käferkau): Flügeldecken mit Naht, Halsschild, Horn, Zangen und sechs Beine im Dreifußgang;
+  // im Angriff richtet er den Vorderleib auf und sticht mit den Vorderbeinen zu
+  function beetle(L) {
+    const c = L.col, dk = L.belly || shade(c, -0.22), root = new THREE.Group(), J = { root, all: [], marks: [], L, legs: [], jaws: [] };
+    J.body = joint(J, root, 0, 0.17, 0);
+    add(J.body, SPH, c, 'horn', [-0.07, 0.06, 0], [0.24, 0.14, 0.17]);
+    add(J.body, BOX, shade(c, -0.3), 'horn', [-0.07, 0.198, 0], [0.4, 0.01, 0.012]);
+    for (const [x, k] of [[-0.19, 0.87], [-0.09, 1], [0.01, 0.94]]) add(J.body, RING, shade(c, -0.25), 'horn', [x, 0.06, 0], [0.142 * k, 0.1, 0.172 * k], [0, 0, Math.PI / 2]); // Panzerplatten
+    add(J.body, SPH, dk, 'leather', [-0.05, -0.01, 0], [0.21, 0.07, 0.14]);
+    J.fore = joint(J, J.body, 0.14, 0.03, 0);
+    add(J.fore, SPH, shade(c, 0.06), 'horn', [0.03, 0.02, 0], [0.09, 0.075, 0.11]);
+    J.head = joint(J, J.fore, 0.11, 0, 0);
+    add(J.head, SPH, shade(c, -0.15), 'horn', [0.02, 0, 0], [0.055, 0.05, 0.06]);
+    if (L.horn) add(J.head, horn(0.024, 0.15, -0.06), L.horn, 'horn', [0.04, 0.03, 0], 1, [0, 0, -0.9]);
+    for (const z of [-1, 1]) { const m = joint(J, J.head, 0.06, -0.025, z * 0.025); add(m, horn(0.011, 0.06, 0, -z * 0.02), L.horn || dk, 'horn', [0, 0, 0], 1, [0, 0, -Math.PI / 2]); J.jaws.push([m, z]); }
+    if (L.eyes) { for (const z of [-1, 1]) add(J.head, SPH, L.eyes, 'glow', [0.045, 0.02, z * 0.04], 0.01); mark(J, mount(J.head, 0.05, 0.02, 0), L.eyes, 0.04, 1); }
+    for (const i of [0, 1, 2]) for (const z of [-1, 1]) {
+      const hip = joint(J, i ? J.body : J.fore, [0.03, 0.02, -0.12][i], -0.03, z * (i ? 0.11 : 0.08)), kn = joint(J, hip, 0, -0.12, 0);
+      add(hip, limbGeo(0.12, 0.022, 0.016), dk, 'horn'); add(kn, limbGeo(0.21, 0.016, 0.006), dk, 'horn');
+      J.legs.push([hip, kn, z, i]);
+    }
+    return { root, J, marks: J.marks, caster: false, pose: (an, p) => poseBeetle(J, an, p) };
+  }
+  function poseBeetle(J, an, p) {
+    for (const g of J.all) g.rotation.set(0, 0, 0);
+    const s = Math.sin(TAU * p), f = an === 'death' ? smooth(p) : 0;
+    let lift = 0.06 + (an === 'idle' ? s * 0.02 : 0), stab = 0, jaw = 0.15 + (an === 'idle' ? Math.max(0, s) * 0.2 : 0);
+    if (an === 'attack' || an === 'cast') ({ lift, stab, jaw } = keys({ lift, stab, jaw }, [[0.35, { lift: 0.55, stab: 1.1, jaw: 0.5 }], [0.6, { lift: 0.15, stab: -0.3, jaw: 0.05 }]], p));
+    J.body.position.y = 0.17 + (an === 'walk' ? Math.abs(Math.cos(TAU * p * 2)) * 0.008 : 0) - f * 0.1;
+    J.body.rotation.z = -lift * 0.25; J.fore.rotation.z = lift * (1 - f); J.head.rotation.z = -lift * 0.6;
+    for (const [m, z] of J.jaws) m.rotation.y = -z * jaw;
+    for (const [hip, kn, z, i] of J.legs) {
+      const ph = TAU * (p + ((i === 1) === (z > 0) ? 0 : 0.5)), w = an === 'walk' ? Math.sin(ph) : 0, up = an === 'walk' ? Math.max(0, Math.cos(ph)) : 0;
+      hip.rotation.set(-z * (2.05 + up * 0.3 + (i ? 0 : stab * 0.5) - f * 0.6), 0, [0.55, 0.05, -0.5][i] + w * 0.35 + (i ? 0 : stab));
+      kn.rotation.x = z * (1.5 + f * 0.9 - (i ? 0 : stab * 0.4));
+    }
+    J.root.rotation.x = f * 0.35;
+  }
+
+  // Made (Sandwurm, Felswurm, Nachwuchs, Kaltwurm der Gräber): der Hinterleib liegt auf langen, dünnen Beinen fast am Boden,
+  // der gegliederte Vorderleib richtet sich auf, zum Spucken (cast) steil; queen: Königin mit dickem, bestacheltem Hinterleib
+  function maggot(L) {
+    const c = L.col, b = L.band || shade(c, -0.2), lg = L.legs || shade(c, -0.35), Q = !!L.queen, f = Q ? 1.25 : 1;
+    const root = new THREE.Group(), J = { root, all: [], marks: [], L, back: [], front: [], legs: [], jaws: [] };
+    for (const [x, r] of Q ? [[-0.5, 0.085], [-0.36, 0.13], [-0.18, 0.15]] : [[-0.34, 0.05], [-0.25, 0.075], [-0.13, 0.09]]) {
+      const g = joint(J, root, x, r, 0);
+      add(g, SPH, c, 'flesh', [0, 0, 0], [r * 1.15, r, r * 1.05]);
+      add(g, RING, b, 'flesh', [r * 0.5, 0, 0], [r * 0.98, 0.12, r * 1.02], [0, 0, Math.PI / 2]);
+      if (Q) add(g, horn(r * 0.14, r * 0.55, -r * 0.2), lg, 'horn', [0, r * 0.85, 0], 1, [0, 0, 0.5]);
+      J.back.push([g, r]);
+    }
+    // lange, dünne Beine wie in D2R: Schenkel nach oben außen, Unterschenkel hinab zum Boden
+    for (const [i, x] of [[0, -0.27], [1, -0.17], [2, -0.07]]) for (const z of [-1, 1]) {
+      const hip = joint(J, root, x * (Q ? 1.3 : 1), 0.07 * f, z * 0.06 * f), kn = joint(J, hip, 0, -0.1 * f, 0);
+      add(hip, limbGeo(0.1 * f, 0.011 * f, 0.008 * f), lg, 'horn'); add(kn, limbGeo(0.15 * f, 0.008 * f, 0.004 * f), lg, 'horn');
+      J.legs.push([hip, kn, z, i]);
+    }
+    let pa = joint(J, root, Q ? -0.06 : -0.04, 0.08 * f, 0);
+    for (let i = 0; i < 4; i++) {
+      const r = (0.085 - i * 0.008) * f, g = joint(J, pa, i ? 0.08 * f : 0, 0, 0);
+      add(g, SPH, c, 'flesh', [0.04 * f, 0, 0], [r * 0.95, r, r * 1.05]);
+      add(g, RING, b, 'flesh', [0.04 * f + r * 0.5, 0, 0], [r * 0.98, 0.12, r * 1.02], [0, 0, Math.PI / 2]);
+      J.front.push(g); pa = g;
+    }
+    J.head = joint(J, pa, 0.1 * f, 0, 0);
+    add(J.head, SPH, shade(c, -0.12), 'flesh', [0.02, 0, 0], [0.06 * f, 0.055 * f, 0.06 * f]);
+    for (const z of [-1, 1]) { const m = joint(J, J.head, 0.06 * f, -0.01, z * 0.03 * f); add(m, horn(0.012 * f, 0.06 * f, 0, -z * 0.025 * f), lg, 'horn', [0, 0, 0], 1, [0, 0, -Math.PI / 2]); J.jaws.push([m, z]); }
+    if (L.eyes) { for (const z of [-1, 1]) add(J.head, SPH, L.eyes, 'glow', [0.05 * f, 0.025 * f, z * 0.03 * f], 0.01 * f); mark(J, mount(J.head, 0.055 * f, 0.025 * f, 0), L.eyes, 0.05 * f, 1); }
+    return { root, J, marks: J.marks, caster: false, pose: (an, p) => poseMaggot(J, an, p) };
+  }
+  function poseMaggot(J, an, p) {
+    for (const g of J.all) g.rotation.set(0, 0, 0);
+    const s = Math.sin(TAU * p), f = an === 'death' ? smooth(p) : 0, W = [1.2, 1, 0.6, 0.3];
+    let up = 0.22 + (an === 'idle' ? s * 0.03 : 0), bite = 0.2;
+    if (an === 'attack') ({ up, bite } = keys({ up, bite }, [[0.35, { up: 0.38, bite: 0.7 }], [0.6, { up: 0.08, bite: 0 }]], p));
+    if (an === 'cast') ({ up, bite } = keys({ up, bite }, [[0.4, { up: 0.5, bite: 0.8 }], [0.62, { up: 0.3, bite: 0.9 }]], p));
+    up *= 1 - f;
+    J.front.forEach((g, i) => { g.rotation.z = up * W[i] + (an === 'walk' ? Math.sin(TAU * p - i * 0.9) * 0.06 : 0) - f * 0.05; });
+    J.head.rotation.z = -up * 1.5 + f * 0.2;
+    J.back.forEach(([g, r], i) => { g.position.y = r * (1 - f * 0.35) + (an === 'walk' ? Math.max(0, Math.sin(TAU * p - i * 0.9 - 2)) * r * 0.15 : 0); });
+    for (const [m, z] of J.jaws) m.rotation.y = -z * bite * 0.5;
+    for (const [hip, kn, z, i] of J.legs) {
+      const ph = TAU * p * 2 + i * 2 + (z > 0 ? 0 : Math.PI), w = an === 'walk' ? Math.sin(ph) : 0, lift = an === 'walk' ? Math.max(0, Math.cos(ph)) : 0;
+      hip.rotation.set(-z * (2.2 + lift * 0.25 - f * 0.7), 0, [-0.45, 0, 0.45][i] + w * 0.3);
+      kn.rotation.x = z * (1.75 + f * 0.8);
+    }
+  }
+
+  // Vögel: Geier (vulture: Untoter Aasfresser, Aasschwinge) mit nacktem Hals und breiten, gefingerten Schwingen, Greifvogel
+  // (raptor: Schwarzer Greifer, Greifermutter) schlank mit spitzen Flügeln. Der Geier steht mit halb offenen Flügeln, der
+  // Greifvogel schwebt mit Flügelschlag; walk: Flug, attack: Biss bzw. Fänge, cast: Sturzflug. Die Flughöhe kommt aus e.z
+  function avian(L) {
+    const rp = L.rig === 'raptor', c = L.col, sk = L.skin || shade(c, 0.25), root = new THREE.Group(), J = { root, all: [], marks: [], L, rp, wings: [], legs: [], y0: rp ? 0.2 : 0.26 };
+    const y0 = rp ? 0.2 : 0.26, W = rp ? 0.21 : 0.26; // Höhe des Rumpfs, Länge eines Flügelteils
+    J.body = joint(J, root, 0, y0, 0);
+    add(J.body, SPH, c, 'fur', [0, 0, 0], rp ? [0.12, 0.055, 0.055] : [0.15, 0.08, 0.085]);
+    add(J.body, flat(rp ? 'rtail' : 'vtail', s => { s.moveTo(0, 0.03); s.lineTo(rp ? -0.2 : -0.13, rp ? 0.05 : 0.07); s.lineTo(rp ? -0.21 : -0.15, 0); s.lineTo(rp ? -0.2 : -0.13, rp ? -0.05 : -0.07); s.lineTo(0, -0.03); s.closePath(); }, 0.006, 0), shade(c, -0.1), 'fur', [-0.08, 0.01, 0], 1, [Math.PI / 2, 0, 0]);
+    J.neck = joint(J, J.body, rp ? 0.1 : 0.11, rp ? 0.02 : 0.03, 0);
+    if (!rp) { add(J.neck, SPH, shade(c, -0.12), 'fur', [0, 0, 0], [0.05, 0.045, 0.065]); add(J.neck, limbGeo(0.13, 0.026, 0.018), sk, 'skin', [0, 0, 0], 1, [0, 0, 2.6]); } // Halskrause, nackter Hals
+    J.head = joint(J, J.neck, rp ? 0.04 : 0.067, rp ? 0.03 : 0.112, 0);
+    add(J.head, SPH, rp ? c : sk, rp ? 'fur' : 'skin', [0, 0, 0], rp ? [0.045, 0.04, 0.035] : [0.042, 0.034, 0.03]);
+    add(J.head, horn(rp ? 0.014 : 0.016, rp ? 0.045 : 0.06, rp ? 0.018 : 0.022), L.beak || '#c8b070', 'horn', [0.03, -0.004, 0], 1, [0, 0, -Math.PI / 2]);
+    if (L.crest) for (const z of [-1, 1]) add(J.head, horn(0.01, 0.07, -0.03), L.crest, 'fur', [-0.02, 0.025, z * 0.015], 1, [z * 0.2, 0, 1.2]);
+    if (L.eyes) { for (const z of [-1, 1]) add(J.head, SPH, L.eyes, 'glow', [0.018, 0.012, z * 0.026], 0.007); mark(J, mount(J.head, 0.02, 0.012, 0), L.eyes, 0.035, 1); }
+    if (L.bones) for (const [x, k] of [[0.05, 0.94], [0, 1], [-0.05, 0.94]]) add(J.body, RIB, L.bones, 'bone', [x, 0.004, 0], [0.086 * k, 0.12, 0.092 * k], [0, 0, -Math.PI / 2]); // freiliegende Rippen, offen zum Bauch
+    for (const s of [1, -1]) {
+      const sh = joint(J, J.body, 0.03, 0.04, s * 0.05), hd = joint(J, sh, 0, 0, s * W);
+      add(sh, flat(rp ? 'rarm' : 'varm', w => { w.moveTo(rp ? 0.03 : 0.04, 0); w.lineTo(rp ? 0.035 : 0.045, W); w.lineTo(rp ? -0.09 : -0.11, W); w.lineTo(rp ? -0.115 : -0.14, W * 0.4); w.lineTo(rp ? -0.1 : -0.1, 0); w.closePath(); }, 0.005, 0), c, 'fur', [0, 0, 0], 1, [s * Math.PI / 2, 0, 0]);
+      add(hd, flat(rp ? 'rhand' : 'vhand', w => {
+        if (rp) { w.moveTo(0.035, 0); w.quadraticCurveTo(0.035, W * 0.75, -0.08, W * 1.25); w.lineTo(-0.095, W * 0.6); w.lineTo(-0.09, 0); }
+        else { w.moveTo(0.045, 0); w.quadraticCurveTo(0.05, W * 0.6, 0, W * 1.05); for (const [x, y] of [[-0.02, 0.9], [-0.035, 1.08], [-0.05, 0.9], [-0.065, 1.03], [-0.08, 0.85], [-0.095, 0.95], [-0.11, 0.6]]) w.lineTo(x, W * y); w.lineTo(-0.11, 0); }
+        w.closePath();
+      }, 0.005, 0), shade(c, -0.08), 'fur', [0, 0, 0], 1, [s * Math.PI / 2, 0, 0]);
+      J.wings.push([sh, hd, s]);
+    }
+    for (const z of [-1, 1]) {
+      const hip = joint(J, J.body, 0.01, -0.04, z * 0.035), kn = joint(J, hip, 0, -0.09, 0);
+      add(hip, limbGeo(0.09, 0.02, 0.012), c, 'fur'); add(kn, limbGeo(y0 - 0.12, 0.008, 0.007), L.legs || '#b0a080', 'skin');
+      for (const a of [-0.5, 0, 0.5]) add(kn, horn(0.005, 0.035, 0.012), '#2a2420', 'horn', [0, 0.12 - y0, 0], 1, [0, a, -Math.PI / 2]); // Krallen
+      J.legs.push([hip, kn]);
+    }
+    return { root, J, marks: J.marks, caster: false, pose: (an, p) => poseAvian(J, an, p) };
+  }
+  function poseAvian(J, an, p) {
+    for (const g of J.all) g.rotation.set(0, 0, 0);
+    const s = Math.sin(TAU * p), c = Math.cos(TAU * p), f = an === 'death' ? smooth(p) : 0, rp = J.rp;
+    // el: Flügel gehoben · fold: nach hinten angelegt · hand: äußerer Teil abgeknickt · pitch: Rumpf nach vorn geneigt ·
+    // neck: Hals vorgestreckt · leg: Beine nach vorn (+) bzw. angezogen (−) · kn: Fuß abgewinkelt
+    let el = -0.1, fold = 0.9, hand = -0.3, pitch = 0, neck = 0, leg = 0, kn = 0.15; // Geier am Boden: Flügel halb offen und hängend
+    if (an === 'walk' || (rp && an !== 'death' && an !== 'cast')) { el = rp ? 0.15 + 0.5 * s : 0.2 + 0.75 * s; fold = 0.05; hand = (rp ? -0.25 : -0.35) * c; leg = -1.2; kn = 1.3; pitch = an === 'walk' ? 0.12 : -0.25; neck = 0.3; }
+    if (an === 'idle' && !rp) { el += s * 0.04; neck = 0.1 + s * 0.06; }
+    if (an === 'attack') {
+      if (rp) ({ el, pitch, leg } = keys({ el: 0.4, pitch: -0.3, leg: 0.4 }, [[0.35, { el: 0.75, pitch: -0.6, leg: 1.3 }], [0.6, { el: -0.3, pitch: 0.2, leg: 0.6 }]], p));
+      else ({ el, fold, hand, neck, pitch } = keys({ el: 0.25, fold: 0.5, hand: 0, neck: 0, pitch: 0 }, [[0.35, { el: 0.6, fold: 0.05, hand: 0.25, neck: -0.5, pitch: -0.15 }], [0.6, { el: 0.35, fold: 0.15, hand: 0.1, neck: 1, pitch: 0.35 }]], p));
+    }
+    if (an === 'cast') { el = 0.25; fold = 1.2; hand = -0.2; pitch = 0.5; leg = 0.9; kn = 0.2; neck = 0.4; } // Sturzflug: Flügel angelegt, Fänge voran
+    if (an === 'death') { el = -0.05; fold = 0.2 + 0.5 * (1 - f); hand = -0.1; pitch = 0.3 * f; neck = -0.8 * f; leg = -1.2 * f; kn = 1.3 * f; J.root.position.y = -J.y0 * 0.8 * f; } // fällt mit ausgebreiteten Flügeln flach in den Sand
+    J.body.rotation.z = -pitch; J.neck.rotation.z = -neck;
+    for (const [sh, hd, sd] of J.wings) { sh.rotation.set(-sd * el, -sd * fold, rp ? 0.5 : 0); hd.rotation.set(-sd * hand, -sd * fold * 0.6, 0); }
+    for (const [hip, k] of J.legs) { hip.rotation.z = leg; k.rotation.z = -kn - Math.max(0, leg) * 0.3; }
+  }
+
+  // Nest (Schwarzer-Greifer-Nest): Hügel mit einem Kranz aus Zweigen und Knochen, in der Mulde Eier; beim Ausbrüten
+  // (attack) bebt es, im Tod fällt es in sich zusammen
+  function nest(L) {
+    const c = L.col, bn = L.bone || '#d8ceb4', root = new THREE.Group(), J = { root, all: [], marks: [], L };
+    J.body = joint(J, root, 0, 0, 0);
+    add(J.body, CAP, shade(c, -0.3), 'fur', [0, 0, 0], [0.3, 0.17, 0.3]);
+    for (let i = 0; i < 26; i++) {
+      const a = i * 2.4, r = 0.17 + (i % 3) * 0.035, bone = i % 6 === 0;
+      add(J.body, limbGeo(bone ? 0.16 : 0.22, bone ? 0.014 : 0.011, bone ? 0.012 : 0.006, 0), bone ? bn : shade(c, (i % 4) * 0.04 - 0.06), bone ? 'bone' : 'wood',
+        [Math.cos(a) * r, 0.11 + (i % 4) * 0.022, Math.sin(a) * r], 1, [0.25 * Math.sin(i * 1.7), -a - Math.PI / 2, Math.PI / 2 + 0.3 * Math.cos(i * 1.3)]);
+    }
+    add(J.body, SPH, '#1c140c', 'fur', [0, 0.15, 0], [0.15, 0.035, 0.15]);
+    add(J.body, SPH, bn, 'bone', [0.2, 0.1, 0.14], [0.04, 0.035, 0.035]); // Schädel im Geflecht
+    J.eggs = [[0.02, 0.04], [-0.05, -0.02], [0.05, -0.05]].map(([x, z]) => { const g = joint(J, J.body, x, 0.175, z); add(g, SPH, L.egg || '#d0c8b0', 'flesh', [0, 0, 0], [0.035, 0.045, 0.035]); return g; });
+    return { root, J, marks: J.marks, caster: false, pose: (an, p) => {
+      const f = an === 'death' ? smooth(p) : 0, k = an === 'attack' ? Math.sin(TAU * p * 3) * 0.04 : 0;
+      J.body.scale.set(1 + f * 0.25, 1 - f * 0.55 + k, 1 + f * 0.25);
+      J.eggs.forEach((g, i) => g.rotation.set(Math.sin(TAU * p * 2 + i) * (an === 'attack' ? 0.35 : 0.05), 0, Math.cos(TAU * p + i) * 0.05));
+    } };
+  }
+
+  // Gelege (Sandwurm-Ei): glänzende, pulsierende Eier in einer Schleimlache; im Tod platzen sie
+  function egg(L) {
+    const c = L.col, root = new THREE.Group(), J = { root, all: [], marks: [], L, eggs: [] };
+    add(root, SPH, shade(c, -0.3), 'flesh', [0, 0.004, 0], [0.16, 0.012, 0.15]);
+    for (const [x, z, s] of [[0, 0, 1], [-0.08, 0.06, 0.8], [0.07, 0.07, 0.75], [0.06, -0.07, 0.85], [-0.06, -0.07, 0.7]]) {
+      const g = joint(J, root, x, 0, z);
+      add(g, SPH, c, 'flesh', [0, 0.075 * s, 0], [0.065 * s, 0.08 * s, 0.065 * s]);
+      if (L.vein) add(g, RING, L.vein, 'flesh', [0, 0.085 * s, 0], [0.062 * s, 0.1, 0.062 * s], [x * 4, 0, 0.3]);
+      J.eggs.push([g, s]);
+    }
+    return { root, J, marks: J.marks, caster: false, pose: (an, p) => J.eggs.forEach(([g], i) => {
+      const f = an === 'death' ? smooth(p) : 0, k = 1 + Math.sin(TAU * p + i * 1.3) * 0.07 * (1 - f);
+      g.scale.set(k * (1 + f * 0.4), (1 - f * 0.75) / k, k * (1 + f * 0.4));
+    }) };
+  }
+
   // Dämonenrig (Diablo und seine Abbilder) als schwerer Humanoid auf Zehen mit Stacheln, Hörnern, Schwanz und Klauen
   const demonLook = L => ({ skin: L.col, body: L.col, legs: shade(L.col, -0.08), head: 'demon', horn: L.horn, spikes: L.spikes, tail: L.col, eyes: L.eyes, weapon: 'talons', build: 'demon' });
 
@@ -796,8 +976,9 @@ const SPR = (() => {
   function model(L) {
     if (models.has(L)) return models.get(L);
     let M = null;
-    if (!['wisp', 'hammer', 'trap', 'hydra', 'bonewall', 'vine', 'totem'].includes(L.rig)) {
-      M = L.rig === 'quad' ? quad(L) : L.rig === 'grub' ? grub(L) : L.rig === 'bird' ? bird(L) : human(L.rig === 'demon' ? demonLook(L) : L);
+    if (!['wisp', 'hammer', 'trap', 'hydra', 'bonewall', 'vine', 'totem', 'swarm'].includes(L.rig)) {
+      const rig = { quad, grub, bird, beetle, maggot, vulture: avian, raptor: avian, nest, egg }[L.rig];
+      M = rig ? rig(L) : human(L.rig === 'demon' ? demonLook(L) : L);
       M.turn = new THREE.Group(); M.turn.add(M.root);
       M.root.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = !o.material.isMeshBasicMaterial; }); // Leuchtteile werfen keinen Schatten
       M.id = ++ids; M.dirs = HEROES.has(L) ? 16 : 8;

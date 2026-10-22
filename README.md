@@ -9,7 +9,15 @@ Kein Build: `index.html` öffnen oder per GitHub Pages spielen. Einzige Fremdbib
 - **14 Klassen**: die 7 Klassen aus Diablo II: LoD (Amazone, Assassine, Barbar, Druide, Totenbeschwörer, Paladin, Zauberin) und die 7 aus Champions: Return to Arms (Barbaren-Krieger, Erudit-Zauberer, Waldelfen-Waldläufer, Hochelfen-Kleriker, Dunkelelfen-Schattenritter, Vah-Shir-Berserker, Iksar-Schamane)
 - **Freier Skill-Baukasten**: Jede Klasse kann jede der 294 Fähigkeiten lernen (alle 30 je Diablo-II-Klasse), ohne Stufensperre. Zum Start gibt es 30 Punkte, jeder Aufstieg bringt einen weiteren. Rechtsklick gibt einen Punkt zurück. Fähigkeiten der eigenen Klasse wirken 25 % stärker.
 - **Chaos-Sanktuarium**: Gegner kommen rundenweise aus den vier Armen der Halle, jede Runde wird schwerer, alle 5 Runden ein Boss (Andariel, Duriel, Mephisto, Innoruuk, Diablo, Baal). Champions und einzigartige Monster werden mit den Runden häufiger. Wer fällt, beginnt die Runde von vorn.
-- **Zweite Karte: Highway der Toten** (Kartenwahl auf dem Startbildschirm): eine moderne Wüste bei Tag, 20-mal so groß wie das Chaos-Sanktuarium, mit Highway, Tankstelle, Diner, Motel, Autowracks, Wohnwagenpark, Farm, Quarantänelager und verlassenem Dorf. Zombiehorden nach Dead Nation (PS3) kommen rundenweise aus Gebäuden, Bussen und Gullys knapp außerhalb des Bildes, bis zu 330 gleichzeitig: Schlurfer, Uniformierte und die Spezial-Zombies Runner, Bombie, Mouth, Jumper, Cutter und Leech. Jede 5. Runde ein Endboss (Big Jumper, Big Leech, Big Cutter, Big Mouth) mit Gefolge. Alarm-Autos locken die Horde an, Benzinfässer und der Tanklaster explodieren in Kettenreaktionen, Leuchtfackeln vom Händler (L) lenken ab. Derselbe Held spielt auf beiden Karten, jede Karte hat eigene Runden und einen eigenen Rekord. Planung und Werte: `docs/highway-der-toten.md`
+- **Zweite Karte: Highway der Toten** (Kartenwahl auf dem Startbildschirm): eine moderne Wüste bei Tag, 20-mal so groß wie das Chaos-Sanktuarium, mit Highway, Tankstelle, Diner, Motel, Autowracks, Wohnwagenpark, Farm, Quarantänelager und verlassenem Dorf. Zombiehorden nach Dead Nation (PS3) kommen rundenweise aus Gebäuden, Bussen und Gullys knapp außerhalb des Bildes, bis zu 330 gleichzeitig: Schlurfer, Uniformierte und die Spezial-Zombies Runner, Bombie, Mouth, Jumper, Cutter und Leech. Jede 5. Runde ein Endboss (Big Jumper, Big Leech, Big Cutter, Big Mouth) mit Gefolge. Alarm-Autos locken die Horde an, Benzinfässer und der Tanklaster explodieren in Kettenreaktionen, Leuchtfackeln vom Händler (L) lenken ab. Derselbe Held spielt auf allen Karten, jede Karte hat eigene Runden und einen eigenen Rekord. Planung und Werte: `docs/highway-der-toten.md`
+- **Dritte Karte: Ferne Oase** nach Akt 2 von Diablo II: LoD, eine offene Wüste in hellem Mittagslicht mit der doppelten Fläche des Highway der Toten (443 × 443 Felder). Jeder neue Held bekommt sie neu gewürfelt.
+  - **Orte:** Startoase in der Mitte, 8 weitere Oasen mit Brunnen, Ruinenfelder mit Schreinen, Rastplätze mit Riesenskeletten und Toten Wächtern, der Eingang zur Wurmgruft, Felswände am Rand.
+  - **Automap:** Sie deckt sich wie in D2 erst beim Erkunden auf.
+  - **Wegpunkte:** 5 Stück, freigeschaltet beim Besuch, in der Pause zum Reisen.
+  - **Gegner:** Sie kommen rundenweise aus Sandlöchern, Ruinen und Felsspalten zum Helden, höchstens 80 zugleich. Es sind nur Gegner aus der Fernen Oase und der Wurmgruft: Todeskäfer mit Combo-Blitzen, Sandwürmer, die sich eingraben und Eier legen, Untote Aasfresser im Sturzflug, Stichlinge, Schwarze Greifer aus Nestern sowie Felswurm, Skarabäus und Schwarze Heuschrecken.
+  - **Endbosse:** Jede 5. Runde einer: Käferkau, Aasschwinge, Greifermutter und Kaltwurm der Gräber.
+  - **Objekte:** Truhen, Krüge, Brunnen, Schreine des Kampfes, der Rüstung und der Erfahrung.
+  - **Planung und Werte:** `docs/ferne-oase.md`
 - **Händler zwischen den Runden**: Ausrüstung und Tränke kaufen, kostenlos heilen, Urnen zerschlagen, Belohnungstruhe öffnen, jede dritte Runde ein Erneuerungsschrein
 - **Siegel und Wächter**: Fünf Siegel auf dem Pentagramm. In Runde 5, 10 und 15 jedes 20er-Zyklus erscheinen der Großwesir des Chaos, Lord De Seis und der Seelenverseucher und brechen die Siegel, in Runde 20 kommt Diablo. Ab dem zweiten Zyklus bringt jeder Wächter einen weiteren Boss mit. Rundenzähler mit verbleibenden Gegnern und Rekord (höchste geschaffte Runde)
 - **Händler**: Ausrüstung mit Vergleich zur angelegten, Glücksspiel, neues Angebot gegen Gold
@@ -59,7 +67,7 @@ Kein Build: `index.html` öffnen oder per GitHub Pages spielen. Einzige Fremdbib
 python3 -m http.server 8000   # dann http://localhost:8000
 ```
 
-Grafik-Messung: `http://localhost:8000/?bench` spielt feste Szenen ab und zeigt Bildrate, Bildzeiten (Ø, P95, P99), Rechenzeit und Speicher. Optionen wie `&scene=dicht`, `&scene=horde` (330 Zombies auf dem Highway der Toten) oder `&gfx=mittel` stehen im Kopf von `bench.js`. Spielstand und Einstellungen bleiben dabei unberührt. Audit, Messungen und Umsetzung der Grafikarbeit: `docs/graphics/`.
+Grafik-Messung: `http://localhost:8000/?bench` spielt feste Szenen ab und zeigt Bildrate, Bildzeiten (Ø, P95, P99), Rechenzeit und Speicher. Optionen wie `&scene=dicht`, `&scene=horde` (330 Zombies auf dem Highway der Toten), `&scene=oase` (80 Gegner auf der Fernen Oase) oder `&gfx=mittel` stehen im Kopf von `bench.js`. Spielstand und Einstellungen bleiben dabei unberührt. Audit, Messungen und Umsetzung der Grafikarbeit: `docs/graphics/`.
 
 ## Dateien
 
@@ -70,6 +78,8 @@ Grafik-Messung: `http://localhost:8000/?bench` spielt feste Szenen ab und zeigt 
 - `audio.js`: Geräusche und Musik
 - `highway.js`: Highway der Toten: fester Kartenaufbau, Boden in Kacheln, Gebäude und Fahrzeuge, Zombie-Runden, Explosionen und die Erweiterungspunkte `HWH`
 - `zombies.js` · `bosses.js` · `umgebung.js`: Zombie-Arten, Endbosse sowie Alarm-Autos, Fässer, Tanklaster, Objekte, Leuchtfackeln und Blut des Highways
+- `oase.js`: Ferne Oase: gewürfelter Kartenaufbau je Held, Boden in Kacheln, Oasen, Ruinen und Felswände, Aufdecken der Automap, Runden und die Erweiterungspunkte `OAH`
+- `oase-gegner.js` · `oase-bosse.js` · `oase-objekte.js`: Gegnerarten mit Brut, Endbosse mit ihren Eigenschaften sowie Truhen, Krüge, Tote Wächter, Brunnen, Schreine und Wegpunkte der Fernen Oase
 - `game.js`: Engine (Arena, Runden, Kampf, KI, Darstellung, UI)
 - `index.html`: Layout und Stil
 - `bench.js`: Grafik-Messung (nur mit `?bench` geladen)

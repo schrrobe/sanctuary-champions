@@ -250,6 +250,7 @@ const SHAPE_LOOKS = {
 // unten abgedunkelt, und bekommen eine dunkle Pixelkontur wie vorgerenderte D2-Sprites
 const FIG = mkCanvas(64), SIL = mkCanvas(64), fg = FIG.getContext('2d'), sg = SIL.getContext('2d'), FIG_GLOW = [];
 function drawFigure(g, x, y, L, st) {
+  if (L.rig === 'swarm') { swarmRig(g, x, y, L, st); return; } // ohne Hilfsfläche und 3D-Figur direkt ins Bild
   if (typeof SPR !== 'undefined' && SPR.draw(g, x, y, L, st)) return;
   const m = g.getTransform(), k = Math.hypot(m.a, m.b), n = Math.ceil(st.h * k * 2.8) + 4;
   if (FIG.width < n) { FIG.width = FIG.height = SIL.width = SIL.height = n; }
@@ -262,7 +263,7 @@ function drawFigure(g, x, y, L, st) {
   fg.globalAlpha = 1; fg.globalCompositeOperation = 'source-over';
   fg.lineCap = 'round'; fg.lineJoin = 'round';
   if (L.glow) { fg.globalAlpha = 0.35; glowDot(fg, 0, -28, 30, L.glow); fg.globalAlpha = 1; }
-  ({ quad, grub, demon, bird, wisp, hammer: hammerRig, trap, hydra, bonewall, vine, totem }[L.rig] || humanoid)(fg, L, st);
+  ({ quad, grub, demon, bird, wisp, hammer: hammerRig, trap, hydra, bonewall, vine, totem, beetle: beetleRig, maggot: maggotRig, vulture: avianRig, raptor: avianRig, nest: nestRig, egg: eggRig }[L.rig] || humanoid)(fg, L, st);
   // Licht von oben, Füße im Schatten
   fg.setTransform(1, 0, 0, 1, 0, 0); fg.globalCompositeOperation = 'source-atop';
   const top = oy - st.h * k * 1.05, lg = fg.createLinearGradient(0, top, 0, oy);
@@ -579,6 +580,102 @@ function bird(g, L, st) {
   disc(g, 7, y - 2, 3, L.col); g.fillStyle = '#c8a040'; g.beginPath(); g.moveTo(9, y - 2); g.lineTo(13, y - 1); g.lineTo(9, y); g.fill();
 }
 
+// Ferne Oase: gezeichneter Ersatz der 3D-Gestalten aus models.js (Look-Werte in oase-gegner.js)
+const shell = (g, x, y, rx, ry, a, c) => {
+  g.fillStyle = c; g.beginPath(); g.ellipse(x, y, rx, ry, a, 0, 7); g.fill();
+  const sg = g.createRadialGradient(x + rx * 0.25, y - ry * 0.5, 1, x, y, rx * 1.1); sg.addColorStop(0, 'rgba(255,240,210,.28)'); sg.addColorStop(1, 'rgba(0,0,0,.5)');
+  g.fillStyle = sg; g.fill(); g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 0.9; g.stroke();
+};
+// Käfer mit Plattenpanzer, Horn und sechs Beinen; im Angriff richtet er sich auf und sticht mit den Vorderbeinen zu
+function beetleRig(g, L, st) {
+  const c = L.col, dk = L.belly || shade(c, -0.22), ph = st.walk * 0.3, a = st.atk > 0 ? Math.sin(Math.PI * Math.min(1, (1 - st.atk) * 1.6)) : 0, by = -13 - a * 3;
+  const legs = (s, col) => { for (let i = 0; i < 3; i++) {
+    const x = 8 - i * 9, w = st.moving ? Math.sin(ph + i * 2.1 + (s > 0 ? Math.PI : 0)) * 3.5 : 0, kx = x + (1 - i) * 5 + w, fx = x + (1 - i) * 9 + w * 1.4 + (i ? 0 : a * 8);
+    limbO(g, x, by + 4, kx, by - 3 - (i ? 0 : a * 7), 2.2, col); limbO(g, kx, by - 3 - (i ? 0 : a * 7), fx, i ? -0.5 : -0.5 - a * 14, 1.6, col);
+  } };
+  legs(-1, shade(dk, -0.15));
+  shell(g, -3, by, 15, 9, -a * 0.35, c);
+  g.strokeStyle = shade(c, -0.3); g.lineWidth = 1.2; for (const x of [-10, -3, 4]) { g.beginPath(); g.ellipse(x, by, 2.5, 8.5, -a * 0.35, -1.4, 1.4); g.stroke(); } // Panzerplatten
+  const hx = 13 + a * 2, hy = by - 1 - a * 8;
+  shell(g, 9, by - a * 5, 6, 6, 0, shade(c, 0.06));
+  disc(g, hx, hy, 4.5, dk);
+  g.fillStyle = L.horn || dk; for (const s of [-1, 1]) { g.beginPath(); g.moveTo(hx + 3, hy + 1 + s); g.quadraticCurveTo(hx + 9, hy + 2 + s * 3, hx + 8, hy + 5 + s * (1 + a * 2)); g.lineTo(hx + 4, hy + 3); g.fill(); }
+  if (L.horn) { g.beginPath(); g.moveTo(hx, hy - 3); g.quadraticCurveTo(hx + 5, hy - 12, hx + 1, hy - 17); g.quadraticCurveTo(hx + 7, hy - 9, hx + 4, hy - 1); g.fill(); }
+  if (L.eyes) { disc(g, hx + 2, hy - 1.5, 1.1, L.eyes); glowDot(g, hx + 2, hy - 1.5, 4, L.eyes); }
+  legs(1, dk);
+}
+// Made: hinten flach am Boden, vorn aufgerichtet, auf langen dünnen Beinen; queen: dicker Hinterleib mit Stacheln
+function maggotRig(g, L, st) {
+  const c = L.col, b = L.band || shade(c, -0.2), lg = L.legs || shade(c, -0.35), q = L.queen ? 1.3 : 1, mv = st.moving ? Math.sin(st.walk * 0.25) : 0;
+  const up = 0.22 + (st.atk > 0 ? Math.sin(Math.PI * (1 - st.atk)) * (st.cast ? 0.4 : 0.25) : Math.sin(st.t * 2) * 0.04), seg = [];
+  let x = -28 * q, y = -5 * q, an = 0;
+  for (let i = 0; i < 8; i++) {
+    const r = (i < 3 ? [5, 7, 8.5][i] * (L.queen ? 1.35 : 1) : 7.5 - (i - 3) * 0.7) * q;
+    seg.push([x, i < 3 ? -r : y, r]);
+    if (i >= 3) an -= up * [1.1, 1, 0.7, 0.4, 0.2][i - 3];
+    x += Math.cos(an) * 6.5 * q; y = (i < 3 ? -7 * q : y) + Math.sin(an) * 6.5 * q;
+  }
+  const leg = (i, s, col) => { const [sx, sy] = seg[i], w = mv * (s > 0 ? 1 : -1) * 3; limbO(g, sx, sy + 2, sx + 3 + w * 0.5, sy - 9 * q, 1.2 * q, col); limbO(g, sx + 3 + w * 0.5, sy - 9 * q, sx + 6 + w + (i - 2) * 4, -0.5, 0.9 * q, col); };
+  for (const i of [0, 1, 2]) leg(i, -1, shade(lg, -0.2));
+  seg.forEach(([sx, sy, r], i) => { shell(g, sx, sy + (i < 3 ? Math.sin(st.t * 3 + i) * 0.4 : 0), r * 1.1, r, 0, i < 3 ? c : shade(c, 0.04)); g.strokeStyle = b; g.lineWidth = 1.4; g.beginPath(); g.ellipse(sx + r * 0.5, sy, r * 0.3, r * 0.9, 0, -1.5, 1.5); g.stroke(); });
+  if (L.queen) { g.fillStyle = lg; for (const [sx, sy, r] of seg.slice(0, 3)) { g.beginPath(); g.moveTo(sx - 2, sy - r * 0.8); g.lineTo(sx - 4, sy - r - 6); g.lineTo(sx + 2, sy - r * 0.85); g.fill(); } }
+  const [hx, hy] = seg[7], m = st.atk > 0 ? 2.5 : 0.8;
+  disc(g, hx + 4 * q, hy - 1, 5 * q, shade(c, -0.12)); g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 0.9; g.stroke();
+  g.fillStyle = lg; for (const s of [-1, 1]) { g.beginPath(); g.moveTo(hx + 7 * q, hy + s); g.quadraticCurveTo(hx + 13 * q, hy + s * (2 + m), hx + 10 * q, hy + 4 * s + s * m); g.lineTo(hx + 7 * q, hy + 2 * s); g.fill(); }
+  if (L.eyes) { disc(g, hx + 6 * q, hy - 3, 1.1, L.eyes); glowDot(g, hx + 6 * q, hy - 3, 4, L.eyes); }
+  for (const i of [0, 1, 2]) leg(i, 1, lg);
+}
+// Geier und Greifvogel: am Boden mit halb offenen Flügeln (Geier), im Flug und der Greifvogel immer mit Flügelschlag
+function avianRig(g, L, st) {
+  const R = L.rig === 'raptor', c = L.col, sk = L.skin || shade(c, 0.25), fly = R || st.moving, a = st.atk > 0 ? Math.sin(Math.PI * (1 - st.atk)) : 0;
+  const by = R ? -15 : -17, bw = R ? 9 : 12, fl = fly ? Math.sin(st.t * (R ? 16 : 8)) : 0;
+  const wing = (k, col) => {
+    const tx = -bw * 1.3 * k, ty = fly ? by - 2 - fl * 16 * k : by + 3 - a * 12 - 2 * k;
+    g.fillStyle = col; g.beginPath(); g.moveTo(4, by - 3); g.quadraticCurveTo(-1, ty - 8, tx, ty);
+    if (!R) for (let i = 1; i <= 3; i++) g.lineTo(tx + i * 3, ty + (i % 2 ? 4 : 1)); // gefingerte Schwungfedern
+    g.quadraticCurveTo(-4, by + 3, -bw * 0.5, by + 2); g.closePath(); g.fill(); g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 0.8; g.stroke();
+  };
+  wing(0.8, shade(c, -0.18));
+  if (!fly) for (const x of [-1, 3]) limbO(g, x, by + 4, x + 1, 0, 1.8, L.legs || '#a89878');
+  g.fillStyle = shade(c, -0.1); g.beginPath(); g.moveTo(-bw * 0.6, by - 1); g.lineTo(-bw * (R ? 1.9 : 1.5), by + (fly ? 1 : 6)); g.lineTo(-bw * (R ? 1.7 : 1.3), by + (fly ? 5 : 9)); g.closePath(); g.fill();
+  shell(g, 0, by, bw, R ? 4.5 : 6.5, fly ? 0.05 : -0.3, c);
+  if (L.bones) { g.strokeStyle = L.bones; g.lineWidth = 1.1; for (const x of [-4, 0, 4]) { g.beginPath(); g.ellipse(x, by, 1.8, 5, 0, -1.3, 1.6); g.stroke(); } }
+  const hx = bw * 0.9 + (R ? 4 : 5) + a * 5, hy = by - (R ? 4 : 10) + a * 7;
+  if (!R) { limbO(g, bw * 0.6, by - 3, hx - 1, hy + 1, 2.8, sk); disc(g, bw * 0.55, by - 3, 3.5, shade(c, -0.15)); }
+  disc(g, hx, hy, R ? 3.2 : 3.4, R ? c : sk);
+  if (L.crest) { g.fillStyle = L.crest; g.beginPath(); g.moveTo(hx - 1, hy - 2); g.lineTo(hx - 7, hy - 5); g.lineTo(hx - 2, hy); g.fill(); }
+  g.fillStyle = L.beak || '#c8b070'; g.beginPath(); g.moveTo(hx + 2, hy - 1.5); g.quadraticCurveTo(hx + 8, hy - 1, hx + 6, hy + 2.5); g.lineTo(hx + 2, hy + 1); g.fill();
+  if (L.eyes) { disc(g, hx + 1, hy - 1, 0.9, L.eyes); glowDot(g, hx + 1, hy - 1, 3.5, L.eyes); }
+  wing(1, c);
+}
+// Nest aus Zweigen und Knochen mit Eiern in der Mulde; beim Ausbrüten bebt es
+function nestRig(g, L, st) {
+  const c = L.col, k = st.atk > 0 ? Math.sin(st.t * 40) * 0.8 : 0;
+  g.fillStyle = shade(c, -0.3); g.beginPath(); g.ellipse(0, -2, 22, 10, 0, Math.PI, 0); g.fill();
+  for (let i = 0; i < 18; i++) { const x = -20 + i * 2.4, y = -6 - Math.sin(i * 1.7) * 3 - (1 - Math.abs(x) / 22) * 5; limb(g, x - 5, y + 2 + k, x + 6, y - 3 + Math.cos(i * 2.3) * 3 + k, i % 5 ? 1.6 : 2.2, i % 5 ? shade(c, (i % 3) * 0.06 - 0.06) : L.bone || '#d8ceb4'); }
+  for (const [x, y] of [[-4, -13], [2, -14], [7, -12.5]]) { disc(g, x, y + k, 3.2, L.egg || '#d0c8b0'); disc(g, x - 1, y - 1 + k, 1, 'rgba(255,255,255,.5)'); }
+  disc(g, 14, -8, 2.6, L.bone || '#d8ceb4'); disc(g, 15, -8.5, 0.7, '#201810');
+}
+// Gelege: glänzende Eier in einer Schleimlache, die pulsieren
+function eggRig(g, L, st) {
+  g.fillStyle = 'rgba(90,70,30,.45)'; g.beginPath(); g.ellipse(0, -1, 13, 4, 0, 0, 7); g.fill();
+  [[-6, 0.8], [6, 0.75], [0, 1]].forEach(([x, s], i) => { const k = 1 + Math.sin(st.t * 3 + i * 1.3) * 0.06; shell(g, x, -6 * s * k, 4.6 * s * k, 6 * s / k, 0, L.col); if (L.vein) { g.strokeStyle = L.vein; g.lineWidth = 0.7; g.beginPath(); g.moveTo(x - 2 * s, -9 * s); g.quadraticCurveTo(x + s, -6 * s, x - s, -2 * s); g.stroke(); } });
+}
+// Schwarm: Wolke aus Insekten, ohne Figur direkt ins Bild gezeichnet; im Angriff zieht sie sich nach vorn zusammen
+function swarmRig(g, x, y, L, st) {
+  const n = L.n || 24, h = st.h, t = st.t, w = h * 0.34, cy = y - h * 0.32, lead = st.atk > 0 ? st.atk * h * 0.18 * st.fx : 0, k = clamp(h / 70, 1, 4);
+  g.save(); g.globalAlpha *= st.alpha ?? 1;
+  const hz = g.createRadialGradient(x + lead, cy, 0, x + lead, cy, w * 1.25); hz.addColorStop(0, 'rgba(18,14,8,.55)'); hz.addColorStop(0.6, 'rgba(18,14,8,.3)'); hz.addColorStop(1, 'rgba(18,14,8,0)');
+  g.fillStyle = hz; g.beginPath(); g.ellipse(x + lead, cy, w * 1.25, w * 0.85, 0, 0, 7); g.fill();
+  const pos = i => { const a = t * (2.2 + (i % 5) * 0.45) + i * 2.39, r = w * (0.2 + ((i * 37) % 11) / 13) * (st.atk > 0 ? 0.75 : 1); return [x + lead + Math.cos(a) * r, cy + Math.sin(a * 1.31) * r * 0.6 + Math.sin(t * 7 + i) * 2 * k]; };
+  g.fillStyle = st.flash ? '#fff0c0' : L.col; g.beginPath();
+  for (let i = 0; i < n; i++) { const [px, py] = pos(i); g.moveTo(px + 1.7 * k, py); g.ellipse(px, py, 1.7 * k, 1.1 * k, Math.sin(i) * 0.6, 0, 7); }
+  g.fill();
+  g.fillStyle = L.wing || 'rgba(255,255,255,.5)'; g.beginPath(); // schwirrende Flügel
+  for (let i = 0; i < n; i++) { const [px, py] = pos(i), f = Math.sin(t * 40 + i) * 1.3 * k; g.moveTo(px + 1.2 * k, py - 1.4 * k - f); g.ellipse(px, py - 1.4 * k - f, 1.2 * k, 0.7 * k, 0, 0, 7); }
+  g.fill(); g.restore();
+}
+
 function wisp(g, L, st) {
   const y = -30 + Math.sin(st.t * 4) * 3;
   glowDot(g, 0, y, 20, L.col); disc(g, 0, y, 5, '#ffffff'); glowDot(g, 0, y, 9, L.col);
@@ -633,7 +730,7 @@ const seeded = h => { let s = h >>> 0 || 1; return () => (s = (Math.imul(s, 1103
 function drawProp(g, pr, sx, sy, t, hov) {
   g.save(); g.translate(sx, sy); g.lineCap = 'round';
   if (hov) g.filter = 'brightness(1.6)';
-  if (pr.k !== 'trunk') { g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(2, 1, pr.k === 'shrine' ? 18 : 13, 6, 0, 0, 7); g.fill(); }
+  if (pr.k !== 'trunk' && pr.k !== 'wp' && pr.k !== 'guard') { g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(2, 1, pr.k.startsWith('shrine') || pr.k === 'well' ? 18 : 13, 6, 0, 0, 7); g.fill(); } // Wegpunkt und Toter Wächter liegen flach
   const cyl = (col, w) => { const lg = g.createLinearGradient(-w, 0, w, 0); lg.addColorStop(0, shade(col, -0.2)); lg.addColorStop(0.35, shade(col, 0.08)); lg.addColorStop(1, shade(col, -0.32)); return lg; };
   const r = seeded(pr.seed * 1000);
   if (pr.k === 'barrel') {
@@ -711,6 +808,74 @@ function drawProp(g, pr, sx, sy, t, hov) {
     g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 1; g.strokeRect(-10, -9, 19, 9); limb(g, -3, -12, 3, -12, 2, '#5a5a5a');
     g.fillStyle = '#d01818'; g.fillRect(-2, -8, 3, 7); g.fillRect(-4.5, -6, 8, 3);
     if (!pr.open) glowDot(g, 0, -10, 12 + 3 * Math.sin(t * 3), 'rgba(255,90,90,.45)');
+  } else if (pr.k === 'coffer') {
+    // Ferne Oase (oase-objekte.js), Vorbild D2-Wüste: Truhe aus ausgebleichtem Holz mit Messingbändern, am Fuß vom Sand verweht
+    g.fillStyle = '#4e3a24'; g.beginPath(); g.moveTo(14, 0); g.lineTo(20, -5); g.lineTo(20, -18); g.lineTo(14, -13); g.fill();
+    g.fillStyle = cyl('#9a7a4c', 15); g.fillRect(-15, -13, 29, 13); g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 1; g.strokeRect(-15, -13, 29, 13);
+    for (const y of [-9, -5]) limb(g, -15, y, 14, y, 0.8, 'rgba(60,40,20,.45)');
+    for (const x of [-11, 10]) limb(g, x, -13, x, 0, 2.4, '#b8903a');
+    if (pr.open) {
+      glowDot(g, 2, -16, 18, '#a07820');
+      g.fillStyle = '#1e140a'; g.beginPath(); g.moveTo(-15, -13); g.lineTo(14, -13); g.lineTo(20, -18); g.lineTo(-9, -18); g.fill();
+      g.fillStyle = '#6e5434'; g.beginPath(); g.moveTo(-9, -18); g.lineTo(20, -18); g.lineTo(18, -35); g.lineTo(-11, -35); g.closePath(); g.fill(); g.strokeStyle = 'rgba(0,0,0,.6)'; g.stroke();
+      for (const x of [-5, 13]) limb(g, x, -18, x - 1.5, -35, 2.2, '#9a7a32');
+    } else {
+      g.fillStyle = '#aa885a'; g.beginPath(); g.moveTo(-15, -13); g.quadraticCurveTo(-13, -24, -9, -23); g.lineTo(20, -23); g.quadraticCurveTo(21.5, -20, 20, -18); g.lineTo(14, -13); g.closePath(); g.fill(); g.strokeStyle = 'rgba(0,0,0,.6)'; g.stroke();
+      g.strokeStyle = '#b8903a'; g.lineWidth = 2.4; for (const x of [-11, 10]) { g.beginPath(); g.moveTo(x, -13); g.quadraticCurveTo(x + 1, -22.5, x + 5, -23); g.stroke(); }
+      g.fillStyle = '#e0c060'; g.fillRect(-2.5, -15, 5, 5.5); disc(g, 0, -12.6, 1, '#3a2a10');
+    }
+    g.fillStyle = 'rgba(214,190,136,.9)'; g.beginPath(); g.ellipse(-5, -0.5, 13, 2.6, 0, 0, 7); g.fill();
+  } else if (pr.k === 'jar') {
+    // Krug aus Akt 2: hoher Tonkrug mit schmalem Hals, zwei Henkeln und dunklen Bändern, jeder etwas anders hoch
+    const h = 30 + r() * 8;
+    if (pr.open) for (let i = 0; i < 7; i++) { const a = r() * 6.283, d = 4 + r() * 11; g.fillStyle = i % 2 ? '#9a6238' : '#c48a58'; g.beginPath(); g.moveTo(Math.cos(a) * d, Math.sin(a) * d * 0.5); g.lineTo(Math.cos(a) * d + 4, Math.sin(a) * d * 0.5 - 2.5); g.lineTo(Math.cos(a) * d + 1, Math.sin(a) * d * 0.5 + 2); g.fill(); }
+    else {
+      g.beginPath(); g.moveTo(-4, -h); g.lineTo(-4.5, -h + 5); g.bezierCurveTo(-14, -h + 8, -12, -5, -6, 0); g.lineTo(6, 0); g.bezierCurveTo(12, -5, 14, -h + 8, 4.5, -h + 5); g.lineTo(4, -h); g.closePath();
+      g.fillStyle = cyl('#c48a58', 12); g.fill(); g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 1; g.stroke();
+      g.strokeStyle = 'rgba(96,46,20,.6)'; g.lineWidth = 1.6; for (const k of [0.62, 0.4]) { g.beginPath(); g.ellipse(0, -h * k, 10.8, 2.3, 0, 0, Math.PI); g.stroke(); }
+      g.strokeStyle = '#9a6438'; g.lineWidth = 2; for (const s of [-1, 1]) { g.beginPath(); g.moveTo(s * 4.5, -h + 4); g.quadraticCurveTo(s * 11, -h + 3, s * 9.5, -h + 10); g.stroke(); }
+      g.fillStyle = '#d8a070'; g.beginPath(); g.ellipse(0, -h, 5.4, 1.9, 0, 0, 7); g.fill(); g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 1; g.stroke();
+      g.fillStyle = '#3a2010'; g.beginPath(); g.ellipse(0, -h, 3.4, 1.1, 0, 0, 7); g.fill();
+    }
+  } else if (pr.k === 'guard') {
+    // Toter Wächter wie in D2: ein Gefallener in Tunika und Brustpanzer im Sand, daneben Speer und Rundschild; durchsucht wird er fahl
+    const c = col => pr.open ? mix(col, '#6a6052', 0.5) : col;
+    g.scale(1.3, 1.3); g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(1, 1, 22, 6, -0.12, 0, 7); g.fill();
+    if (!pr.open) { g.fillStyle = 'rgba(110,14,8,.55)'; g.beginPath(); g.ellipse(4, 2, 12, 4, 0.25, 0, 7); g.fill(); }
+    limb(g, -24, 3, 22, -9, 1.8, c('#6a4a2a')); g.fillStyle = c('#b4b4bc'); g.beginPath(); g.moveTo(26, -10); g.lineTo(19, -11); g.lineTo(21, -6.5); g.fill(); // Speer
+    limb(g, -17, 0, -6, -3, 4.2, c('#5a4632')); limb(g, -15, 4, -5, 1, 4.2, c('#4a3a2a')); disc(g, -18, 0.5, 2.6, c('#3a2a1a')); disc(g, -16, 4.5, 2.6, c('#3a2a1a'));
+    g.fillStyle = c('#8a3a22'); g.beginPath(); g.ellipse(1, -1.5, 9.5, 5.2, -0.2, 0, 7); g.fill(); // Tunika
+    g.fillStyle = c('#b08a40'); g.beginPath(); g.ellipse(2.5, -2.5, 6, 3.6, -0.2, 0, 7); g.fill(); g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 0.8; g.stroke();
+    limb(g, 2, -6, 9, -10, 2.6, c('#c09070')); limb(g, 4, 2, 12, 4, 2.6, c('#c09070'));
+    disc(g, 12, -5, 3.8, c('#c09070')); g.fillStyle = c('#8a8478'); g.beginPath(); g.arc(12.5, -5.5, 4.2, Math.PI * 0.9, Math.PI * 1.9); g.fill(); // Kopf mit Helm
+    g.fillStyle = c('#6a4a2a'); g.beginPath(); g.ellipse(-6, 8, 6.5, 3, 0, 0, 7); g.fill(); disc(g, -6, 7.6, 1.8, c('#c8a040')); // Rundschild
+  } else if (pr.k === 'well') {
+    // Brunnen der Oase: Steinring aus Sandstein mit grünem Wasser, Holzgestell mit Eimer; benutzt liegt das Wasser dunkel und still
+    const w = 15;
+    g.fillStyle = cyl('#a89270', w); g.beginPath(); g.moveTo(-w, -12); g.lineTo(-w, 0); g.ellipse(0, 0, w, 6, 0, Math.PI, 0, true); g.lineTo(w, -12); g.closePath(); g.fill(); g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = 1; g.stroke();
+    g.strokeStyle = 'rgba(70,54,34,.55)'; g.beginPath(); g.ellipse(0, -6, w, 5.6, 0, 0, Math.PI); g.stroke();
+    for (let i = 0; i < 6; i++) { const a = 0.3 + i * 0.5, x = -Math.cos(a) * w, y = Math.sin(a) * 6 - (i % 2 ? 0 : 6); limb(g, x, y - 6, x, y, 1, 'rgba(70,54,34,.55)'); }
+    g.fillStyle = '#c8b48a'; g.beginPath(); g.ellipse(0, -12, w, 6, 0, 0, 7); g.fill(); g.strokeStyle = 'rgba(0,0,0,.5)'; g.stroke();
+    g.fillStyle = pr.open ? '#18241e' : '#2e6e5a'; g.beginPath(); g.ellipse(0, -12, w - 3.5, 4, 0, 0, 7); g.fill();
+    if (!pr.open) { const k = (t * 0.7 + pr.seed) % 1; g.strokeStyle = `rgba(190,255,235,${0.5 * (1 - k)})`; g.beginPath(); g.ellipse(1, -12, 2 + k * 8, 0.8 + k * 2.6, 0, 0, 7); g.stroke(); }
+    for (const s of [-1, 1]) limb(g, s * 12.5, -13, s * 12.5, -42, 3, '#6a4a2a');
+    limb(g, -15, -40, 15, -40, 3.2, '#7a5a34'); limb(g, 3, -40, 3, -27, 0.8, '#d8c8a0');
+    g.fillStyle = '#5a3c20'; g.beginPath(); g.moveTo(-0.5, -28); g.lineTo(6.5, -28); g.lineTo(5.6, -21); g.lineTo(0.4, -21); g.closePath(); g.fill(); limb(g, -0.3, -26, 6.3, -26, 1, '#2a2a2c');
+  } else if (pr.k.startsWith('shrine_')) {
+    // Schreine der Wüste: Stele aus Sandstein auf einem Sockel, das Zeichen leuchtet in der Farbe der Wirkung, bis der Held es berührt
+    const [col, sym] = { shrine_combat: ['#ff5a2a', 'sword'], shrine_armor: ['#8ac8ff', 'shield'], shrine_exp: ['#ffd040', 'star'] }[pr.k];
+    g.scale(1.1, 1.1); g.fillStyle = '#8a7656'; g.beginPath(); g.ellipse(0, -2, 15, 6, 0, 0, 7); g.fill(); g.fillStyle = '#a8946e'; g.beginPath(); g.ellipse(0, -4, 12.5, 4.8, 0, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(-8, -4); g.lineTo(-6.5, -34); g.lineTo(0, -41); g.lineTo(6.5, -34); g.lineTo(8, -4); g.closePath();
+    g.fillStyle = cyl('#c4ac7c', 8); g.fill(); g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = 1; g.stroke();
+    g.strokeStyle = 'rgba(80,58,34,.6)'; g.strokeRect(-4.5, -29, 9, 17); limb(g, -5.5, -33, 5.5, -33, 1, 'rgba(80,58,34,.6)');
+    if (!pr.open) glowDot(g, 0, -20.5, 15 + 5 * Math.sin(t * 3 + pr.seed), col);
+    glyphAt(g, sym, 0, -20.5, 0.34, pr.open ? '#5e4c34' : col);
+  } else if (pr.k === 'wp') {
+    // Wegpunkt: die Steinplatte liegt flach in der Bodenschicht (oase-objekte.js), hier das blaue Licht darüber, sobald er freigeschaltet ist
+    if (pr.on) {
+      glowDot(g, 0, -10, 46 + 5 * Math.sin(t * 2.2), 'rgba(60,140,255,.5)');
+      for (let i = 0; i < 7; i++) { const f = (t * 0.5 + i / 7) % 1, a = i * 0.9 + t * 0.7; glowDot(g, Math.cos(a) * 45 * (1 - 0.6 * f), Math.sin(a) * 23 * (1 - 0.6 * f) - f * 60, 8 * (1 - f) + 2, '#a8dcff'); }
+    }
   }
   g.restore();
 }

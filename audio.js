@@ -19,6 +19,14 @@ const SFX = (() => {
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur);
   }
+  // Schwirren eines Insekts: Sägezahn mit schnellem Flügelschlag (rate Hz), schwillt an und ab
+  function whirr(dur, f, vol, rate, delay = 0) {
+    const t = ac.currentTime + delay, o = ac.createOscillator(), am = ac.createGain(), m = ac.createOscillator(), mg = ac.createGain(), g = ac.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * (0.9 + Math.random() * 0.2), t + dur);
+    m.frequency.value = rate; mg.gain.value = 0.5; am.gain.value = 0.5; m.connect(mg); mg.connect(am.gain);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + dur * 0.3); g.gain.linearRampToValueAtTime(0, t + dur);
+    o.connect(am); am.connect(g); g.connect(out); o.start(t); m.start(t); o.stop(t + dur); m.stop(t + dur);
+  }
 
   const SOUNDS = {
     phys: () => noise(0.18, 600, 0.8, 0.3, 'bandpass', 2400),
@@ -54,6 +62,35 @@ const SFX = (() => {
     shot: () => { noise(0.14, 3200, 0.6, 0.7, 'highpass', 700); tone(0.09, 230, 55, 0.4, 'square'); },
     boss: () => { tone(1.7, 82, 44, 0.34, 'sawtooth'); tone(1.7, 123, 58, 0.2, 'square', 0.05); noise(1.5, 420, 0.7, 0.36, 'lowpass', 110); },
     flare: () => noise(0.9, 5200, 0.8, 0.22, 'highpass', 2800),
+    // Ferne Oase: Summen der Stichlinge und Heuschrecken (k: Größe des Schwarms, 0–1), Schreie der Aasfresser und Greifer,
+    // Graben und Schmatzen der Sandwürmer, Knistern der Combo-Blitze, Schlüpfen aus dem Ei
+    buzz: (k = 0.5) => {
+      for (let i = 0; i < 2 + Math.round(k * 3); i++) whirr(0.7, 170 + Math.random() * 150, 0.035 + 0.03 * k, 35 + Math.random() * 30, Math.random() * 0.15);
+      noise(0.6, 2400, 2.5, 0.04 + 0.05 * k, 'bandpass', 1800);
+    },
+    screech: () => { tone(0.5, 1500, 880, 0.1, 'sawtooth'); tone(0.42, 2250, 1250, 0.05, 'square', 0.03); noise(0.4, 3000, 3, 0.16, 'bandpass', 1600); },
+    burrow: () => { for (let i = 0; i < 4; i++) noise(0.22, 380 + Math.random() * 260, 0.9, 0.28, 'lowpass', 120, i * 0.13); tone(0.7, 62, 38, 0.18, 'sine'); noise(0.1, 900, 5, 0.18, 'bandpass', 260, 0.55); },
+    zap: () => {
+      noise(0.14, 4200, 0.8, 0.3, 'highpass', 1500); tone(0.12, 1900, 240, 0.08, 'square');
+      for (let i = 0; i < 4; i++) noise(0.025, 5200 + Math.random() * 2500, 2, 0.22, 'bandpass', 0, 0.03 + i * 0.035 + Math.random() * 0.02);
+    },
+    hatch: () => { for (let i = 0; i < 3; i++) noise(0.05, 2200 + i * 500, 3, 0.3, 'bandpass', 0, i * 0.07); noise(0.3, 700, 2, 0.24, 'bandpass', 240, 0.2); tone(0.22, 420, 760, 0.07, 'triangle', 0.3); },
+    // leiser Wüstenwind: eine Böe aus gefiltertem Rauschen, oase-objekte.js spielt sie alle paar Sekunden (k: Stärke, 0–1)
+    wind: (k = 1) => {
+      const t = ac.currentTime, d = 6, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+      s.buffer = noiseBuf; s.loop = true; f.type = 'bandpass'; f.Q.value = 0.7;
+      f.frequency.setValueAtTime(260, t); f.frequency.linearRampToValueAtTime(500 + Math.random() * 300, t + d * 0.5); f.frequency.linearRampToValueAtTime(300, t + d);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.07 * k, t + d * 0.45); g.gain.linearRampToValueAtTime(0, t + d);
+      s.connect(f); f.connect(g); g.connect(out); s.start(t, Math.random()); s.stop(t + d);
+    },
+    // Brunnen: Plätschern und Blasen, dann ein heller Klang; Schrein der Wüste (boost); Wegpunkt: aufsteigendes Rauschen mit Glocken
+    well: () => {
+      noise(0.5, 1400, 0.8, 0.22, 'lowpass', 300);
+      for (let i = 0; i < 5; i++) { const f = 280 + Math.random() * 360; tone(0.12, f, f * 2.2, 0.08, 'sine', 0.05 + i * 0.08 + Math.random() * 0.03); }
+      [523, 784].forEach((f, i) => tone(0.9, f, f, 0.05, 'sine', 0.35 + i * 0.1));
+    },
+    boost: () => { tone(1.2, 220, 440, 0.1, 'triangle'); noise(1.1, 900, 1.5, 0.14, 'bandpass', 3200); [587, 740, 880, 1175].forEach((f, i) => tone(1.2, f, f * 1.005, 0.06, 'sine', 0.15 + i * 0.07)); },
+    wp: () => { tone(1.1, 160, 640, 0.13, 'sine'); tone(1.1, 240, 960, 0.06, 'triangle', 0.04); noise(1, 700, 2.5, 0.16, 'bandpass', 2800); [1318, 988, 784].forEach((f, i) => tone(0.6, f, f, 0.045, 'sine', 0.55 + i * 0.08)); },
   };
 
   // Musik: dunkler Bordun und vereinzelte Zupftöne mit Echo
